@@ -285,7 +285,7 @@ public final class CFMLCompilerImpl implements CFMLCompiler {
 			}
 			
 			if(we.length!=we.ps.getPhyscalFile().length() 
-					&& we.ps.getPhyscalFile().length()>0) { // TODO this is set to avoid that removed files are removed from pool, remove this line if a UDF still wprks fine when the page is gone
+					&& we.ps.getPhyscalFile().length()>0) { // TODO this is set to avoid that removed files are removed from pool, remove this line if a UDF still wprks fine when the page is gone id:35 gh:34 ic:gh
 				((PageSourceImpl)we.ps).flush();
 			}
 		}

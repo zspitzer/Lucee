@@ -76,7 +76,7 @@ public final class HTTPConnectionData {
 		password="";
 		host=null;
 		port=-1;
-		// TODO impl proxy
+		// TODO impl proxy id:27 gh:30 ic:gh
 		
 		int atIndex=path.indexOf('@');
 		int slashIndex=path.indexOf('/');

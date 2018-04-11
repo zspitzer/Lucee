@@ -261,7 +261,7 @@ public class UDFImpl extends MemberSupport implements UDFPlus,Externalizable {
 				return entry.returnValue;
 			}
 		}
-		else if (cacheHandler != null){		// TODO this else block can be removed when all cache handlers implement CacheHandlerPro
+		else if (cacheHandler != null){		// TODO this else block can be removed when all cache handlers implement CacheHandlerPro id:437 gh:448 ic:gh
 			CacheItem cacheItem = cacheHandler.get(pc, cacheId);
 			if (cacheItem instanceof UDFCacheItem ) {
 				UDFCacheItem entry = (UDFCacheItem)cacheItem;

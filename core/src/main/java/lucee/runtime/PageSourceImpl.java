@@ -683,7 +683,7 @@ public final class PageSourceImpl implements PageSource {
 			
 			str=res.getAbsolutePath();
 			int begin=str.length()-relPath.length();
-			if(begin<0) { // TODO patch, analyze the complete functinality and improve
+			if(begin<0) { // TODO patch, analyze the complete functinality and improve id:17 gh:20 ic:gh
 				str=ListUtil.last(str, "\\/");
 			}
 			else {

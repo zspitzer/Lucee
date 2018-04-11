@@ -281,7 +281,7 @@ public final class TagLibFactory extends DefaultHandler {
     		}
     		// Tag Args
     		else	{
-    		    // TODO TEI-class
+    		    // TODO TEI-class id:474 gh:487 ic:gh
     			// Name
     			if(inside.equals("name"))				{tag.setName(value);}
 				// TAG - Class
@@ -590,7 +590,7 @@ public final class TagLibFactory extends DefaultHandler {
 		Iterator it = extTL.getTags().entrySet().iterator();
 		TagLibTag tlt;
 		while(it.hasNext()){
-			tlt= (TagLibTag) ((Map.Entry)it.next()).getValue(); // TODO function must be duplicated because it gets a new FunctionLib assigned
+			tlt= (TagLibTag) ((Map.Entry)it.next()).getValue(); // TODO function must be duplicated because it gets a new FunctionLib assigned id:482 gh:494 ic:gh
 			newTL.setTag(tlt);
 		}
 	}

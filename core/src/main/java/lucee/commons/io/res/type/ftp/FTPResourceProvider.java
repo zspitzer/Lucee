@@ -36,7 +36,7 @@ import lucee.commons.lang.StringUtil;
 import lucee.runtime.net.proxy.Proxy;
 import lucee.runtime.op.Caster;
 
-// TODO check connection timeout
+// TODO check connection timeout id:10 gh:13 ic:gh
 public final class FTPResourceProvider implements ResourceProviderPro {
 	private String scheme="ftp";
 	private final Map clients=new HashMap();

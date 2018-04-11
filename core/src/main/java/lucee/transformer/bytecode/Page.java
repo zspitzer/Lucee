@@ -1172,7 +1172,7 @@ public final class Page extends BodyBase implements Root {
 		
 		adapter.loadArg(0);
 		adapter.loadLocal(localBC);
-		adapter.invokeStatic(Types.BODY_CONTENT_UTIL, FLUSH_AND_POP);// TODO why does the body constuctor call clear and it works?
+		adapter.invokeStatic(Types.BODY_CONTENT_UTIL, FLUSH_AND_POP);// TODO why does the body constuctor call clear and it works? id:445 gh:455 ic:gh
 	
     	adapter.returnValue();
 	    adapter.visitLabel(methodEnd);

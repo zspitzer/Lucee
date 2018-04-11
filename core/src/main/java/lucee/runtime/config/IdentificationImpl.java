@@ -95,7 +95,7 @@ public abstract class IdentificationImpl implements Identification,Serializable 
 		
 		if(qs.length()>0)qs.append('&');
 		else qs.append('?');
-		qs.append(name).append('=').append(value); // TODO encoding
+		qs.append(name).append('=').append(value); // TODO encoding id:76 gh:80 ic:gh
 	}
 
 }

@@ -42,8 +42,8 @@ public final class ThreadLocalPageContext {
 	 * @param pc PageContext to register
 	 */
 	public static void register(PageContext pc) {//print.ds(Thread.currentThread().getName());
-		if(pc==null) return; // TODO happens with Gateway, but should not!
-		// TODO should i set the old one by "release"?
+		if(pc==null) return; // TODO happens with Gateway, but should not! id:95 gh:99 ic:gh
+		// TODO should i set the old one by "release"? id:118 gh:121 ic:gh
 		Thread t = Thread.currentThread();
 		t.setContextClassLoader(((ConfigImpl)pc.getConfig()).getClassLoaderEnv());
 		((PageContextImpl)pc).setThread(t);

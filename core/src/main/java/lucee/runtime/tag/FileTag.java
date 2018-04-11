@@ -622,7 +622,7 @@ public final class FileTag extends BodyTagImpl {
 					return;
 				}
 			}
-			else if (cacheHandler != null){		// TODO this else block can be removed when all cache handlers implement CacheHandlerPro
+			else if (cacheHandler != null){		// TODO this else block can be removed when all cache handlers implement CacheHandlerPro id:309 gh:319 ic:gh
 
 				CacheItem cacheItem = cacheHandler.get(pageContext, cacheId);
 
@@ -751,7 +751,7 @@ public final class FileTag extends BodyTagImpl {
 	}
 
     private String doFixNewLine(String content) {
-		// TODO replace new line with system new line
+		// TODO replace new line with system new line id:242 gh:258 ic:gh
 		return content;
 	}
 

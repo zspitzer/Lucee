@@ -214,7 +214,7 @@ public class SFTPClientImpl extends AFTPClient {
 	@Override
 	public boolean storeFile(String remote, InputStream local) throws IOException {
 		try {
-			this.channelSftp.put(local, remote); // TODO add progress monitor?
+			this.channelSftp.put(local, remote); // TODO add progress monitor? id:189 gh:192 ic:gh
 			handleSucess();
 			return true;
 		}

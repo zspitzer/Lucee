@@ -858,7 +858,7 @@ public final class Reflector {
 	
 	private static void checkAccessibility(Object objMaybeNull,Class clazz, Key methodName) {
 		// do not allow java.lang.System.exit()
-		if(methodName.equals(EXIT) && (clazz==System.class || clazz==Runtime.class)) { // TODO better implementation
+		if(methodName.equals(EXIT) && (clazz==System.class || clazz==Runtime.class)) { // TODO better implementation id:271 gh:281 ic:gh
 			throw new PageRuntimeException(new SecurityException("Calling the exit method is not allowed"));
         }
 		// change the accessibility of Lucee methods is not allowed

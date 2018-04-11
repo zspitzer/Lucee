@@ -526,7 +526,7 @@ public class BundleBuilderFactory {
 				log("before:"+naee.getFile());
 				log("curren:"+zipFile);
 				log("size:"+naee.getSize()+"=="+entry.getSize());
-				return; // TODO throw naee;
+				return; // TODO throw naee; id:270 gh:280 ic:gh
 			}
 			try {
 				copy(source,zos);

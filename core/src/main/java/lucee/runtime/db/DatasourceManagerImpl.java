@@ -104,7 +104,7 @@ public final class DatasourceManagerImpl implements DataSourceManager {
             	throw new DatabaseException("can't use different connections to the same datasource inside a single transaction.",null,null,existingDC);
 			}
             
-        	// make sure we have auto commit disabled TODO i dont think this is necessary anymore
+        	// make sure we have auto commit disabled TODO i dont think this is necessary anymore id:79 gh:82 ic:gh
         	if(existingDC.isAutoCommit()) {
         		existingDC.setAutoCommit(false);
             }

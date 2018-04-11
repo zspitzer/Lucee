@@ -44,7 +44,7 @@ public final class DirectoryExists extends BIF {
 		boolean allowRealPath =(oAllowRealPath==null)?pc.getConfig().allowRealPath() : Caster.toBooleanValue(oAllowRealPath);
 		if(allowRealPath) {
 			file=ResourceUtil.toResourceNotExisting(pc, path,allowRealPath,false);
-			// TODO das else braucht es eigentlich nicht mehr
+			// TODO das else braucht es eigentlich nicht mehr id:186 gh:189 ic:gh
 		}
 		else {
 			// ARP

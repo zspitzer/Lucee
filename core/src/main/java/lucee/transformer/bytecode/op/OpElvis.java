@@ -102,7 +102,7 @@ public final class OpElvis extends ExpressionBase {
     
     
     public Type _writeOutPureDataMember(BytecodeContext bc, int mode) throws TransformerException {
-    	// TODO use function isNull for this
+    	// TODO use function isNull for this id:446 gh:457 ic:gh
     	GeneratorAdapter adapter = bc.getAdapter();
     	
     	Label yes = new Label();

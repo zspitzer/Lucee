@@ -65,7 +65,7 @@ public final class VariableUtilImpl implements VariableUtil {
     @Override
 	public Object getCollection(PageContext pc, Object coll, String key, Object defaultValue) {
         if(coll instanceof Query) {
-        	// TODO sollte nicht null sein
+        	// TODO sollte nicht null sein id:369 gh:379 ic:gh
             return ((Query)coll).getColumn(key,null);
         }
         return get(pc,coll,key,defaultValue);
@@ -688,7 +688,7 @@ public final class VariableUtilImpl implements VariableUtil {
 			if(obj==null) throw new ExpressionException("can't remove index ["+key+"] from list");
 			return obj;
 		}
-		/*/ Native Array TODO this below
+		/*/ Native Array TODO this below id:389 gh:399 ic:gh
 		else if(Decision.isNativeArray(o)) {
 			try {
 				return ArrayUtil.set(o,Caster.toIntValue(key)-1,value);
@@ -696,7 +696,7 @@ public final class VariableUtilImpl implements VariableUtil {
 				return getDirectProperty(o, key, new ExpressionException("Key doesn't exist in Native Array"),false);
 			}
 		}*/
-		// TODO Support for Node
+		// TODO Support for Node id:414 gh:421 ic:gh
 		throw new ExpressionException("can't remove key ["+key+"] from Object of type ["+Caster.toTypeName(coll)+"]");
     }
     
@@ -719,7 +719,7 @@ public final class VariableUtilImpl implements VariableUtil {
 			if(obj==null) throw new ExpressionException("can't remove index ["+key+"] from list");
 			return obj;
 		}
-		/*/ Native Array TODO this below
+		/*/ Native Array TODO this below id:464 gh:474 ic:gh
 		else if(Decision.isNativeArray(o)) {
 			try {
 				return ArrayUtil.set(o,Caster.toIntValue(key)-1,value);
@@ -727,7 +727,7 @@ public final class VariableUtilImpl implements VariableUtil {
 				return getDirectProperty(o, key, new ExpressionException("Key doesn't exist in Native Array"),false);
 			}
 		}*/
-		// TODO Support for Node
+		// TODO Support for Node id:444 gh:454 ic:gh
 		throw new ExpressionException("can't remove key ["+key+"] from Object of type ["+Caster.toTypeName(coll)+"]");
     }
     

@@ -36,7 +36,7 @@ public class DocCommentTransformer {
 			if(str.endsWith("*/")) str=str.substring(0,str.length()-2);
 			ParserString ps=new ParserString(str);
 			transform(f,dc,ps);
-			dc.getHint();// TODO do different -> make sure internal structure is valid
+			dc.getHint();// TODO do different -> make sure internal structure is valid id:489 gh:499 ic:gh
 			return dc;
 		}
 		catch(Throwable t){

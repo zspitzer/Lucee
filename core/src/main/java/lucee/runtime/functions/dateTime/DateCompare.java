@@ -50,7 +50,7 @@ public final class DateCompare extends BIF {
 		Calendar cRight=JREDateTimeUtil.newInstance(tz,Locale.US);
 		cRight.setTime(right);
 		
-		// TODO WEEEK
+		// TODO WEEEK id:120 gh:123 ic:gh
 		
 		int type=0;
 		if(datepart.equals("s")) 		type=Calendar.SECOND;		

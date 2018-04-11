@@ -243,7 +243,7 @@ public class Log4jUtil {
 							Reflector.callSetter(obj, e.getKey(), e.getValue());
 						}
 						catch (PageException e1) {
-							SystemOut.printDate(e1); // TODO log
+							SystemOut.printDate(e1); // TODO log id:7 gh:10 ic:gh
 						}
 					}
 				}
@@ -342,7 +342,7 @@ public class Log4jUtil {
 							Reflector.callSetter(obj, e.getKey(), e.getValue());
 						}
 						catch (PageException e1) {
-							SystemOut.printDate(e1);// TODO log
+							SystemOut.printDate(e1);// TODO log id:24 gh:27 ic:gh
 						}
 					}
 					

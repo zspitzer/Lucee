@@ -234,7 +234,7 @@ public final class FunctionLib implements Lib {
 			cm.put(
 					entry.getKey(), 
 					deepCopy?
-							entry.getValue(): // TODO add support for deepcopy ((FunctionLibFunction)entry.getValue()).duplicate(deepCopy):
+							entry.getValue(): // TODO add support for deepcopy ((FunctionLibFunction)entry.getValue()).duplicate(deepCopy): id:481 gh:493 ic:gh
 							entry.getValue());
 		}
 		return cm;

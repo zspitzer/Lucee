@@ -155,7 +155,7 @@ public class TagUtil {
 				setter.invoke(tag);
 			} 
 			catch (Exception _e) {
-				if(!(value==null && _e instanceof IllegalArgumentException)) // TODO full null support should allow null, because of that i only suppress in case of an exception
+				if(!(value==null && _e instanceof IllegalArgumentException)) // TODO full null support should allow null, because of that i only suppress in case of an exception id:430 gh:440 ic:gh
 				throw Caster.toPageException(_e);
 			}
 		}
@@ -302,7 +302,7 @@ public class TagUtil {
 			ComponentSpecificAccess cw = ComponentSpecificAccess.toComponentSpecificAccess(Component.ACCESS_PRIVATE,c);
 			Struct meta = Caster.toStruct( cw.get(KeyConstants._metadata,null),null);
 
-			// TODO handle all metadata here and make checking at runtime useless
+			// TODO handle all metadata here and make checking at runtime useless id:331 gh:341 ic:gh
 			if(meta!=null) {
 				
 				// parse body

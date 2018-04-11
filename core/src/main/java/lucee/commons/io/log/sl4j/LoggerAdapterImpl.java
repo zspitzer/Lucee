@@ -173,7 +173,7 @@ public final class LoggerAdapterImpl extends MarkerIgnoringBase implements Locat
 	@Override
 	public void log(Marker arg0, String arg1, int arg2, String arg3,
 			Object[] arg4, Throwable arg5) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:25 gh:28 ic:gh
 		
 	}
   

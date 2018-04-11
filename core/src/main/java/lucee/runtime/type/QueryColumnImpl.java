@@ -446,7 +446,7 @@ public class QueryColumnImpl implements QueryColumnPro,Objects {
 
 	@Override
 	public String getKeyAsString() throws PageException {
-		return key.getLowerString();// TODO ist das OK?
+		return key.getLowerString();// TODO ist das OK? id:336 gh:346 ic:gh
 	}
 
     @Override

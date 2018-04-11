@@ -41,7 +41,7 @@ public class QueryCacheItem extends QueryResultCacheItem {
 
 	@Override
 	public String getHashFromValue() {
-		// TODO faster impl
+		// TODO faster impl id:109 gh:106 ic:gh
 		if(hash==null) hash= Long.toString(HashUtil.create64BitHash(UDFArgConverter.serialize(query)));
 		return hash;
 	}

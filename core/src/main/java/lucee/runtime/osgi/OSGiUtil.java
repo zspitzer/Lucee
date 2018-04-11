@@ -1189,7 +1189,7 @@ public class OSGiUtil {
 			}
 		}
 		// we do this because it maybe was relaying on other bundles now loaded
-		// TODO rewrite the complete impl so didd is not necessary
+		// TODO rewrite the complete impl so didd is not necessary id:179 gh:182 ic:gh
 		if(secondChance!=null) {
 			Iterator<StartFailedException> _it = secondChance.iterator();
 			StartFailedException sfe;
@@ -1821,6 +1821,6 @@ public class OSGiUtil {
 	
 	public static  boolean isFrameworkBundle(Bundle b) {// FELIX specific
 		
-		return "org.apache.felix.framework".equalsIgnoreCase(b.getSymbolicName()); // TODO move to cire util class tha does not exist yet
+		return "org.apache.felix.framework".equalsIgnoreCase(b.getSymbolicName()); // TODO move to cire util class tha does not exist yet id:149 gh:152 ic:gh
 	}
 }

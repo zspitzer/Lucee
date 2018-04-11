@@ -320,19 +320,19 @@ public class BIF extends MemberSupport implements UDFPlus {
 	// MUST
 	@Override
 	public Struct getMetaData(PageContext pc) throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:335 gh:345 ic:gh
 		return new StructImpl();
 	}
 
 	@Override
 	public Object implementation(PageContext pageContext) throws Throwable {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:353 gh:365 ic:gh
 		return null;
 	}
 
 	@Override
 	public PageSource getPageSource() {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:373 gh:384 ic:gh
 		return null;
 	}
 

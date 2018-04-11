@@ -61,55 +61,55 @@ public class DataSourceImpl implements DataSource {
 
 	@Override
 	public PrintWriter getLogWriter() throws SQLException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:280 gh:290 ic:gh
 		return null;
 	}
 
 	@Override
 	public int getLoginTimeout() throws SQLException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:322 gh:332 ic:gh
 		return 0;
 	}
 
 	@Override
 	public boolean isDisabled() {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:290 gh:300 ic:gh
 		return false;
 	}
 
 	@Override
 	public void remove() throws SQLException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:307 gh:312 ic:gh
 
 	}
 
 	@Override
 	public void setDataSourceDef(DataSourceDef dsDef) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:240 gh:250 ic:gh
 
 	}
 
 	@Override
 	public void setLogWriter(PrintWriter pw) throws SQLException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:281 gh:291 ic:gh
 
 	}
 
 	@Override
 	public void setLoginTimeout(int timeout) throws SQLException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:323 gh:333 ic:gh
 
 	}
 
 	@Override
 	public <T> T unwrap(Class<T> iface) throws SQLException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:291 gh:301 ic:gh
 		return null;
 	}
 
 	@Override
 	public boolean isWrapperFor(Class<?> iface) throws SQLException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:308 gh:318 ic:gh
 		return false;
 	}
 

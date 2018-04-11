@@ -43,7 +43,7 @@ public class Lambda extends EnvUDF {
 	
 	@Override
 	public UDF _duplicate(Component c) {
-		Lambda lam = new Lambda(properties,variables);// TODO duplicate variables as well?
+		Lambda lam = new Lambda(properties,variables);// TODO duplicate variables as well? id:435 gh:446 ic:gh
 		lam.ownerComponent=c;
 		lam.setAccess(getAccess());
 		return lam;

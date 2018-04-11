@@ -171,7 +171,7 @@ public abstract class StorageScopeCookie extends StorageScopeImpl {
 	}
 	
 	protected static boolean has(PageContext pc, String cookieName, int type,String strType) {
-		// TODO better impl
+		// TODO better impl id:363 gh:374 ic:gh
 		String data = (String)pc.cookieScope().get(cookieName,null);
 		return data!=null;
 		

@@ -35,7 +35,7 @@ public class SourceCode {
 	
 	protected final char[] text;
 	protected final char[] lcText;
-	protected final  Integer[] lines; // TODO to int[]
+	protected final  Integer[] lines; // TODO to int[] id:452 gh:465 ic:gh
 	private final boolean writeLog;
 	private final int dialect;
 	private int hash;

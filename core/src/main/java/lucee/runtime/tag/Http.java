@@ -808,7 +808,7 @@ public final class Http extends BodyTagImpl {
 						return;
 					}
 				}
-				else if(cacheHandler != null) { // TODO this else block can be removed when all cache handlers implement CacheHandlerPro
+				else if(cacheHandler != null) { // TODO this else block can be removed when all cache handlers implement CacheHandlerPro id:243 gh:259 ic:gh
 
 					CacheItem cacheItem = cacheHandler.get(pageContext, cacheId);
 
@@ -1274,7 +1274,7 @@ public final class Http extends BodyTagImpl {
 				file = ResourceUtil.toResourceNotExisting(pageContext, strPath);
 				// Resource dir = file.getParentResource();
 				if(file.isDirectory()) {
-					file = file.getRealResource(req.getURI().getPath());// TODO was getName()
+					file = file.getRealResource(req.getURI().getPath());// TODO was getName() id:425 gh:435 ic:gh
 																		// ->http://hc.apache.org/httpclient-3.x/apidocs/org/apache/commons/httpclient/URI.html#getName()
 				}
 
@@ -1406,7 +1406,7 @@ public final class Http extends BodyTagImpl {
 				}
 			}
 
-			// TODO: check if we can use statCode instead of rsp.getStatusCode() everywhere and cleanup the code
+			// TODO: check if we can use statCode instead of rsp.getStatusCode() everywhere and cleanup the code id:326 gh:336 ic:gh
 			if(cacheHandler != null && rsp.getStatusCode() == 200) {
 				// add to cache
 				cacheHandler.set(pageContext, cacheId, cachedWithin, new HTTPCacheItem(cfhttp, url, System.nanoTime() - start));
@@ -1441,7 +1441,7 @@ public final class Http extends BodyTagImpl {
 			Registry<ConnectionSocketFactory> reg = RegistryBuilder.<ConnectionSocketFactory> create().register("http",
 					PlainConnectionSocketFactory.getSocketFactory()).register("https", sslsf).build();
 			PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(new DefaultHttpClientConnectionOperatorImpl(reg), null, -1,
-					TimeUnit.MILLISECONDS); // TODO review -1 setting
+					TimeUnit.MILLISECONDS); // TODO review -1 setting id:294 gh:304 ic:gh
 			builder.setConnectionManager(cm);
 		}
 		catch (Exception e) {
@@ -1760,7 +1760,7 @@ public final class Http extends BodyTagImpl {
 	 *            The getasbinary to set.
 	 */
 	public void setGetasbinary(String getAsBinary) {
-		// TODO support never, wird das verwendet?
+		// TODO support never, wird das verwendet? id:311 gh:322 ic:gh
 		getAsBinary = getAsBinary.toLowerCase().trim();
 		if(getAsBinary.equals("yes") || getAsBinary.equals("true"))
 			this.getAsBinary = GET_AS_BINARY_YES;

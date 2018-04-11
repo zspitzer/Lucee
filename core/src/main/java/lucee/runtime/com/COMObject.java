@@ -135,7 +135,7 @@ public final class COMObject implements Objects, Iteratorable {
 	}
 
     /*public Object callWithNamedValues(PageContext pc, String methodName, Struct args) throws PageException {
-    	// TODO gibt es hier eine bessere moeglichkeit?
+    	// TODO gibt es hier eine bessere moeglichkeit? id:59 gh:62 ic:gh
         Iterator<Object> it = args.valueIterator();
     	List<Object> values=new ArrayList<Object>();
         while(it.hasNext()) {

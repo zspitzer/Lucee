@@ -668,7 +668,7 @@ public final class HTTPServletRequestWrap implements HttpServletRequest,Serializ
 			return req.isUserInRole(role);
 		}
 		catch(Throwable t) {ExceptionUtil.rethrowIfNecessary(t);}
-		// TODO add support for this
+		// TODO add support for this id:211 gh:214 ic:gh
 		throw new RuntimeException("this method is not supported when root request is gone");
 	}
 
@@ -680,7 +680,7 @@ public final class HTTPServletRequestWrap implements HttpServletRequest,Serializ
 			return req.getLocales();
 		}
 		catch(Throwable t) {ExceptionUtil.rethrowIfNecessary(t);}
-		// TODO add support for this
+		// TODO add support for this id:252 gh:262 ic:gh
 		throw new RuntimeException("this method is not supported when root request is gone");
 	}
 
@@ -692,7 +692,7 @@ public final class HTTPServletRequestWrap implements HttpServletRequest,Serializ
 			return req.getRealPath(path);
 		}
 		catch(Throwable t) {ExceptionUtil.rethrowIfNecessary(t);}
-		// TODO add support for this
+		// TODO add support for this id:161 gh:167 ic:gh
 		throw new RuntimeException("this method is not supported when root request is gone");
 	}
 

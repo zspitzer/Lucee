@@ -16,7 +16,7 @@
  * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
  * 
  **/
-// TODO Time constructor muss auch noch entfernt werden und durch DateUtil methode ersetzen
+// TODO Time constructor muss auch noch entfernt werden und durch DateUtil methode ersetzen id:148 gh:151 ic:gh
 package lucee.runtime.op.date;
 
 import java.text.DateFormat;
@@ -404,7 +404,7 @@ public final class DateCaster {
 		}
 		else if(o instanceof ObjectWrap) return toTime(timeZone,((ObjectWrap)o).getEmbededObject());
 		else if(o instanceof Calendar){
-			// TODO check timezone offset
+			// TODO check timezone offset id:207 gh:210 ic:gh
 			return new TimeImpl(((Calendar)o).getTimeInMillis(),false);
 		}
 		throw new ExpressionException("can't cast ["+Caster.toClassName(o)+"] to time value");
@@ -593,7 +593,7 @@ public final class DateCaster {
 		    }
 		}*/
 		
-		// TODO bessere impl
+		// TODO bessere impl id:229 gh:239 ic:gh
 		ds.reset();
 		DateTime rtn = parseTime(timeZone, new int[]{1899,12,30}, ds, defaultValue,-1);
 		if(rtn==defaultValue) return defaultValue;

@@ -61,7 +61,7 @@ public class SizeAndCount {
 		if(obj==null) return;
 		Object raw=obj;
 		
-		// TODO this is just a patch solution, find a better way to handle this kind of situation (Wrapper classes)
+		// TODO this is just a patch solution, find a better way to handle this kind of situation (Wrapper classes) id:43 gh:45 ic:gh
 		if(isInstaneOf(obj.getClass(),"lucee.runtime.text.xml.struct.XMLStruct")) {
 			try {
 				Method toNode = raw.getClass().getMethod("toNode", new Class[0]);
@@ -116,7 +116,7 @@ public class SizeAndCount {
 			size.count++;
 		}
 		finally {
-			//parents.remove(raw);// TODO should we not remove, to see if sister is me.
+			//parents.remove(raw);// TODO should we not remove, to see if sister is me. id:13 gh:16 ic:gh
 		}
 	}
 

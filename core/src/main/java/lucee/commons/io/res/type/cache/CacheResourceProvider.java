@@ -137,7 +137,7 @@ public final class CacheResourceProvider implements ResourceProviderPro {
 		while(it.hasNext()){
 			arr[index++]=((CacheResourceCore) it.next()).getName();
 		}
-		// TODO remove none CacheResourceCore elements
+		// TODO remove none CacheResourceCore elements id:70 gh:73 ic:gh
 		return arr;
 	}
 	/*CacheResourceCore[] getChildren(String path) {
@@ -148,7 +148,7 @@ public final class CacheResourceProvider implements ResourceProviderPro {
 		while(it.hasNext()){
 			arr[index++]=(CacheResourceCore) it.next();
 		}
-		// TODO remove none CacheResourceCore elements
+		// TODO remove none CacheResourceCore elements id:45 gh:48 ic:gh
 		return arr;
 	}*/
 

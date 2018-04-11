@@ -678,11 +678,11 @@ public final class Query extends BodyTagTryCatchFinallyImpl {
 				if("query".equals(dbtype)) {
 					lucee.runtime.type.Query q = executeQoQ(sql);
 					if(returntype == RETURN_TYPE_ARRAY)
-						queryResult = QueryArray.toQueryArray(q); // TODO this should be done in queryExecute itself so we not have to convert afterwards
+						queryResult = QueryArray.toQueryArray(q); // TODO this should be done in queryExecute itself so we not have to convert afterwards id:313 gh:321 ic:gh
 					else if(returntype == RETURN_TYPE_STRUCT) {
 						if(columnName == null)
 							throw new ApplicationException("attribute columnKey is required when return type is set to struct");
-						queryResult = QueryStruct.toQueryStruct(q, columnName); // TODO this should be done in queryExecute itself so we not have to convert
+						queryResult = QueryStruct.toQueryStruct(q, columnName); // TODO this should be done in queryExecute itself so we not have to convert id:246 gh:253 ic:gh
 																				// afterwards
 					}
 					else

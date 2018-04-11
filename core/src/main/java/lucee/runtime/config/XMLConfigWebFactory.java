@@ -359,7 +359,7 @@ public final class XMLConfigWebFactory extends XMLConfigFactory {
 		// fix stuff from older config files
 		if(XMLConfigAdmin.fixLFI(doc)) {
 			String xml = XMLCaster.toString(doc);
-			// TODO 4.5->5.0
+			// TODO 4.5->5.0 id:77 gh:81 ic:gh
 			xml=StringUtil.replace(xml, "<lucee-configuration", "<cfLuceeConfiguration",false);
 			xml=StringUtil.replace(xml, "</lucee-configuration", "</cfLuceeConfiguration",false);
 			IOUtil.write(config.getConfigFile(), xml, CharsetUtil.UTF8, false);
@@ -615,7 +615,7 @@ public final class XMLConfigWebFactory extends XMLConfigFactory {
 						config.addResourceProvider(strProviderScheme, CFMLResourceProvider.class, args);
 					}
 				}
-				catch(Throwable t){ // TODO log the exception
+				catch(Throwable t){ // TODO log the exception id:64 gh:67 ic:gh
 					ExceptionUtil.rethrowIfNecessary(t);
 				}
 			}
@@ -1923,7 +1923,7 @@ public final class XMLConfigWebFactory extends XMLConfigFactory {
 	 * @param doc
 	 */
 	private static void loadPagePool(ConfigServer configServer, Config config, Document doc) {
-		// TODO xml configuration fuer das erstellen
+		// TODO xml configuration fuer das erstellen id:82 gh:86 ic:gh
 		// config.setPagePool( new PagePool(10000,1000));
 	}
 
@@ -1994,7 +1994,7 @@ public final class XMLConfigWebFactory extends XMLConfigFactory {
 			}
 		}
 
-		// TODO support H2
+		// TODO support H2 id:92 gh:96 ic:gh
 		// Default query of query DB
 		/*
 		 * setDatasource(datasources, QOQ_DATASOURCE_NAME, "org.h2.Driver" ,"" ,""
@@ -3235,7 +3235,7 @@ public final class XMLConfigWebFactory extends XMLConfigFactory {
 			sct = toStruct(strUsage);// config.setRemoteClientUsage(toStruct(strUsage));
 		else
 			sct = new StructImpl();
-		// TODO make this generic
+		// TODO make this generic id:115 gh:118 ic:gh
 		if (configServer != null) {
 			String sync = Caster.toString(configServer.getRemoteClientUsage().get("synchronisation", ""), "");
 			if (!StringUtil.isEmpty(sync)) {
@@ -3556,7 +3556,7 @@ public final class XMLConfigWebFactory extends XMLConfigFactory {
 		// load class
 		try {
 			cd.getClazz();
-			// TODO check interface as well
+			// TODO check interface as well id:78 gh:79 ic:gh
 		}
 		catch (Exception e) {
 			log.error("ORM", e);

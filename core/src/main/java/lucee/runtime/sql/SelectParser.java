@@ -221,7 +221,7 @@ FROM tableList
 			else {
 				int start=raw.getPos();
 				RefBoolean hasBracked = new RefBooleanImpl(false);
-				String alias=identifier(raw,hasBracked);//TODO having usw
+				String alias=identifier(raw,hasBracked);//TODO having usw id:241 gh:257 ic:gh
 				if(!hasBracked.toBooleanValue()) {
 					if("where".equalsIgnoreCase(alias)) raw.setPos(start);
 					else if("group".equalsIgnoreCase(alias)) raw.setPos(start);

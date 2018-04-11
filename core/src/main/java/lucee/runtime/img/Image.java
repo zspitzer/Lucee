@@ -811,7 +811,7 @@ public class Image extends StructSupport implements Cloneable,Struct {
     	    BorderExtender extender = BorderExtender.createInstance(1);
     	    hints = new RenderingHints(JAI.KEY_BORDER_EXTENDER, extender);
     	}
-    	// TODO
+    	// TODO id:187 gh:190 ic:gh
     	Color bg = getGraphics().getBackground();
     	params.add(new double[]{bg.getRed(),bg.getGreen(),bg.getBlue()});
     	image(JAI.create("shear", params, hints).getAsBufferedImage());

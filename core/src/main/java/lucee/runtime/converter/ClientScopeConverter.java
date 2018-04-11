@@ -88,7 +88,7 @@ public class ClientScopeConverter {
 
 
 	public static String serialize(Struct sct) throws ConverterException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:65 gh:68 ic:gh
 		return serialize(sct,null);
 	}
 	

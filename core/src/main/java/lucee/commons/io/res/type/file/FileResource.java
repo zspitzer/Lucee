@@ -338,7 +338,7 @@ public final class FileResource extends File implements Resource {
 		if(!exists()) return 0;
 		if(SystemUtil.isUnix()) {
 			try {
-				// TODO geht nur fuer file
+				// TODO geht nur fuer file id:26 gh:29 ic:gh
 				String line = Command.execute("ls -ld "+getPath(),false).getOutput();
 				
 				line=line.trim();
@@ -357,7 +357,7 @@ public final class FileResource extends File implements Resource {
 
 	@Override
 	public void setMode(int mode) throws IOException {
-		// TODO unter windows mit setReadable usw.
+		// TODO unter windows mit setReadable usw. id:71 gh:74 ic:gh
 		if(!SystemUtil.isUnix()) return;
         provider.lock(this);
         try {

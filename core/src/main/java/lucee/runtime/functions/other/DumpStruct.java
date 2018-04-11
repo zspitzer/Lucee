@@ -138,7 +138,7 @@ public final class DumpStruct implements Function {
 			}
 			else if (Decision.isFunction(o) || Decision.isUserDefinedFunction(o) || Decision.isClosure(o)) {
 				simpleType  = "function";
-//				simpleValue = "Function: " + ((Function)o).();      // TODO: add signature
+//				simpleValue = "Function: " + ((Function)o).();      // TODO: add signature id:121 gh:124 ic:gh
 			}
 			else if (Decision.isDate(o, false)) {
 				simpleType  = "date";

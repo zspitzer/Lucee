@@ -41,7 +41,7 @@ public class LoggerImpl extends Logger {
 			try {
 				logFile.createNewFile();
 			} catch (final IOException e) {
-				// TODO Auto-generated catch block
+				// TODO Auto-generated catch block id:493 gh:503 ic:gh
 				e.printStackTrace();
 			}
 	}
@@ -92,7 +92,7 @@ public class LoggerImpl extends Logger {
 	}
 
 	private void _log(final String level, final String msg) {
-		// TODO better impl 
+		// TODO better impl  id:454 gh:461 ic:gh
 		BufferedWriter bw = null;
 		try {
 			bw = new BufferedWriter(new OutputStreamWriter(

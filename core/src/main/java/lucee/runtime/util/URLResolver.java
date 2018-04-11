@@ -35,7 +35,7 @@ import org.w3c.dom.NodeList;
 
 /**
  * Transform a HTML String, set all relative Pathes inside HTML File to absolute
- * TODO Test this  
+ * TODO Test this   id:463 gh:473 ic:gh
  *
  */
 public final class URLResolver {
@@ -166,7 +166,7 @@ public final class URLResolver {
 	 * @throws MalformedURLException
 	 */
 	private void transformTag(StringBuffer target, SourceCode cfml, Tag tag,URL url) throws MalformedURLException {
-		// TODO attribute inside other attribute
+		// TODO attribute inside other attribute id:443 gh:451 ic:gh
 		
 		char quote=0;
 		boolean inside=false;

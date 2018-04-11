@@ -226,7 +226,7 @@ public final class ClassUtil {
 	private static Class loadClass(ClassLoader cl, String className, Class defaultValue, Set<Throwable> exceptions) {
 
 		if (cl != null) {
-			// TODO do not produce a resource classloader in the first place if there are no resources
+			// TODO do not produce a resource classloader in the first place if there are no resources id:48 gh:51 ic:gh
 			if (cl instanceof ResourceClassLoader && ((ResourceClassLoader)cl).isEmpty()) {
 				ClassLoader p = ((ResourceClassLoader)cl).getParent();
 				if (p != null)

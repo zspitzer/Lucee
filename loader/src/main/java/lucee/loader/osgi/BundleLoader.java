@@ -59,7 +59,7 @@ public class BundleLoader {
 	public static BundleCollection loadBundles(final CFMLEngineFactory engFac,
 			final File cacheRootDir, final File jarDirectory, final File rc,
 			final BundleCollection old) throws IOException, BundleException {
-		final JarFile jf = new JarFile(rc);// TODO this should work in any case, but we should still improve this code
+		final JarFile jf = new JarFile(rc);// TODO this should work in any case, but we should still improve this code id:484 gh:495 ic:gh
 		try {
 			// Manifest
 			final Manifest mani = jf.getManifest();

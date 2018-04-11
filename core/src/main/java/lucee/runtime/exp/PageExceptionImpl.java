@@ -351,7 +351,7 @@ public abstract class PageExceptionImpl extends PageException {
 		struct.setEL(KeyConstants._type,getTypeAsString());
 		struct.setEL("TagContext",getTagContext(pc.getConfig()));
 		struct.setEL("additional",additional);
-			// TODO RootCause,StackTrace
+			// TODO RootCause,StackTrace id:123 gh:127 ic:gh
 		
 		return struct;
 	}

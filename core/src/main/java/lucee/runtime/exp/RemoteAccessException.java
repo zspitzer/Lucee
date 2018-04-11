@@ -24,7 +24,7 @@ public class RemoteAccessException extends ApplicationException {
 
 	public RemoteAccessException(String message) {
 		super(message);
-		// TODO Auto-generated constructor stub
+		// TODO Auto-generated constructor stub id:86 gh:90 ic:gh
 	}
 
 	public RemoteAccessException(RemoteClient client, PageException pe) {

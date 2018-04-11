@@ -36,7 +36,7 @@ public final class TagSet extends TagBaseNoFinal  {
 	@Override
 	public void _writeOut(BytecodeContext bc) throws TransformerException {
 		Type rtn = getAttribute("noname").getValue().writeOut(bc, Expression.MODE_VALUE);
-		// TODO sollte nicht auch long geprueft werden?
+		// TODO sollte nicht auch long geprueft werden? id:470 gh:480 ic:gh
 		ASMUtil.pop(bc.getAdapter(), rtn);
 		//if(rtn.equals(Types.DOUBLE_VALUE))bc.getAdapter().pop2();
 		//else bc.getAdapter().pop();

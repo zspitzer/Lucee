@@ -166,7 +166,7 @@ public class ServletContextImpl implements ServletContext {
 
 	@Override
 	public ServletContext getContext(final String key) {
-		// TODO ?
+		// TODO ? id:483 gh:491 ic:gh
 		return this;
 	}
 
@@ -180,7 +180,7 @@ public class ServletContextImpl implements ServletContext {
 	 *      java.lang.Throwable)
 	 */
 	@Override
-	public void log(final String msg, final Throwable t) {// TODO better
+	public void log(final String msg, final Throwable t) {// TODO better id:423 gh:433 ic:gh
 		if (t == null)
 			System.out.println(msg);
 		else

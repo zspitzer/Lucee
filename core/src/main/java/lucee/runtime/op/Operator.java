@@ -613,7 +613,7 @@ public final class Operator {
 	}        
 
 	private static int error(boolean leftIsOk, boolean rightIsOk) throws ExpressionException { 
-		// TODO remove this method
+		// TODO remove this method id:178 gh:181 ic:gh
 		throw new ExpressionException("can't compare complex object types as simple value");
 	}
 

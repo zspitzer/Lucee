@@ -240,7 +240,7 @@ public abstract class ComponentPageImpl extends ComponentPage implements PagePro
            
             
 			// DUMP
-			//TODO component.setAccess(pc,Component.ACCESS_PUBLIC);
+			//TODO component.setAccess(pc,Component.ACCESS_PUBLIC); id:107 gh:105 ic:gh
 			String cdf = pc.getConfig().getComponentDumpTemplate();
 			
 			if(cdf!=null && cdf.trim().length()>0) {
@@ -349,7 +349,7 @@ public abstract class ComponentPageImpl extends ComponentPage implements PagePro
 					}
 					else {
 						Struct var = result.getVariables();
-						int index=RestUtil.matchPath(var, Path.init(restPath)/*TODO cache this*/, result.getPath());
+						int index=RestUtil.matchPath(var, Path.init(restPath)/*TODO cache this id:52 gh:56 ic:gh*/, result.getPath());
 						if(index>=0 && index+1==result.getPath().length) {
 							bestC = best(consumes,result.getContentType());
 							bestP = best(produces,result.getAccept());
@@ -538,7 +538,7 @@ public abstract class ComponentPageImpl extends ComponentPage implements PagePro
 	}
 
 	private void writeOut(PageContext pc, Props props, Object obj, MimeType mt) throws PageException, IOException, ConverterException {
-		// TODO miemtype mapping with converter defintion from external file
+		// TODO miemtype mapping with converter defintion from external file id:57 gh:60 ic:gh
 		// Images
 		if(mt.same(MimeType.IMAGE_GIF)) writeOut(pc,obj,mt,new ImageConverter("gif"));
 		else if(mt.same(MimeType.IMAGE_JPG)) writeOut(pc,obj,mt,new ImageConverter("jpeg"));

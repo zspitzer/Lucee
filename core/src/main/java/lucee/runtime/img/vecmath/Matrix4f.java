@@ -358,7 +358,7 @@ public class Matrix4f {
 	}
 /*
 	void rotate(float angle, float x, float y, float z) {
-		Matrix4f m = new Matrix4f();//FIXME
+		Matrix4f m = new Matrix4f();//FIXME id:159 gh:158 ic:gh
 		m.MatrixFromAxisAngle(Vector3f(x, y, z), angle);
 		Multiply(m);
 	}

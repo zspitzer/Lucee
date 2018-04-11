@@ -161,6 +161,6 @@ public final class ExpandPath implements Function {
 		}
 
 		return StringUtil.replace(path, "//", "/", false);
-		// TODO /aaa/../bbb/
+		// TODO /aaa/../bbb/ id:100 gh:103 ic:gh
 	}
 }

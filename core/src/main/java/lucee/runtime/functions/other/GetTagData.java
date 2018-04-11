@@ -141,7 +141,7 @@ public final class GetTagData implements Function {
 		sct.set("attrMax",Caster.toDouble(0));
 		sct.set("attributeCollection",getSupportAttributeCollection(tag));
 		
-		// TODO add support for script for cfml tags
+		// TODO add support for script for cfml tags id:99 gh:102 ic:gh
 		Struct scp=new StructImpl();
 		sct.set(KeyConstants._script,scp);
 		scp.set("rtexpr", Boolean.FALSE);

@@ -869,7 +869,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 							path = ps.getDisplayPath();
 							path=path.replace('\\', '/');
 						}
-						if(path==null || path.indexOf("/library/function/")==-1)// TODO make better
+						if(path==null || path.indexOf("/library/function/")==-1)// TODO make better id:420 gh:430 ic:gh
 							throw new TemplateException(data.srcCode,"The name ["+functionName+"] is already used by a built in Function");
 					}
 				}

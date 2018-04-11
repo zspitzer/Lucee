@@ -969,7 +969,7 @@ public class QueryImpl implements Query, Objects, QueryResult {
 	}
 
 	public synchronized QueryColumn removeColumnEL(Collection.Key key) {
-		// TODO should in that case not all method accessing columnNames,columns been locked down?
+		// TODO should in that case not all method accessing columnNames,columns been locked down? id:354 gh:366 ic:gh
 
 		int index = getIndexFromKey(key);
 		if(index != -1) {
@@ -1215,7 +1215,7 @@ public class QueryImpl implements Query, Objects, QueryResult {
 	@Override
 	public boolean addColumn(Collection.Key columnName, Array content, int type) throws DatabaseException {
 		// disconnectCache();
-		// TODO Meta type
+		// TODO Meta type id:374 gh:385 ic:gh
 		content = (Array)Duplicator.duplicate(content, false);
 
 		if(getIndexFromKey(columnName) != -1)
@@ -2177,12 +2177,12 @@ public class QueryImpl implements Query, Objects, QueryResult {
 
 	@Override
 	public java.sql.Date getDate(int columnIndex, Calendar cal) throws SQLException {
-		return getDate(columnIndex); // TODO impl
+		return getDate(columnIndex); // TODO impl id:399 gh:409 ic:gh
 	}
 
 	@Override
 	public java.sql.Date getDate(String columnName, Calendar cal) throws SQLException {
-		return getDate(columnName);// TODO impl
+		return getDate(columnName);// TODO impl id:436 gh:447 ic:gh
 	}
 
 	@Override
@@ -2392,12 +2392,12 @@ public class QueryImpl implements Query, Objects, QueryResult {
 
 	@Override
 	public Time getTime(int columnIndex, Calendar cal) throws SQLException {
-		return getTime(columnIndex);// TODO impl
+		return getTime(columnIndex);// TODO impl id:337 gh:347 ic:gh
 	}
 
 	@Override
 	public Time getTime(String columnName, Calendar cal) throws SQLException {
-		return getTime(columnName);// TODO impl
+		return getTime(columnName);// TODO impl id:355 gh:361 ic:gh
 	}
 
 	@Override
@@ -2428,12 +2428,12 @@ public class QueryImpl implements Query, Objects, QueryResult {
 
 	@Override
 	public Timestamp getTimestamp(int columnIndex, Calendar cal) throws SQLException {
-		return getTimestamp(columnIndex);// TODO impl
+		return getTimestamp(columnIndex);// TODO impl id:375 gh:386 ic:gh
 	}
 
 	@Override
 	public Timestamp getTimestamp(String columnName, Calendar cal) throws SQLException {
-		return getTimestamp(columnName);// TODO impl
+		return getTimestamp(columnName);// TODO impl id:400 gh:410 ic:gh
 	}
 
 	@Override

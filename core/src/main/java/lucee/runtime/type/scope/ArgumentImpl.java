@@ -340,13 +340,13 @@ public final class ArgumentImpl extends ScopeSupport implements Argument,ArrayPr
 
 	@Override
 	public void sort(String sortType, String sortOrder) throws ExpressionException {
-		// TODO Impl.
+		// TODO Impl. id:380 gh:390 ic:gh
 		throw new ExpressionException("can't sort ["+sortType+"-"+sortOrder+"] Argument Scope","not Implemnted Yet");
 	}
 
 	@Override
 	public void sortIt(Comparator com) {
-		// TODO Impl.
+		// TODO Impl. id:405 gh:412 ic:gh
 		throw new PageRuntimeException("can't sort Argument Scope","not Implemnted Yet");
 	}
 
@@ -368,7 +368,7 @@ public final class ArgumentImpl extends ScopeSupport implements Argument,ArrayPr
 		
 		
 		if(Decision.isStruct(obj)) {
-			clear(); // TODO bessere impl. anstelle vererbung wrao auf struct
+			clear(); // TODO bessere impl. anstelle vererbung wrao auf struct id:455 gh:467 ic:gh
 			Struct sct=Caster.toStruct(obj);
 			Iterator<Key> it = sct.keyIterator();
 			Key key;

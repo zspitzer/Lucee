@@ -103,11 +103,11 @@ public final class HttpServletResponseDummy implements HttpServletResponse,Seria
 	
 	@Override
 	public void sendError(int code, String codeText) throws IOException {
-		// TODO impl
+		// TODO impl id:132 gh:137 ic:gh
 	}
 	@Override
 	public void sendError(int code) throws IOException {
-		// TODO impl
+		// TODO impl id:191 gh:194 ic:gh
 	}
 	
 	@Override

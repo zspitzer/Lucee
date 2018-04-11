@@ -112,7 +112,7 @@ public class GetApplicationSettings {
 		
 		
 		sct.setEL("sessionType", AppListenerUtil.toSessionType(((PageContextImpl) pc).getSessionType(),"application"));
-		sct.setEL("serverSideFormValidation", Boolean.FALSE); // TODO impl
+		sct.setEL("serverSideFormValidation", Boolean.FALSE); // TODO impl id:249 gh:256 ic:gh
 
 		sct.setEL("clientCluster", Caster.toBoolean(ac.getClientCluster()));
 		sct.setEL("sessionCluster", Caster.toBoolean(ac.getSessionCluster()));

@@ -34,13 +34,13 @@ import lucee.runtime.op.Caster;
 import lucee.runtime.type.Collection.Key;
 import lucee.runtime.type.util.KeyConstants;
 
-// TODO tag textarea
+// TODO tag textarea id:299 gh:309 ic:gh
 // attribute html macht irgendwie keinen sinn, aber auch unter neo nicht
 
 
 
 public final class Textarea extends Input  implements BodyTag {
-	private static final String BASE_PATH = null; // TODO
+	private static final String BASE_PATH = null; // TODO id:316 gh:326 ic:gh
 	private static final String STYLE_XML = null;
 	private static final String TEMPLATE_XML = null;
 	private static final String SKIN = "default";

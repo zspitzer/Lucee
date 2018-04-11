@@ -534,7 +534,7 @@ public final class Image extends TagImpl {
 		}
 		if(!StringUtil.isEmpty(name)) {
 			required("source", source);
-			pageContext.setVariable(name, source);// TODO ist das so gut
+			pageContext.setVariable(name, source);// TODO ist das so gut id:244 gh:251 ic:gh
 		}
 		//if(writeToResponseWhenNoOtherTarget) doActionWriteToBrowser();
 	}

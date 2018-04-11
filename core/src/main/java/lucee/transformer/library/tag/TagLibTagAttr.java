@@ -397,7 +397,7 @@ public final class TagLibTagAttr {
 			values=list.toArray(new TimeSpan[list.size()]);
 		}
 		
-		// TODO add support for other types ?
+		// TODO add support for other types ? id:491 gh:501 ic:gh
 		else {
 			valueList=null; 
 		}

@@ -38,7 +38,7 @@ public class ExpressionPath extends Path {
 
 	public static Path getInstance(String path) {
 		/*
-		 TODO  handle if a pattern already has defined a group 
+		 TODO handle if a pattern already has defined a group  id:180 gh:183 ic:gh
 		 */
 		
 		int last=-1,startIndex,endIndex=0,index;

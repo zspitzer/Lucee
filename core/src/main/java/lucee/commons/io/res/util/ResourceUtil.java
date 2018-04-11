@@ -657,7 +657,7 @@ public final class ResourceUtil {
 		if(path==null) return null;
 		path=path.replace('\\','/');
 		return StringUtil.replace(path, "//", "/", false);
-		// TODO /aaa/../bbb/
+		// TODO /aaa/../bbb/ id:11 gh:14 ic:gh
 	}
 
 	public static String removeScheme(String scheme, String path) {
@@ -1054,7 +1054,7 @@ public final class ResourceUtil {
 	}
 
 	public static ContentType getContentType(Resource resource) {
-		// TODO make this part of a interface
+		// TODO make this part of a interface id:28 gh:31 ic:gh
 		if(resource instanceof HTTPResource) {
 			try {
 				return ((HTTPResource)resource).getContentType();

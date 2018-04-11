@@ -511,7 +511,7 @@ public class SMBResource extends ResourceSupport implements Resource{
 
 	@Override
 	public void setMode(int mode) throws IOException {
-		// TODO
+		// TODO id:47 gh:50 ic:gh
 	}
 
 	@Override

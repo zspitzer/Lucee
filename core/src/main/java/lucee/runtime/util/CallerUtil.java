@@ -40,7 +40,7 @@ public class CallerUtil {
 		return coll;
 	}
 	
-	// TODO work in progress
+	// TODO work in progress id:462 gh:472 ic:gh
 	public static Object get(PageContext pc,Object coll, int[] types, Key[] keys,Object[][] args, Object defaultValue) throws PageException {
 		if(coll==null) return defaultValue;
 		int to=keys.length-1;
@@ -57,7 +57,7 @@ public class CallerUtil {
 				coll=vu.callFunctionWithNamedValues(pc, coll, keys[i], args[i], false, Null.NULL);
 			break;
 			case TYPE_BIF:
-				coll=null;//TODO
+				coll=null;//TODO id:442 gh:453 ic:gh
 			break;
 			}
 			

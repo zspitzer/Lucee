@@ -109,7 +109,7 @@ public class IPRangeNode<T> implements Comparable<IPRangeNode>, Comparator<IPRan
 		if ( doCheck )
 			parent = findRange( child );
 
-		// TODO: check for eqaulity of new child and found parent
+		// TODO: check for eqaulity of new child and found parent id:193 gh:197 ic:gh
 
 		parent.children.add( child, doCheck );
 		return true;

@@ -63,7 +63,7 @@ public abstract class CallerResponseStreamResult implements Callable<String> {
 			pc.getOut().flush(); //make sure content is flushed
 			
 			pc.getConfig().getFactory().releasePageContext(pc);
-				str=IOUtil.toString((new ByteArrayInputStream(baos.toByteArray())), cs); // TODO add support for none string content
+				str=IOUtil.toString((new ByteArrayInputStream(baos.toByteArray())), cs); // TODO add support for none string content id:73 gh:76 ic:gh
 			} 
 			catch (Exception e) {
 				SystemOut.printDate(e);

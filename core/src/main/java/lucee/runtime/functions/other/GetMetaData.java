@@ -40,7 +40,7 @@ public final class GetMetaData implements Function {
 
 	private static final long serialVersionUID = -3787469574373656167L;
 
-	// TODO support enties more deeply
+	// TODO support enties more deeply id:185 gh:188 ic:gh
 	public static Object call(PageContext pc ) throws PageException {
         Component ac = pc.getActiveComponent();
         if(ac!=null) {

@@ -739,7 +739,7 @@ public final class XMLConfigAdmin {
     
     public void updateRestMapping(String virtual, String physical,boolean _default) throws ExpressionException, SecurityException {
     	checkWriteAccess();
-    	boolean hasAccess=true;// TODO ConfigWebUtil.hasAccess(config,SecurityManager.TYPE_REST);
+    	boolean hasAccess=true;// TODO ConfigWebUtil.hasAccess(config,SecurityManager.TYPE_REST); id:63 gh:66 ic:gh
         virtual=virtual.trim(); 
         physical=physical.trim();
         if(!hasAccess)
@@ -3600,7 +3600,7 @@ public final class XMLConfigAdmin {
 
 	public void updateRestList(Boolean list) throws SecurityException {
 		checkWriteAccess();
-        boolean hasAccess=true;// TODO ConfigWebUtil.hasAccess(config,SecurityManager.TYPE_REST);
+        boolean hasAccess=true;// TODO ConfigWebUtil.hasAccess(config,SecurityManager.TYPE_REST); id:81 gh:84 ic:gh
         if(!hasAccess) throw new SecurityException("no access to update rest setting");
         
         
@@ -3613,7 +3613,7 @@ public final class XMLConfigAdmin {
 	
 	/*public void updateRestAllowChanges(Boolean allowChanges) throws SecurityException {
 		checkWriteAccess();
-        boolean hasAccess=true;// TODO ConfigWebUtil.hasAccess(config,SecurityManager.TYPE_REST);
+        boolean hasAccess=true;// TODO ConfigWebUtil.hasAccess(config,SecurityManager.TYPE_REST); id:91 gh:94 ic:gh
         if(!hasAccess) throw new SecurityException("no access to update rest setting");
         
         
@@ -5885,7 +5885,7 @@ public final class XMLConfigAdmin {
 
 	public void updateLogSettings(String name, Level level, ClassDefinition appenderCD, Struct appenderArgs, ClassDefinition layoutCD, Struct layoutArgs) throws PageException {
 		checkWriteAccess();
-		// TODO
+		// TODO id:114 gh:114 ic:gh
     	//boolean hasAccess=ConfigWebUtil.hasAccess(config,SecurityManagerImpl.TYPE_GATEWAY);
         // if(!hasAccess) throw new SecurityException("no access to update gateway entry");
         

@@ -153,7 +153,7 @@ public class ASMProxyFactory {
 	}
 	
 	private static void createField(Type type, Field field) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:469 gh:479 ic:gh
 		
 	}
 
@@ -423,7 +423,7 @@ public class ASMProxyFactory {
 		else if(boolean.class==clazz) adapter.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/Boolean", "TYPE", "Ljava/lang/Class;");
 		else if(short.class==clazz) adapter.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/Short", "TYPE", "Ljava/lang/Class;");
 		
-		// TODO ref types
+		// TODO ref types id:392 gh:403 ic:gh
 		
 		else {
 		    adapter.visitVarInsn(Opcodes.ALOAD, 1);

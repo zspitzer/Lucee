@@ -64,7 +64,7 @@ public final class LFunctionValue extends RefSupport implements Ref {
         	return new FunctionValueImpl(((Literal)name).getString(pc),refValue==null?objValue:refValue.getValue(pc));
         }
         
-        // TODO no idea if this is ever used
+        // TODO no idea if this is ever used id:188 gh:191 ic:gh
         if(name instanceof Set){
         	return new FunctionValueImpl(lucee.runtime.type.util.ListUtil.arrayToList(toStringArray(pc,(Set)name),"."),refValue==null?objValue:refValue.getValue(pc));
         }

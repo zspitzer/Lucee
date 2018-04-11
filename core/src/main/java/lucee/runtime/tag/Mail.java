@@ -39,7 +39,7 @@ import lucee.runtime.net.smtp.SMTPClient;
 import lucee.runtime.op.Caster;
 import lucee.runtime.op.Decision;
 import lucee.runtime.type.dt.DateTime;
-// TODO test proxy
+// TODO test proxy id:312 gh:323 ic:gh
 /**
  * 
 * Sends e-mail messages by an SMTP server.

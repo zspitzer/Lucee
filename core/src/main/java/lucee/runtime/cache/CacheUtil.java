@@ -393,7 +393,7 @@ public class CacheUtil {
      * @return
      * @throws lucee.runtime.exp.SecurityException
      */
-    public static Password getPassword( PageContext pc, String password , boolean server) throws lucee.runtime.exp.SecurityException {   // TODO: move this to a utility class in a more generic package?
+    public static Password getPassword( PageContext pc, String password , boolean server) throws lucee.runtime.exp.SecurityException {   // TODO: move this to a utility class in a more generic package? id:34 gh:38 ic:gh
     	// no password passed
         if (StringUtil.isEmpty(password,true)) {
             ApplicationContext appContext = pc.getApplicationContext();

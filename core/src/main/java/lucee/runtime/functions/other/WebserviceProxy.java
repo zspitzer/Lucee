@@ -64,12 +64,12 @@ public final class WebserviceProxy implements Function {
 
     
     public static Object doWebService(PageContext pc,String wsdlUrl) throws PageException {
-    	// TODO CF8 impl. all new attributes for wsdl
+    	// TODO CF8 impl. all new attributes for wsdl id:157 gh:157 ic:gh
     	return WSClient.getInstance(pc, wsdlUrl, null, null, null);
     } 
 
     public static Object doWebService(PageContext pc,String wsdlUrl,String username,String password, ProxyData proxy) throws PageException {
-    	// TODO CF8 impl. all new attributes for wsdl
+    	// TODO CF8 impl. all new attributes for wsdl id:127 gh:131 ic:gh
     	return WSClient.getInstance(pc,wsdlUrl,username,password,proxy);
     } 
     public static Object doHTTP(PageContext pc,String httpUrl) throws PageException {

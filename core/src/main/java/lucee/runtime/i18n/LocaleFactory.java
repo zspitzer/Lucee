@@ -238,7 +238,7 @@ public final class LocaleFactory {
 	
 
 	private static String getSupportedLocalesAsString() {
-		// TODO chnge from ArryObject to string
+		// TODO chnge from ArryObject to string id:128 gh:125 ic:gh
 		String[] arr = locales.keySet().toArray(new String[locales.size()]);
 		Arrays.sort(arr);
 		return ListUtil.arrayToList(arr,",");

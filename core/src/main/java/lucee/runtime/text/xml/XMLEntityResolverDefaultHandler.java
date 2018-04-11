@@ -42,7 +42,7 @@ public class XMLEntityResolverDefaultHandler extends DefaultHandler {
 		
 		if(entityRes!=null) return entityRes;
 		try {
-			// TODO user resources
+			// TODO user resources id:431 gh:443 ic:gh
 			return new InputSource(IOUtil.toBufferedInputStream(HTTPUtil.toURL(systemID,true).openStream()));
 		} 
 		catch(Throwable t) {
