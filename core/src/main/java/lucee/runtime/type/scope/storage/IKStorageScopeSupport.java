@@ -349,7 +349,7 @@ public abstract class IKStorageScopeSupport extends StructSupport implements Sto
 	
 	@Override
 	public Iterator<Object> valueIterator() {
-		return new ValueIterator(this, keys()); // TODO use or make a faster iterator
+		return new ValueIterator(this, keys()); // TODO use or make a faster iterator id:382 gh:392 ic:gh
 	}
 
 	@Override

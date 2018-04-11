@@ -103,7 +103,7 @@ public class Constants {
 	public static final String LUCEE_CLASS_SUFFIX = "$lu";
 	
 	
-	// TODO load this based on the servlet mapping
+	// TODO load this based on the servlet mapping id:90 gh:93 ic:gh
 	public static final String[] cte=new String[]{CFML_TEMPLATE_MAIN_EXTENSION};
 	public static String[] getCFMLTemplateExtensions(){
 		return cte;

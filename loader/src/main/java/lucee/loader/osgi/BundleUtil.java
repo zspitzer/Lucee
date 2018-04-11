@@ -201,7 +201,7 @@ public class BundleUtil {
 	}
 
 	public static boolean isSystemBundle(final Bundle bundle) {
-		// TODO make a better implementation for this, independent of felix
+		// TODO make a better implementation for this, independent of felix id:424 gh:434 ic:gh
 		return bundle.getSymbolicName().equals("org.apache.felix.framework");
 	}
 }

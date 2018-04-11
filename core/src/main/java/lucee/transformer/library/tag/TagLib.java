@@ -391,7 +391,7 @@ public class TagLib implements Cloneable,Lib {
 			cm.put(
 					entry.getKey(), 
 					deepCopy?
-							entry.getValue(): // TODO add support for deepcopy ((TagLibTag)entry.getValue()).duplicate(deepCopy):
+							entry.getValue(): // TODO add support for deepcopy ((TagLibTag)entry.getValue()).duplicate(deepCopy): id:490 gh:500 ic:gh
 							entry.getValue());
 		}
 		return cm;
@@ -400,7 +400,7 @@ public class TagLib implements Cloneable,Lib {
 		return source;
 	}
 	public URI getUri() {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:451 gh:464 ic:gh
 		return uri;
 	}
 	public void setUri(String strUri) throws URISyntaxException {

@@ -30,7 +30,7 @@ public class ClassicLayout {/* extends AbstractStringLayout {
 	
 	public ClassicLayout(Charset charset) {
 		super(toCharset(charset));
-		// TODO Auto-generated constructor stub
+		// TODO Auto-generated constructor stub id:38 gh:41 ic:gh
 	}
 	
 	
@@ -45,7 +45,7 @@ public class ClassicLayout {/* extends AbstractStringLayout {
 	}
 
 	public void activateOptions() {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:8 gh:11 ic:gh
 
 	}
 

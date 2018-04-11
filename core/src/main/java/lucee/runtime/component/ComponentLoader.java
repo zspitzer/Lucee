@@ -385,7 +385,7 @@ public class ComponentLoader {
 	public static ComponentImpl loadComponent(PageContext pc,Page page, String callPath, boolean isRealPath, boolean silent,boolean isExtendedComponent, boolean executeConstr) throws PageException  {
 		CIPage cip = toCIPage(page, callPath);
 		if(silent) {
-			// TODO is there a more direct way
+			// TODO is there a more direct way id:110 gh:113 ic:gh
 			BodyContent bc =  pc.pushBody();
 			try {
 				return _loadComponent(pc,cip,callPath,isRealPath,isExtendedComponent,executeConstr);

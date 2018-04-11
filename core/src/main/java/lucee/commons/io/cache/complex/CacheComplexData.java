@@ -10,7 +10,7 @@ public class CacheComplexData implements Serializable {
 	public final long lastModified;
 	public final Long idle;
 	public final Long until;
-	public final int hitCount=0; // TODO
+	public final int hitCount=0; // TODO id:2 gh:5 ic:gh
 
 	public CacheComplexData(Object value, Long idle, Long until) {
 		this.value=value;

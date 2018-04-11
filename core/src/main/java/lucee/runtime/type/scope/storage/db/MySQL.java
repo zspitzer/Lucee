@@ -35,7 +35,7 @@ public class MySQL extends SQLExecutorSupport {
 	public Query select(Config config, String cfid, String applicationName,
 			DatasourceConnection dc, int type, Log log,
 			boolean createTableIfNotExist) throws PageException, SQLException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:364 gh:375 ic:gh
 		return null;
 	}
 
@@ -43,7 +43,7 @@ public class MySQL extends SQLExecutorSupport {
 	public void update(Config config, String cfid, String applicationName,
 			DatasourceConnection dc, int type, Object data, long timeSpan,
 			Log log) throws PageException, SQLException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:384 gh:394 ic:gh
 
 	}
 
@@ -51,7 +51,7 @@ public class MySQL extends SQLExecutorSupport {
 	public void delete(Config config, String cfid, String appName,
 			DatasourceConnection dc, int type, Log log)
 			throws PageException, SQLException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:409 gh:419 ic:gh
 
 	}
 
@@ -60,7 +60,7 @@ public class MySQL extends SQLExecutorSupport {
 			StorageScopeEngine engine, DatasourceStorageScopeCleaner cleaner,
 			StorageScopeListener listener, Log log) throws PageException,
 			SQLException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:459 gh:463 ic:gh
 		
 	}
 

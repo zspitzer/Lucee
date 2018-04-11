@@ -401,7 +401,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 	    			pageContext.getConfig().getComponentDataMemberDefaultAccess():
 	    			Component.ACCESS_PRIVATE;
 	    	this._static=new StaticScope(null,this,componentPage,dataMemberDefaultAccess);
-	    	// TODO get per CFC setting this._triggerDataMember=pageContext.getConfig().getTriggerComponentDataMember();
+	    	// TODO get per CFC setting this._triggerDataMember=pageContext.getConfig().getTriggerComponentDataMember(); id:51 gh:55 ic:gh
 		    _udfs=new HashMapPro<Key,UDF>();
 		    _data=MapFactory.getConcurrentMap();
 	    }
@@ -758,7 +758,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
     			key=entry.getKey();
     			udf=(UDFPlus) entry.getValue();
     			ps=udf.getPageSource();
-    			//if(ps!=null && ps.equals(getPageSource()))continue; // TODO can we avoid that udfs from the compinent itself are here?
+    			//if(ps!=null && ps.equals(getPageSource()))continue; // TODO can we avoid that udfs from the compinent itself are here? id:56 gh:59 ic:gh
     			registerUDF(key, udf,false,true);
     		}
     	}*/
@@ -935,7 +935,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
     }
     
     boolean isAccessible(PageContext pc, Member member) {
-        // TODO geschwindigkeit 
+        // TODO geschwindigkeit  id:15 gh:18 ic:gh
     	if(member!=null) {
     		int access=member.getAccess();
     		if(access<=ACCESS_PUBLIC) return true;
@@ -1820,7 +1820,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 	
 	@Override
 	public final Object put(Object key, Object value) {
-		// TODO find a better solution
+		// TODO find a better solution id:32 gh:36 ic:gh
 		// when a orm entity the data given by put or also written to the variables scope
 		if(entity) {
 			getComponentScope().put(key, value);

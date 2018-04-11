@@ -169,7 +169,7 @@ public class TimespanCacheHandler implements CacheHandlerPro {
 
 	@Override
 	public String pattern() {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:54 gh:58 ic:gh
 		return "#createTimespan(0,0,0,10)#";
 	}
 

@@ -59,31 +59,31 @@ public final class CountingReader extends Reader {
 
 	@Override
 	public boolean ready() throws IOException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:67 gh:70 ic:gh
 		return super.ready();
 	}
 
 	@Override
 	public void reset() throws IOException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:1 gh:4 ic:gh
 		super.reset();
 	}
 
 	@Override
 	public long skip(long n) throws IOException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:4 gh:7 ic:gh
 		return super.skip(n);
 	}
 
 	@Override
 	public void close() throws IOException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:6 gh:9 ic:gh
 
 	}
 
 	@Override
 	public int read(char[] cbuf, int off, int len) throws IOException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:23 gh:26 ic:gh
 		return 0;
 	}
 

@@ -118,11 +118,11 @@ public final class HttpServletResponseWrap extends HttpServletResponseWrapper im
 	
 	@Override
 	public void sendError(int code, String codeText) throws IOException {
-		// TODO impl
+		// TODO impl id:213 gh:216 ic:gh
 	}
 	@Override
 	public void sendError(int code) throws IOException {
-		// TODO impl
+		// TODO impl id:254 gh:264 ic:gh
 	}
 	
 	@Override

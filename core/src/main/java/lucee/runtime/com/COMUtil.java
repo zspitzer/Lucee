@@ -119,7 +119,7 @@ public final class COMUtil {
 		    
 		    return new COMObject(variant,variant.toDispatch(),parent.getName()+"."+key);
 		}
-		// TODO  ?? else if(type==Variant.VariantError) return variant.toError();
+		// TODO ?? else if(type==Variant.VariantError) return variant.toError(); id:18 gh:21 ic:gh
 
 		throw new ExpressionException("COM Type ["+toStringType(type)+"] not supported");
     }

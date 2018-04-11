@@ -31,7 +31,7 @@ import lucee.commons.io.IOUtil;
 import lucee.commons.io.res.Resource;
 import lucee.commons.io.res.util.FileWrapper;
 
-// TODO umbauen auf ZipInputStream oder ein wrapper schreiben fuer resorces der das file interface einhaelt
+// TODO umbauen auf ZipInputStream oder ein wrapper schreiben fuer resorces der das file interface einhaelt id:103 gh:104 ic:gh
 
 
 public final class ArchiveClassLoader extends ClassLoader implements Closeable {

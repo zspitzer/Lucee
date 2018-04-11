@@ -99,7 +99,7 @@ import org.w3c.dom.Node;
 public final class Types {
 
 
-	// TODO muss wohl alle Prim typen sein plus Object
+	// TODO muss wohl alle Prim typen sein plus Object id:478 gh:484 ic:gh
     public static final int _BOOLEAN=1;
     public static final int _DOUBLE=2;
     private static final int _SHORT=7;
@@ -392,7 +392,7 @@ public final class Types {
         break;
         
         }
-        // TODO Array als Lbyte und auch byte[]
+        // TODO Array als Lbyte und auch byte[] id:418 gh:422 ic:gh
         
 		try {
 			return Type.getType(ClassUtil.loadClass(type));

@@ -680,7 +680,7 @@ public class SimpleQuery implements Query, ResultSet, Objects,QueryResult {
 		throw notSupported();
 		//Integer index=mappings.get(columnName);
 		//if(index==null) throw new ExpressionException("invalid column name definitions");	
-		// TODO implement
+		// TODO implement id:439 gh:442 ic:gh
 	}
 
 	@Override

@@ -60,7 +60,7 @@ public class HTTPResource extends ReadOnlyResourceSupport {
 		if(create || http==null) {
 			//URL url = HTTPUtil.toURL("http://"+data.host+":"+data.port+"/"+data.path);
 			URL url = new URL(provider.getProtocol(),data.host,data.port,data.path);
-			// TODO Support for proxy
+			// TODO Support for proxy id:72 gh:75 ic:gh
 			ProxyData pd=data.hasProxyData()?data.proxyData:ProxyDataImpl.NO_PROXY;
 				
 			http = HTTPEngine.get(url, data.username, data.password, _getTimeout(),true,null, data.userAgent, 

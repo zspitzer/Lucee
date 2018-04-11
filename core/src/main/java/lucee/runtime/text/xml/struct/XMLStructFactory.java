@@ -36,7 +36,7 @@ public final class XMLStructFactory {
 	 * @return XMLStruct instance
 	 */
 	public static XMLStruct newInstance(Node node, boolean caseSensitive) {
-		// TODO set Case Sensitive
+		// TODO set Case Sensitive id:397 gh:407 ic:gh
 		if(node instanceof XMLStruct) return ((XMLStruct)node);
 		
 		if(node instanceof Document) return new XMLDocumentStruct((Document)node,caseSensitive);

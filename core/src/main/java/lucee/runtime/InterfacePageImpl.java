@@ -40,7 +40,7 @@ public abstract class InterfacePageImpl extends InterfacePage implements PagePro
             pc.setSilent();
             InterfaceImpl interf = null;
             try {
-                interf = newInstance(pc,getPageSource().getComponentName(),false);// TODO was only getComponentName before, is that change ok?
+                interf = newInstance(pc,getPageSource().getComponentName(),false);// TODO was only getComponentName before, is that change ok? id:16 gh:19 ic:gh
             }
             finally {
                 pc.unsetSilent();
@@ -71,7 +71,7 @@ public abstract class InterfacePageImpl extends InterfacePage implements PagePro
             }
             
 			// DUMP
-			//TODO component.setAccess(pc,Component.ACCESS_PUBLIC);
+			//TODO component.setAccess(pc,Component.ACCESS_PUBLIC); id:33 gh:37 ic:gh
 			String cdf = pc.getConfig().getComponentDumpTemplate();
 			if(cdf!=null && cdf.trim().length()>0) {
 			    pc.variablesScope().set(KeyConstants._component,interf);

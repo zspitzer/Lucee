@@ -323,7 +323,7 @@ public final class CFMLEngineImpl implements CFMLEngine {
 					else
 						rheVersion = OSGiUtil.toVersion(rhe.getVersion(), null);
 					// if the installed is older than the one defined in the manifest we update (if possible)
-					if(rheVersion != null && OSGiUtil.isNewerThan(edVersion, rheVersion)) { // TODO do none OSGi version number comparsion
+					if(rheVersion != null && OSGiUtil.isNewerThan(edVersion, rheVersion)) { // TODO do none OSGi version number comparsion id:94 gh:98 ic:gh
 						extensions.add(ed);
 					}
 				}
@@ -584,7 +584,7 @@ public final class CFMLEngineImpl implements CFMLEngine {
 			}
 		}
 		catch (Throwable t) {
-			ExceptionUtil.rethrowIfNecessary(t);// TODO log this
+			ExceptionUtil.rethrowIfNecessary(t);// TODO log this id:117 gh:120 ic:gh
 		} finally {
 			Util.closeEL(zis);
 		}
@@ -696,7 +696,7 @@ public final class CFMLEngineImpl implements CFMLEngine {
 	}
 
 	private void filter(ServletRequest req, ServletResponse rsp, FilterChain fc) {
-		// TODO get filter defined in Config
+		// TODO get filter defined in Config id:80 gh:83 ic:gh
 	}
 
 	private Object _get(Object obj, String msg) throws PageException {
@@ -717,7 +717,7 @@ public final class CFMLEngineImpl implements CFMLEngine {
 			if("org.apache.catalina.core.StandardContext".equals(obj.getClass().getName())) {
 				Method m = null;
 				try {
-					// TODO check if we already have a listener (lucee.loader.servlet.LuceeServletContextListener), if so we do nothing
+					// TODO check if we already have a listener (lucee.loader.servlet.LuceeServletContextListener), if so we do nothing id:122 gh:126 ic:gh
 					// sc.getApplicationLifecycleListeners();
 					m = obj.getClass().getMethod("addApplicationLifecycleListener", new Class[] { Object.class });
 					CFMLServletContextListener tmp;
@@ -1568,7 +1568,7 @@ public final class CFMLEngineImpl implements CFMLEngine {
 
 	@Override
 	public ConfigWeb createConfig(File contextRoot, String host, String scriptName) throws ServletException {
-		// TODO do a mored rect approach
+		// TODO do a mored rect approach id:85 gh:89 ic:gh
 		PageContext pc = null;
 		try {
 			// FUTURE add first 2 arguments to interface

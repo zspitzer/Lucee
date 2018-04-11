@@ -699,7 +699,7 @@ public final class ComponentUtil {
 
 
 	public static PageSource getPageSource(Component cfc) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:349 gh:359 ic:gh
 		try {
 			return toComponent(cfc).getPageSource();
 		} catch (ExpressionException e) {
@@ -752,8 +752,8 @@ public final class ComponentUtil {
 	public static Struct getMetaData(PageContext pc,UDFPropertiesBase udf) throws PageException {
 		StructImpl func=new StructImpl();
         pc=ThreadLocalPageContext.get(pc);
-		// TODO func.set("roles", value);
-        // TODO func.set("userMetadata", value); neo unterstuetzt irgendwelche a
+		// TODO func.set("roles", value); id:367 gh:378 ic:gh
+        // TODO func.set("userMetadata", value); neo unterstuetzt irgendwelche a id:387 gh:397 ic:gh
         // meta data
         Struct meta = udf.getMeta();
         if(meta!=null) StructUtil.copy(meta, func, true);
@@ -813,7 +813,7 @@ public final class ComponentUtil {
             
             hint=args[y].getHint();
             if(!StringUtil.isEmpty(hint))param.set(KeyConstants._hint,hint);
-            // TODO func.set("userMetadata", value); neo unterstuetzt irgendwelche attr, die dann hier ausgebenen werden bloedsinn
+            // TODO func.set("userMetadata", value); neo unterstuetzt irgendwelche attr, die dann hier ausgebenen werden bloedsinn id:412 gh:424 ic:gh
             
             // meta data
             m=args[y].getMetaData();

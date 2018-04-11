@@ -177,7 +177,7 @@ public final class Function extends EvaluatorSupport {
 					path = ps.getDisplayPath();
 					path=path.replace('\\', '/');
 				}
-				if(path==null || path.indexOf("/library/function/")==-1)// TODO make better
+				if(path==null || path.indexOf("/library/function/")==-1)// TODO make better id:419 gh:429 ic:gh
 					throw new EvaluatorException("The name ["+name+"] is already used by a built in Function");
 			}
 		}

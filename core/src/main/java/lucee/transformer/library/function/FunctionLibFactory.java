@@ -473,7 +473,7 @@ public final class FunctionLibFactory extends DefaultHandler {
 		Iterator<Entry<String, FunctionLibFunction>> it = extFL.getFunctions().entrySet().iterator();
 		FunctionLibFunction flf;
 		while(it.hasNext()){
-			flf= it.next().getValue(); // TODO function must be duplicated because it gets a new FunctionLib assigned
+			flf= it.next().getValue(); // TODO function must be duplicated because it gets a new FunctionLib assigned id:421 gh:431 ic:gh
 			newFL.setFunction(flf);
 		}
 	}

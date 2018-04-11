@@ -63,7 +63,7 @@ public class Range {
 		if(str.endsWith("ms"))	return Caster.toDoubleValue(str.substring(0,str.length()-2))/1000D;
 		else if(str.endsWith("s"))		return Caster.toDoubleValue(str.substring(0,str.length()-1));
 		else return Caster.toDoubleValue(str)/1000D;
-		// TODO if(str.endsWith("f")) 			this.startFrame=VideoConfig.toLong(str.substring(0,str.length()-1));
+		// TODO if(str.endsWith("f")) 			this.startFrame=VideoConfig.toLong(str.substring(0,str.length()-1)); id:370 gh:380 ic:gh
 		
 	}
 

@@ -996,7 +996,7 @@ public final class ScopeContext {
 					MemoryScope scope = (MemoryScope)o;
 					// close
 					if(scope.isExpired()) {
-						// TODO macht das sinn? ist das nicht kopierleiche?
+						// TODO macht das sinn? ist das nicht kopierleiche? id:344 gh:354 ic:gh
 						ApplicationImpl application = (ApplicationImpl) applicationContexts.get(applicationName);
 						long appLastAccess = 0;
 						if(application != null) {

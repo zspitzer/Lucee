@@ -233,7 +233,7 @@ public class SimpleQueryColumn implements QueryColumn {
 	
 	@Override
 	public String castToString() throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:340 gh:350 ic:gh
 		return Caster.toString(get(key));
 	}
 

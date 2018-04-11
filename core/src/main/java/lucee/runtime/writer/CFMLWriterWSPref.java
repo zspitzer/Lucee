@@ -50,7 +50,7 @@ public final class CFMLWriterWSPref extends CFMLWriterImpl implements WhiteSpace
 
 	static {
 		
-		// TODO: set EXCLUDE_TAGS to values from WebConfigImpl
+		// TODO: set EXCLUDE_TAGS to values from WebConfigImpl id:390 gh:400 ic:gh
 		
 		for ( String s : EXCLUDE_TAGS )
 			if ( s.length() < minTagLen )
@@ -76,9 +76,9 @@ public final class CFMLWriterWSPref extends CFMLWriterImpl implements WhiteSpace
 	/**
 	 * prints the characters from the buffer and resets it
 	 * 
-	 * TODO: make sure that printBuffer() is called at the end of the stream in case we have some characters there! (flush() ?)
+	 * TODO: make sure that printBuffer() is called at the end of the stream in case we have some characters there! (flush() ?) id:415 gh:426 ic:gh
 	 */
-	synchronized void printBuffer() throws IOException {				// TODO: is synchronized really needed here?
+	synchronized void printBuffer() throws IOException {				// TODO: is synchronized really needed here? id:465 gh:475 ic:gh
 		int len = sb.length();
 		if ( len > 0 ) {
 			char[] chars = new char[ len ];

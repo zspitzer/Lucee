@@ -216,7 +216,7 @@ public final class TagHelper {
 		Label tagBegin=new Label();
 		Label tagEnd=new Label();
 		ExpressionUtil.visitLine(bc, tag.getStart());
-		// TODO adapter.visitLocalVariable("tag", "L"+currType.getInternalName()+";", null, tagBegin, tagEnd, currLocal);
+		// TODO adapter.visitLocalVariable("tag", "L"+currType.getInternalName()+";", null, tagBegin, tagEnd, currLocal); id:447 gh:458 ic:gh
 
 		adapter.visitLabel(tagBegin);
 	// tag=pc.use(String tagClassName,String tagBundleName, String tagBundleVersion, String fullname,int attrType) throws PageException {

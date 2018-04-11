@@ -30,7 +30,7 @@ import lucee.runtime.type.Struct;
 
 public abstract class WebserviceClient implements Objects, Iteratorable {
 	
-	// TODO add the missing parts
+	// TODO add the missing parts id:485 gh:496 ic:gh
 	public abstract WebserviceClient init(PageContext pc,String wsdlUrl, String username, String password, ProxyData proxyData) throws PageException;
 		
 	

@@ -80,7 +80,7 @@ public class LinkedHashMapPro<K,V>
         accessOrder = false;
     }
     
-    // TODO better implementation
+    // TODO better implementation id:22 gh:25 ic:gh
     @Override
     public void writeExternal(java.io.ObjectOutput out) throws java.io.IOException {
         out.writeObject(new LinkedHashMap(this));

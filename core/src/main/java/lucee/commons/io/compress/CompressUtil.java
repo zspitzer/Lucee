@@ -596,7 +596,7 @@ public final class CompressUtil {
             entry.setName(parent);
             
             // mode
-            //100777 TODO ist das so ok?
+            //100777 TODO ist das so ok? id:37 gh:40 ic:gh
             if(mode>0)	entry.setMode(mode);
             else if((mode=source.getMode())>0)	entry.setMode(mode);
             

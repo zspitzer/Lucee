@@ -137,7 +137,7 @@ public class Pool {
 			this.pool=pool;
 		}
 		
-		public void run() { // TODO handle exceptions
+		public void run() { // TODO handle exceptions id:208 gh:211 ic:gh
 			print.e("--- start ---");
 			while(true) {
 				try {sleep(pool.interval);} catch (InterruptedException e) {e.printStackTrace();}
@@ -145,7 +145,7 @@ public class Pool {
 				try {
 					pool.clean(false);
 				} catch (Exception e) {
-					// TODO Auto-generated catch block
+					// TODO Auto-generated catch block id:230 gh:240 ic:gh
 					e.printStackTrace();
 				}
 				if(isInterrupted()) break;

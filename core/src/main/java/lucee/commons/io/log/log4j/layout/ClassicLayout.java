@@ -40,7 +40,7 @@ public class ClassicLayout extends Layout {
 	
 	@Override
 	public String getContentType() {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:69 gh:72 ic:gh
 		return super.getContentType();
 	}
 
@@ -51,7 +51,7 @@ public class ClassicLayout extends Layout {
 
 	@Override
 	public void activateOptions() {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:44 gh:47 ic:gh
 
 	}
 

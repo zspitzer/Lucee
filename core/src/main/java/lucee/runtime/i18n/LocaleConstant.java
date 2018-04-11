@@ -131,6 +131,6 @@ public class LocaleConstant {
 		
 	}*/
 	
-	// TODO add all from http://www.oracle.com/technetwork/java/javase/locales-137662.html
+	// TODO add all from http://www.oracle.com/technetwork/java/javase/locales-137662.html id:158 gh:162 ic:gh
 	
 }

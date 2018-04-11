@@ -61,7 +61,7 @@ public final class BlobImpl implements java.sql.Blob, Serializable {
     
     @Override
     public java.io.InputStream getBinaryStream(long pos, long length)	{
-    	// TODO impl this
+    	// TODO impl this id:347 gh:357 ic:gh
     	return new ByteArrayInputStream(binaryData);
     }
 
@@ -77,25 +77,25 @@ public final class BlobImpl implements java.sql.Blob, Serializable {
  
      @Override
     public int setBytes(long pos, byte[] bytes) throws SQLException	{
-         // TODO impl.
+         // TODO impl. id:365 gh:376 ic:gh
          throw new SQLException("JDBC 3.0 Method setBytes not implemented");
      }
 
      @Override
     public int setBytes(long pos, byte[] bytes, int offset, int len)	throws SQLException	{
-         // TODO impl.
+         // TODO impl. id:385 gh:395 ic:gh
          throw new SQLException("JDBC 3.0 Method setBytes not implemented");
      }
  
      @Override
     public java.io.OutputStream setBinaryStream(long pos) throws SQLException	{
-         // TODO impl.
+         // TODO impl. id:410 gh:420 ic:gh
          throw new SQLException("JDBC 3.0 Method setBinaryStream not implemented");
      }
  
      @Override
     public void truncate(long len) throws SQLException	{
-         // TODO impl.
+         // TODO impl. id:460 gh:470 ic:gh
          throw new SQLException("JDBC 3.0 Method truncate not implemented");
      }
 

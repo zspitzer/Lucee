@@ -57,7 +57,7 @@ public final class ScriptProtect {
 	 */
 	public static String translate(String str) {
 		if(str==null)return "";
-		// TODO do-while machen 
+		// TODO do-while machen  id:150 gh:153 ic:gh
 		int index,last=0,endIndex;
 		StringBuilder sb=null;
 		String tagName;

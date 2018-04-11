@@ -248,7 +248,7 @@ public final class ConfigWebUtil {
     	strDir=replacePlaceholder(strDir,config);
         if(!StringUtil.isEmpty(strDir,true)) {
         	Resource res;
-        	if(strDir.indexOf("://")!=-1){ // TODO better impl.
+        	if(strDir.indexOf("://")!=-1){ // TODO better impl. id:62 gh:65 ic:gh
         		res=getFile(config.getResource(strDir),type);
         		if(res!=null) return res;
         	}
@@ -474,7 +474,7 @@ public final class ConfigWebUtil {
 
     public static void checkPassword(ConfigImpl config, String type,Password password) throws SecurityException {
     	if(!config.hasPassword())
-    	    throw new SecurityException("can't access password protected information from the configuration, no password is defined for "+(config instanceof ConfigServer?"the server context":"this web context") ); // TODO make the message more clear for someone using the admin indirectly in source code by using ACF specific interfaces
+    	    throw new SecurityException("can't access password protected information from the configuration, no password is defined for "+(config instanceof ConfigServer?"the server context":"this web context") ); // TODO make the message more clear for someone using the admin indirectly in source code by using ACF specific interfaces id:21 gh:24 ic:gh
     	if(!config.passwordEqual(password)){
         	if(StringUtil.isEmpty(password)){
         		if(type==null)

@@ -40,7 +40,7 @@ public abstract class AbstractMapPro<K,V> implements MapPro<K,V>,Externalizable 
     protected AbstractMapPro() {
     }
     
-    // TODO better implementation
+    // TODO better implementation id:3 gh:6 ic:gh
     @Override
     public void writeExternal(java.io.ObjectOutput out) throws java.io.IOException {
         out.writeObject(new HashMap(this));
@@ -478,7 +478,7 @@ public abstract class AbstractMapPro<K,V> implements MapPro<K,V>,Externalizable 
         return true;
     }
 
-    // TODO add again current implementation creates a infinti loop when child=this
+    // TODO add again current implementation creates a infinti loop when child=this id:5 gh:8 ic:gh
     /*public int hashCode() {
         int h = 0;
         Iterator<Entry<K,V>> i = entrySet().iterator();

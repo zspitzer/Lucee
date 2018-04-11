@@ -62,22 +62,22 @@ public class ComponentAccessSimulation {//implements ComponentAccess {
 	}
 
 	public Iterator<Key> keyIterator(int access) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:401 gh:413 ic:gh
 		return cfc.keyIterator(access);
 	}
 
 	public Iterator<String> keysAsStringIterator(int access) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:438 gh:449 ic:gh
 		return cfc.keysAsStringIterator(access);
 	}
 
 	public Iterator<Entry<Key, Object>> entryIterator(int access) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:339 gh:349 ic:gh
 		return cfc.entryIterator(access);
 	}
 
 	public Iterator<Object> valueIterator(int access) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:357 gh:362 ic:gh
 		return cfc.valueIterator(access);
 	}
 

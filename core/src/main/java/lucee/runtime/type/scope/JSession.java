@@ -102,7 +102,7 @@ public final class JSession extends ScopeSupport implements Session,HttpSessionB
 	    		Object key;
 	    		Enumeration e = httpSession.getAttributeNames();
 	    		while(e.hasMoreElements()) {
-	    			// TODO set inative time new
+	    			// TODO set inative time new id:406 gh:416 ic:gh
 	    			key=e.nextElement();
 	    			if(key.equals(name))httpSession.removeAttribute(name);
 	    		}

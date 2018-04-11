@@ -560,7 +560,7 @@ public final class TagLibTag {
 	}
 
 	public void setBundleVersion(String bundleVersion) {
-		// TODO allow 1.0.0.0-2.0.0.0,3.0.0.0
+		// TODO allow 1.0.0.0-2.0.0.0,3.0.0.0 id:422 gh:432 ic:gh
 		this.bundleVersion=OSGiUtil.toVersion(bundleVersion.trim(),null);
 	}
 

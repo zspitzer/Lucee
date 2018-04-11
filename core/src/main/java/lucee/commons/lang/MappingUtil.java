@@ -41,7 +41,7 @@ import lucee.transformer.bytecode.util.SourceNameClassVisitor.SourceInfo;
 public class MappingUtil {
 	
 	public static PageSource searchMappingRecursive(Mapping mapping, String name, boolean onlyCFC) {
-		if(name.indexOf('/')==-1) { // TODO handle this as well?
+		if(name.indexOf('/')==-1) { // TODO handle this as well? id:12 gh:15 ic:gh
 			Config config = mapping.getConfig();
 			ExtensionResourceFilter ext =null;
 			if(onlyCFC) ext=new ExtensionResourceFilter(Constants.getComponentExtensions(),true,true);
@@ -94,7 +94,7 @@ public class MappingUtil {
 			}
 			
 		}
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:29 gh:32 ic:gh
 		return null;
 	}
 	

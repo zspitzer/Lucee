@@ -82,7 +82,7 @@ public abstract class MailClient implements PoolItem {
 			try {
 				start();
 			} catch (MessagingException e) {
-				// TODO Auto-generated catch block
+				// TODO Auto-generated catch block id:215 gh:220 ic:gh
 				e.printStackTrace();
 			}
 		}

@@ -216,7 +216,7 @@ public final class XMLUtil {
     public static TransformerFactory getTransformerFactory() {
     	
     	/*if(transformerFactory==null){
-    		Thread.currentThread().setContextClassLoader(new EnvClassLoader((ConfigImpl)ThreadLocalPageContext.getConfig())); // TODO make this global 
+    		Thread.currentThread().setContextClassLoader(new EnvClassLoader((ConfigImpl)ThreadLocalPageContext.getConfig())); // TODO make this global  id:332 gh:342 ic:gh
     		transformerFactory=TransformerFactory.newInstance();
     	}*/
     	if(transformerFactory==null)transformerFactory=new TransformerFactoryImpl();
@@ -284,7 +284,7 @@ public final class XMLUtil {
 	
 	private static DocumentBuilderFactory newDocumentBuilderFactory() {
 		if(documentBuilderFactory==null) {
-			Thread.currentThread().setContextClassLoader(new EnvClassLoader((ConfigImpl)ThreadLocalPageContext.getConfig())); // TODO make this global 
+			Thread.currentThread().setContextClassLoader(new EnvClassLoader((ConfigImpl)ThreadLocalPageContext.getConfig())); // TODO make this global  id:350 gh:360 ic:gh
 			//documentBuilderFactory=DocumentBuilderFactory.newInstance();
 			documentBuilderFactory=new DocumentBuilderFactoryImpl();
 		}
@@ -343,12 +343,12 @@ public final class XMLUtil {
 			}
 		// NS URI
 			else if(k.equals(XMLNSURI)) {
-				// TODO impl
+				// TODO impl id:317 gh:327 ic:gh
 				throw new ExpressionException("XML NS URI can't be set","not implemented");
 			}
 		// Prefix
 			else if(k.equals(XMLNSPREFIX)) {
-				// TODO impl
+				// TODO impl id:395 gh:402 ic:gh
 				throw new ExpressionException("XML NS Prefix can't be set","not implemented");
 				//node.setPrefix(Caster.toString(value));
 			}			

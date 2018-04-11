@@ -550,11 +550,11 @@ public abstract class ConfigImpl implements Config {
     protected void setFLDs(FunctionLib[] flds, int dialect) {
     	if(dialect==CFMLEngine.DIALECT_CFML){
     		cfmlFlds=flds;
-    		combinedCFMLFLDs=null; // TODO improve check (hash) 
+    		combinedCFMLFLDs=null; // TODO improve check (hash)  id:19 gh:22 ic:gh
     	}
     	else {
     		luceeFlds=flds;
-    		combinedLuceeFLDs=null; // TODO improve check (hash) 
+    		combinedLuceeFLDs=null; // TODO improve check (hash)  id:36 gh:39 ic:gh
     	}
     }
     
@@ -1350,11 +1350,11 @@ public abstract class ConfigImpl implements Config {
         flds=new FunctionLib[]{flds[0]};
         if(dialect==CFMLEngine.DIALECT_CFML) {
         	cfmlFlds=flds;
-        	if(cfmlFlds!=flds)combinedCFMLFLDs=null;// TODO improve check 
+        	if(cfmlFlds!=flds)combinedCFMLFLDs=null;// TODO improve check  id:111 gh:115 ic:gh
         }
         else {
         	luceeFlds=flds;
-        	if(luceeFlds!=flds)combinedLuceeFLDs=null;// TODO improve check 
+        	if(luceeFlds!=flds)combinedLuceeFLDs=null;// TODO improve check  id:74 gh:77 ic:gh
         }
 		
 		if(fileFld==null) return;
@@ -2261,7 +2261,7 @@ public abstract class ConfigImpl implements Config {
 
 	@Override
 	public boolean isProxyEnableFor(String host) {
-		return false;// TODO proxyEnable;
+		return false;// TODO proxyEnable; id:61 gh:64 ic:gh
 	}
 
 	/**
@@ -2668,7 +2668,7 @@ public abstract class ConfigImpl implements Config {
 	}
 
 	public Resource getVideoDirectory() {
-		// TODO take from tag <video>
+		// TODO take from tag <video> id:20 gh:23 ic:gh
 		Resource dir = getConfigDir().getRealResource("video");
 	    if(!dir.exists())dir.mkdirs();
 	    return dir;
@@ -2676,7 +2676,7 @@ public abstract class ConfigImpl implements Config {
 
 
 	public Resource getExtensionDirectory() {
-		// TODO take from tag <extensions>
+		// TODO take from tag <extensions> id:89 gh:92 ic:gh
 		Resource dir = getConfigDir().getRealResource("extensions/installed");
 		if(!dir.exists())dir.mkdirs();
 	    
@@ -2816,7 +2816,7 @@ public abstract class ConfigImpl implements Config {
 	 */
 	public Mapping getScriptMapping() {
 		if(scriptMapping==null) {
-			// Physical resource TODO make in RAM
+			// Physical resource TODO make in RAM id:112 gh:116 ic:gh
 			Resource physical=getConfigDir().getRealResource("jsr223");
 			if(!physical.exists()) physical.mkdirs();
 			
@@ -2826,7 +2826,7 @@ public abstract class ConfigImpl implements Config {
 	}
 
 	public String getDefaultDataSource() {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:75 gh:78 ic:gh
 		return null;
 	}
 	protected void setDefaultDataSource(String defaultDataSource) {

@@ -43,7 +43,7 @@ public class Closure extends EnvUDF {
 	
 	@Override
 	public UDF _duplicate(Component c) {
-		Closure clo = new Closure(properties,variables);// TODO duplicate variables as well?
+		Closure clo = new Closure(properties,variables);// TODO duplicate variables as well? id:398 gh:408 ic:gh
 		clo.ownerComponent=c;
 		clo.setAccess(getAccess());
 		return clo;

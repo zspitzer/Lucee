@@ -101,152 +101,152 @@ public class JaxWSClient extends WSClient {
 
 	@Override
 	public Object get(PageContext pc, Key key, Object defaultValue) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:200 gh:203 ic:gh
 		return null;
 	}
 
 	@Override
 	public Object get(PageContext pc, Key key) throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:222 gh:229 ic:gh
 		return null;
 	}
 
 	@Override
 	public Object set(PageContext pc, Key propertyName, Object value) throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:263 gh:274 ic:gh
 		return null;
 	}
 
 	@Override
 	public Object setEL(PageContext pc, Key propertyName, Object value) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:172 gh:176 ic:gh
 		return null;
 	}
 
 	@Override
 	public Object call(PageContext pc, Key methodName, Object[] arguments) throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:142 gh:146 ic:gh
 		return null;
 	}
 
 
 	@Override
 	public String castToString() throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:201 gh:204 ic:gh
 		return null;
 	}
 
 	@Override
 	public String castToString(String defaultValue) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:223 gh:231 ic:gh
 		return null;
 	}
 
 	@Override
 	public boolean castToBooleanValue() throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:264 gh:275 ic:gh
 		return false;
 	}
 
 	@Override
 	public Boolean castToBoolean(Boolean defaultValue) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:173 gh:177 ic:gh
 		return null;
 	}
 
 	@Override
 	public double castToDoubleValue() throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:143 gh:144 ic:gh
 		return 0;
 	}
 
 	@Override
 	public double castToDoubleValue(double defaultValue) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:202 gh:205 ic:gh
 		return 0;
 	}
 
 	@Override
 	public DateTime castToDateTime() throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:224 gh:233 ic:gh
 		return null;
 	}
 
 	@Override
 	public DateTime castToDateTime(DateTime defaultValue) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:265 gh:276 ic:gh
 		return null;
 	}
 
 	@Override
 	public int compareTo(String str) throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:174 gh:174 ic:gh
 		return 0;
 	}
 
 	@Override
 	public int compareTo(boolean b) throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:144 gh:147 ic:gh
 		return 0;
 	}
 
 	@Override
 	public int compareTo(double d) throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:203 gh:206 ic:gh
 		return 0;
 	}
 
 	@Override
 	public int compareTo(DateTime dt) throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:225 gh:224 ic:gh
 		return 0;
 	}
 
 	@Override
 	public Iterator<Key> keyIterator() {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:266 gh:277 ic:gh
 		return null;
 	}
 
 	@Override
 	public Iterator<String> keysAsStringIterator() {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:175 gh:178 ic:gh
 		return null;
 	}
 
 	@Override
 	public Iterator<Object> valueIterator() {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:145 gh:148 ic:gh
 		return null;
 	}
 
 	@Override
 	public Iterator<Entry<Key, Object>> entryIterator() {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:204 gh:207 ic:gh
 		return null;
 	}
 
 	@Override
 	public void addHeader(SOAPHeaderElement header) throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:226 gh:225 ic:gh
 
 	}
 
 	@Override
 	public Call getLastCall() throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:267 gh:278 ic:gh
 		return null;
 	}
 
 	@Override
 	public Object callWithNamedValues(Config config, Key methodName, Struct arguments) throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:176 gh:179 ic:gh
 		return null;
 	}
 
 	@Override
 	public Object callWithNamedValues(PageContext pc, Key methodName, Struct arguments) throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:146 gh:149 ic:gh
 		return null;
 	}
 	

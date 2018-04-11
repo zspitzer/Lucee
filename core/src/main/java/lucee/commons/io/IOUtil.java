@@ -600,7 +600,7 @@ public final class IOUtil {
  	        }
  	        // FF FE 	UTF-16, little-endian
  	        if (first == 0xFF && second == 0xFE)    {
- 	        	// TODO FF FE 00 00 UTF-32 little-endian
+ 	        	// TODO FF FE 00 00 UTF-32 little-endian id:68 gh:71 ic:gh
  	 			return _getReader(is, CharsetUtil.UTF16LE);
  	        }
  	        

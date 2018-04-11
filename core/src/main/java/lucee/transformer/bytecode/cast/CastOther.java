@@ -38,7 +38,7 @@ import org.objectweb.asm.commons.Method;
  * cast a Expression to a Double
  */
 public final class CastOther extends ExpressionBase implements Cast { 
-    // TODO support short type
+    // TODO support short type id:391 gh:401 ic:gh
     private Expression expr;
     private String type;
     private String lcType;
@@ -391,7 +391,7 @@ public final class CastOther extends ExpressionBase implements Cast {
             else if("null".equals(lcType)) {
                 expr.writeOut(bc,MODE_REF);
                 adapter.invokeStatic(Types.CASTER,Methods_Caster.TO_NULL);
-                // TODO gibt es einen null typ?
+                // TODO gibt es einen null typ? id:416 gh:427 ic:gh
                 return Types.OBJECT;
             }
         break;

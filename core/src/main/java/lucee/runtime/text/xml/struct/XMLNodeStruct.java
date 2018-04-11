@@ -107,7 +107,7 @@ public class XMLNodeStruct extends StructSupport implements XMLStruct {
 	 * @return retun the inner map
 	 */
 	public Map<String,Node> getMap() {
-		NodeList elements=XMLUtil.getChildNodes(node,Node.ELEMENT_NODE,false,null);// TODO ist das false hier ok?
+		NodeList elements=XMLUtil.getChildNodes(node,Node.ELEMENT_NODE,false,null);// TODO ist das false hier ok? id:333 gh:343 ic:gh
 		Map<String,Node> map=MapFactory.<String,Node>getConcurrentMap();
 		int len=elements.getLength();
 		
@@ -270,7 +270,7 @@ public class XMLNodeStruct extends StructSupport implements XMLStruct {
 
 	@Override
 	public Collection.Key[] keys() {
-		NodeList elements=XMLUtil.getChildNodes(node,Node.ELEMENT_NODE,false,null);// TODO ist das false hie ok
+		NodeList elements=XMLUtil.getChildNodes(node,Node.ELEMENT_NODE,false,null);// TODO ist das false hie ok id:351 gh:363 ic:gh
 		Collection.Key[] arr=new Collection.Key[elements.getLength()];
 		for(int i=0;i<arr.length;i++) {
 			arr[i]=KeyImpl.init(elements.item(i).getNodeName());
@@ -421,7 +421,7 @@ public class XMLNodeStruct extends StructSupport implements XMLStruct {
 
  // used only with java 7, do not set @Override
 	public void setTextContent(String textContent) throws DOMException {
-        //TODO  not supported
+        //TODO not supported id:371 gh:381 ic:gh
         throw new DOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR,"this method is not supported");
     }
 
@@ -432,31 +432,31 @@ public class XMLNodeStruct extends StructSupport implements XMLStruct {
 
 	// used only with java 7, do not set @Override
 	public String lookupPrefix(String namespaceURI) {
-//      TODO not supported
+//      TODO not supported id:396 gh:406 ic:gh
         return null;
     }
 
 	// used only with java 7, do not set @Override
 	public boolean isDefaultNamespace(String namespaceURI) {
-//      TODO not supported
+//      TODO not supported id:433 gh:441 ic:gh
         return false;
     }
 
 	// used only with java 7, do not set @Override
 	public String lookupNamespaceURI(String prefix) {
-//      TODO not supported
+//      TODO not supported id:334 gh:344 ic:gh
         return null;
     }
 
 	// used only with java 7, do not set @Override
 	public boolean isEqualNode(Node node) {
-//      TODO not supported
+//      TODO not supported id:352 gh:364 ic:gh
         return this==node;
     }
 
 	// used only with java 7, do not set @Override
 	public Object getFeature(String feature, String version) {
-        // TODO not supported
+        // TODO not supported id:372 gh:383 ic:gh
         return null;
     }
 

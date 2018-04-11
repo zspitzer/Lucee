@@ -38,7 +38,7 @@ public final class FTPConnectionData {
 		password="";
 		host=null;
 		port=21;
-		// TODO impl proxy
+		// TODO impl proxy id:46 gh:49 ic:gh
 		
 		int atIndex=path.indexOf('@');
 		int slashIndex=path.indexOf('/');

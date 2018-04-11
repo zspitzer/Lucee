@@ -224,7 +224,7 @@ public final class FTPResource extends ResourceSupport {
 
 	@Override
 	public boolean isAbsolute() {
-		// TODO impl isAbolute
+		// TODO impl isAbolute id:40 gh:43 ic:gh
 		return true;
 	}
 

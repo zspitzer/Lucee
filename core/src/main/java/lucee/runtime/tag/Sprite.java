@@ -107,7 +107,7 @@ public final class Sprite extends TagImpl {
 				images[i] = new Image(srcs[i]);
 			}
 			
-			// TODO use the same resource as for cfimage
+			// TODO use the same resource as for cfimage id:298 gh:308 ic:gh
 			PageSource ps = pageContext.getCurrentTemplatePageSource();
 			 Resource dir;
 			if(ps!=null) {

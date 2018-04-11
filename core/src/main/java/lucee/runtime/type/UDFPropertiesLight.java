@@ -29,14 +29,14 @@ public class UDFPropertiesLight extends UDFPropertiesBase  {
 
 	@Override
 	public void writeExternal(ObjectOutput out) throws IOException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:338 gh:348 ic:gh
 
 	}
 
 	@Override
 	public void readExternal(ObjectInput in) throws IOException,
 			ClassNotFoundException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:356 gh:367 ic:gh
 
 	}
 

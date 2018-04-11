@@ -218,7 +218,7 @@ public long position(java.sql.Clob searchstr, long start) throws SQLException {
    */
   @Override
 public OutputStream setAsciiStream(long pos) throws SQLException {
-      // TODO impl.
+      // TODO impl. id:348 gh:358 ic:gh
       throw new SQLException("JDBC 3.0 Method setAsciiStream not implemented");
   }
 
@@ -232,7 +232,7 @@ public OutputStream setAsciiStream(long pos) throws SQLException {
    */
   @Override
 public Writer setCharacterStream(long pos) throws SQLException {
-      // TODO impl.
+      // TODO impl. id:366 gh:377 ic:gh
       throw new SQLException("JDBC 3.0 Method setCharacterStream not implemented");
   }
 
@@ -247,7 +247,7 @@ public Writer setCharacterStream(long pos) throws SQLException {
    */
   @Override
 public int setString(long pos, String str) throws SQLException {
-      // TODO impl.
+      // TODO impl. id:386 gh:396 ic:gh
       throw new SQLException("JDBC 3.0 Method setString not implemented");
   }
 
@@ -264,7 +264,7 @@ public int setString(long pos, String str) throws SQLException {
    */
   @Override
 public int setString(long pos, String str, int offset, int len) throws SQLException{
-      // TODO impl.
+      // TODO impl. id:411 gh:423 ic:gh
       throw new SQLException("JDBC 3.0 Method setString not implemented");
   }
 
@@ -278,7 +278,7 @@ public int setString(long pos, String str, int offset, int len) throws SQLExcept
   @Override
 public void truncate(long len) throws SQLException
   {
-      // TODO impl.
+      // TODO impl. id:461 gh:471 ic:gh
       throw new SQLException("JDBC 3.0 Method truncate not implemented");
   }
   

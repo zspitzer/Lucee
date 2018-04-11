@@ -272,5 +272,5 @@ public interface CFTypes {
 	     */
 	    public final static int BOOLEAN = 16;
 	    
-		public static final int IDSTAMP = CHAR;//TODO is this right?
+		public static final int IDSTAMP = CHAR;//TODO is this right? id:93 gh:97 ic:gh
 }

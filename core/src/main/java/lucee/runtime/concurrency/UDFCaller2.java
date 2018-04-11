@@ -92,7 +92,7 @@ public class UDFCaller2<P> implements Callable<Data<P>> {
 			pc.getOut().flush(); //make sure content is flushed
 			
 			pc.getConfig().getFactory().releasePageContext(pc);
-				str=IOUtil.toString((new ByteArrayInputStream(baos.toByteArray())), cs); // TODO add support for none string content
+				str=IOUtil.toString((new ByteArrayInputStream(baos.toByteArray())), cs); // TODO add support for none string content id:60 gh:63 ic:gh
 			} 
 			catch (Exception e) {
 				SystemOut.printDate(e);

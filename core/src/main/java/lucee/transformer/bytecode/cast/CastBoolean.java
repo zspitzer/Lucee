@@ -69,7 +69,7 @@ public final class CastBoolean extends ExpressionBase implements ExprBoolean,Cas
         if(expr instanceof Literal) {
             Boolean bool = ((Literal)expr).getBoolean(null);
             if(bool!=null) return expr.getFactory().createLitBoolean(bool.booleanValue(),expr.getStart(),expr.getEnd());
-            // TODO throw new TemplateException("can't cast value to a boolean value");
+            // TODO throw new TemplateException("can't cast value to a boolean value"); id:468 gh:478 ic:gh
         }
         return new CastBoolean(expr);
     }

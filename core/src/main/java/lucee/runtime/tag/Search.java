@@ -257,7 +257,7 @@ public final class Search extends TagImpl {
 	public void setPreviouscriteria(String previousCriteria) throws ApplicationException {
 		this.previousCriteria = previousCriteria;
 		throw new ApplicationException("attribute previousCriteria for tag search is not supported yet");
-		// TODO impl tag attribute
+		// TODO impl tag attribute id:247 gh:254 ic:gh
 	}
 
 	/**
@@ -295,7 +295,7 @@ public final class Search extends TagImpl {
         String[] cols = new String[]{"title","url","summary","score","recordssearched","key","custom1","custom2","custom3","custom4",
         							"categoryTree","category","context","size","rank","author","type","collection"};
         
-        // TODO support context
+        // TODO support context id:429 gh:439 ic:gh
         String[] types = new String[]{v,v,v,d,d,v,v,v,v,v,v,v,v,d,d,v,v,v};
         SearchData data=pageContext.getConfig().getSearchEngine(pageContext).createSearchData(suggestions);
         SuggestionItem item=null;// this is already here to make sure the classloader load this sinstance 
@@ -337,7 +337,7 @@ public final class Search extends TagImpl {
 	    	sct.set(SEARCHED, recSearched);
 	    	sct.set(KeyConstants._time, new Double(time));
 	    	
-	    	// TODO impl this values
+	    	// TODO impl this values id:330 gh:340 ic:gh
 	    	
 	    	Map s = data.getSuggestion();
 	    	if(s.size()>0) {

@@ -230,7 +230,7 @@ final class Axis1Client extends WSClient {
 				return entry.getData();
 			}
 		}
-    	else if (cacheHandler != null){		// TODO this else block can be removed when all cache handlers implement CacheHandlerPro
+    	else if (cacheHandler != null){		// TODO this else block can be removed when all cache handlers implement CacheHandlerPro id:165 gh:165 ic:gh
 
 			CacheItem cacheItem = cacheHandler.get(pc, cacheId);
 
@@ -491,7 +491,7 @@ final class Axis1Client extends WSClient {
 		
 		Class clazz = mapComplex(pc,symbolTable,secondChanceConfig,tm, type);
 		
-		// TODO make a better impl; this is not the fastest way to make sure all pojos use the same classloader
+		// TODO make a better impl; this is not the fastest way to make sure all pojos use the same classloader id:135 gh:139 ic:gh
 		if(clazz!=null && getClassLoader(pc,secondChanceConfig)!=clazz.getClassLoader()){
 			clazz=mapComplex(pc,symbolTable,secondChanceConfig,tm, type); 
 		}

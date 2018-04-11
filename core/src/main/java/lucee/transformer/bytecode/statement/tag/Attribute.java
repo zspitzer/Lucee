@@ -62,7 +62,7 @@ public final class Attribute {
 	public String getName() {
 		return nameLC;
 	}
-	// TODO make this method obsolete
+	// TODO make this method obsolete id:417 gh:428 ic:gh
 	public String getNameOC() {
 		return nameOC;
 	}

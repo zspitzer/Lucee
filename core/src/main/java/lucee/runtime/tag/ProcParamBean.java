@@ -167,10 +167,10 @@ public class ProcParamBean implements SQLItem {
 	}
 	@Override
 	public boolean isValueSet() {
-		return value!=null || _null;// TODO impl
+		return value!=null || _null;// TODO impl id:328 gh:338 ic:gh
 	}
 	@Override
 	public void setNulls(boolean nulls) {
-		// TODO impl
+		// TODO impl id:296 gh:306 ic:gh
 	}	
 }

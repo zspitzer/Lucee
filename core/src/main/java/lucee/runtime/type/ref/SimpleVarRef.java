@@ -33,66 +33,66 @@ public class SimpleVarRef implements Reference {
 	
 	@Override
 	public Object get(PageContext pc) throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:358 gh:368 ic:gh
 		return null;
 	}
 
 	@Override
 	public Object get(PageContext pc, Object defaultValue) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:378 gh:388 ic:gh
 		return null;
 	}
 
 	@Override
 	public Collection.Key getKey() throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:403 gh:411 ic:gh
 		return null;
 	}
 	@Override
 	public String getKeyAsString() throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:440 gh:450 ic:gh
 		return null;
 	}
 
 	@Override
 	public Object getParent() {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:341 gh:351 ic:gh
 		return null;
 	}
 
 	@Override
 	public Object remove(PageContext pc) throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:359 gh:369 ic:gh
 		return null;
 	}
 
 	@Override
 	public Object removeEL(PageContext pc) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:379 gh:389 ic:gh
 		return null;
 	}
 
 	@Override
 	public Object set(PageContext pc, Object value) throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:404 gh:415 ic:gh
 		return null;
 	}
 
 	@Override
 	public Object setEL(PageContext pc, Object value) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:441 gh:452 ic:gh
 		return null;
 	}
 
 	@Override
 	public Object touch(PageContext pc) throws PageException {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:342 gh:352 ic:gh
 		return null;
 	}
 
 	@Override
 	public Object touchEL(PageContext pc) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub id:360 gh:370 ic:gh
 		return null;
 	}
 

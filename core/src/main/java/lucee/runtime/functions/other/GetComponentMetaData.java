@@ -50,7 +50,7 @@ public final class GetComponentMetaData implements Function {
 			Component cfc =  ComponentLoader.searchComponent(pc,null,Caster.toString(obj),null,null,true,true/* MUST false does not produce properties */);
 			return cfc.getMetaData(pc); 
 		}
-		// TODO better solution
+		// TODO better solution id:126 gh:130 ic:gh
 		catch(ApplicationException ae){
 			try{
 				InterfaceImpl inter = ComponentLoader.searchInterface(pc,((PageContextImpl)pc).getCurrentPageSource(null), Caster.toString(obj));

@@ -92,7 +92,7 @@ public class MimeType {
 
 
 	private static MimeType getInstance(String type, String subtype, Map<String,String> properties) {
-		// TODO read this from a external File
+		// TODO read this from a external File id:105 gh:110 ic:gh
 		if("text".equals(type)) {
 			if("xml".equals(subtype)) return new MimeType("application", "xml", properties);
 			if("x-json".equals(subtype)) return new MimeType("application", "json", properties);

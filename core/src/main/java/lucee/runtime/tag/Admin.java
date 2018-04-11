@@ -2774,7 +2774,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
 		for (int i = 0; i < libs.length; i++) {
 			qry.addRow();
 			qry.setAt("displayname", i + 1, libs[i].getDisplayName());
-			qry.setAt("namespace", i + 1, "");// TODO support for namespace
+			qry.setAt("namespace", i + 1, "");// TODO support for namespace id:282 gh:292 ic:gh
 			qry.setAt("namespaceseparator", i + 1, "");
 			qry.setAt("shortname", i + 1, libs[i].getShortName());
 			qry.setAt("description", i + 1, libs[i].getDescription());

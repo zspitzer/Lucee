@@ -910,7 +910,7 @@ public final class Caster {
     
     
     private static String toDecimal(double value,char decDel,char thsDel) {
-        // TODO Caster toDecimal bessere impl.
+        // TODO Caster toDecimal bessere impl. id:205 gh:208 ic:gh
         String str=new BigDecimal((StrictMath.round(value*100)/100D)).toString();
         //str=toDouble(value).toString();
         String[] arr=str.split("\\.");      
@@ -2003,7 +2003,7 @@ public final class Caster {
         else if(o == null) return "";
         else if(o instanceof ObjectWrap) return toString(((ObjectWrap)o).getEmbededObject(defaultValue),defaultValue);
 		return executeDefaultToStringMethod?o.toString():defaultValue;
-		/// TODO diese methode ist nicht gleich wie toString(Object)
+		/// TODO diese methode ist nicht gleich wie toString(Object) id:227 gh:235 ic:gh
     }
 
     private static String toString(Clob clob) throws ExpressionException {
@@ -3263,7 +3263,7 @@ public final class Caster {
     }
     
     public static Class cfTypeToClass(String type) throws PageException {
-    	// TODO weitere typen siehe bytecode.cast.Cast
+    	// TODO weitere typen siehe bytecode.cast.Cast id:268 gh:279 ic:gh
     	
     	type=type.trim();
     	String lcType=StringUtil.toLowerCase(type);
@@ -3684,7 +3684,7 @@ public final class Caster {
 	}
 
     public static Object castTo(PageContext pc, short type, String strType, Object o, Object defaultValue) {
-//   	 TODO weitere typen siehe bytecode.cast.Cast
+//   	 TODO weitere typen siehe bytecode.cast.Cast id:177 gh:180 ic:gh
     Object res;
    	if(type==CFTypes.TYPE_ANY)                 return o;
        else if(type==CFTypes.TYPE_ARRAY)          res= toArray(o,null);
@@ -3724,7 +3724,7 @@ public final class Caster {
      * @throws PageException
      */
     public static Object castTo(PageContext pc, short type, String strType, Object o) throws PageException {
-//    	 TODO weitere typen siehe bytecode.cast.Cast
+//    	 TODO weitere typen siehe bytecode.cast.Cast id:147 gh:150 ic:gh
     	if(type==CFTypes.TYPE_ANY)                 return o;
         else if(type==CFTypes.TYPE_ARRAY)          return toArray(o);
         else if(type==CFTypes.TYPE_BOOLEAN)        return toBoolean(o);
@@ -4073,7 +4073,7 @@ public final class Caster {
     }
     
     public static Struct toFunctionValues(Object[] args, int offset, int len) throws ExpressionException {
-    	// TODO nicht sehr optimal 
+    	// TODO nicht sehr optimal  id:206 gh:209 ic:gh
         Struct sct=new StructImpl(StructImpl.TYPE_LINKED);
         for(int i=offset;i<offset+len;i++) {
             if(args[i] instanceof FunctionValueImpl){
@@ -4089,7 +4089,7 @@ public final class Caster {
     
     
     public static Object[] toFunctionValues(Struct args) {
-    	// TODO nicht sehr optimal 
+    	// TODO nicht sehr optimal  id:228 gh:237 ic:gh
     	Iterator<Entry<Key, Object>> it = args.entryIterator();
         Entry<Key, Object> e;
         List<FunctionValue> fvalues=new ArrayList<FunctionValue>();

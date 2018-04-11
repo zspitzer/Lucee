@@ -208,13 +208,13 @@ public class QueryFQ implements Query,Objects,QueryResult,Serializable {
 
 	@Override
 	public QueryColumn getColumn(String key, QueryColumn defaultValue) {
-		// TODO wrap column
+		// TODO wrap column id:377 gh:382 ic:gh
 		return qry.getColumn(key, defaultValue);
 	}
 
 	@Override
 	public QueryColumn getColumn(Key key, QueryColumn defaultValue) {
-		// TODO wrap column
+		// TODO wrap column id:402 gh:414 ic:gh
 		return qry.getColumn(key, defaultValue);
 	}
 

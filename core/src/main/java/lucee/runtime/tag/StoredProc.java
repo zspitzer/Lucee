@@ -580,7 +580,7 @@ public class StoredProc extends BodyTagTryCatchFinallySupport {
 					if(cacheItem != null)
 						cacheValue = ((StoredProcCacheItem)cacheItem).getStruct();
 				}
-				else if(cacheHandler != null) { // TODO this else block can be removed when all cache handlers implement CacheHandlerPro
+				else if(cacheHandler != null) { // TODO this else block can be removed when all cache handlers implement CacheHandlerPro id:315 gh:325 ic:gh
 
 					CacheItem cacheItem = cacheHandler.get(pageContext, cacheId);
 

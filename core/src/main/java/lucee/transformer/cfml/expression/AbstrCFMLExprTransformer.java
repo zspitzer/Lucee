@@ -1380,7 +1380,7 @@ public abstract class AbstrCFMLExprTransformer {
 			args = getScriptFunctionArguments(data);
 		} catch (TemplateException e) {
 			// if there is a template exception, the argument syntax is not correct, and must not be a lambda expression
-			//TODO find a better way to test for lambda than to attempt processing the arguments and catch an exception if it fails.
+			//TODO find a better way to test for lambda than to attempt processing the arguments and catch an exception if it fails. id:472 gh:486 ic:gh
 			data.srcCode.setPos(pos);
 			return null;
 		}
@@ -1822,7 +1822,7 @@ public abstract class AbstrCFMLExprTransformer {
 			// Element Function
 			if(checkLibrary) {
 				BIF bif=new BIF(data.factory,data.settings,flf);
-				// TODO data.ep.add(flf, bif, data.srcCode);
+				// TODO data.ep.add(flf, bif, data.srcCode); id:480 gh:490 ic:gh
 				
 				bif.setArgType(flf.getArgType());
 				try {

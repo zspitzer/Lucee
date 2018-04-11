@@ -118,7 +118,7 @@ public final class ServerImpl extends ScopeSupport implements Server,SharedScope
 			coldfusion.setEL(SERIAL_NUMBER,"0");
 			coldfusion.setEL(PRODUCT_NAME,"Lucee");
 			
-			// TODO scope server missing values
+			// TODO scope server missing values id:362 gh:371 ic:gh
 			coldfusion.setEL(KeyConstants._appserver,"");// Jrun
 			coldfusion.setEL(EXPIRATION,expired);// 
 			coldfusion.setEL(INSTALL_KIT,"");// 

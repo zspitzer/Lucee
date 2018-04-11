@@ -68,7 +68,7 @@ public interface ComponentAccess extends Component {
 	boolean contains(int access,Key name);
 	@Override
 	Member getMember(int access,Collection.Key key, boolean dataMember,boolean superAccess);
-	public ComponentAccess _base();// TODO do better impl
+	public ComponentAccess _base();// TODO do better impl id:376 gh:387 ic:gh
 	//public boolean isRest();
 	@Override
 	public void setEntity(boolean entity);
