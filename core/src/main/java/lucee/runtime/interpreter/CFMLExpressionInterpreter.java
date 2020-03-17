@@ -212,7 +212,8 @@ public class CFMLExpressionInterpreter {
 			// data.put(str+":"+preciseMath,ref);
 			return ref.getValue(pc);
 		}
-		throw new InterpreterException("Syntax Error, invalid Expression [" + cfml.toString() + "]");
+		throw new InterpreterException("Syntax Error, invalid Expression [" + cfml.toString() + "]" +
+			"ParserString.isAfterLast() str pos: " + cfml.getPos() + ", str length: " + cfml.length());
 	}
 
 	private void init(PageContext pc) {
