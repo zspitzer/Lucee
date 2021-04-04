@@ -1487,13 +1487,20 @@ sort direction:
 		<class>lucee.runtime.functions.arrays.ArrayToStruct</class>
 		<member-name>toStruct</member-name>
 		<keywords>array,struct</keywords>
-		<description>Transform the array to a struct, the index of the array is the key of the struct</description>
+		<description>Transform the array to a struct, by default, the index of the array is the key of the struct</description>
 		<argument>
 			<name>array</name>
 			<type>array</type>
 			<required>Yes</required>
-		<description>array to translate</description>
-    </argument>
+			<description>array to translate</description>
+		</argument>
+		<argument>
+			<name>valueAsKey</name>
+			<type>boolean</type>
+			<required>No</required>
+			<default>false</default>
+			<description>use the value as the key of the struct, rather than the index</description>
+		</argument>
 		<return>
 			<type>struct</type>
 		</return>
@@ -3558,7 +3565,7 @@ Filter to be used to filter the results:
 			<description>Query columns by which to sort a directory listing. Delimited list of columns from query output.
 To qualify a column, use one of the following values:
 asc: ascending (a to z) sort order.
-dec: descending (z to a) sort order.
+desc: descending (z to a) sort order.
 </description>
 		</argument>
 		<argument>
@@ -6127,6 +6134,16 @@ The returned number of unallocated bytes is a hint, but not a guarantee, that it
 			<type>struct</type>
 		</return>
 	</function>
+    <!-- getHTTPRequestHeaders -->
+    <function>
+        <name>getHTTPRequestHeaders</name>
+        <class>lucee.runtime.functions.other.GetHTTPRequestHeaders</class>
+		<status>hidden</status>
+        <description>Returns a Struct with HTTP Request Headers</description>
+        <return>
+            <type>struct</type>
+        </return>
+    </function>
 	<!-- getHttpTimeString -->
 	<function>
 		<name>getHttpTimeString</name>
@@ -6572,6 +6589,14 @@ if this attribute is not provided all types are returned.</description>
 			<required>Yes</required>
 		<description>Prefix of a temporary file to create in the dir directory</description>
     </argument>
+	<argument>
+    		<name>extension</name>
+			<alias>ext</alias>
+    		<type>string</type>
+			<required>No</required>
+			<Default>tmp</Default>
+		<description>Creates temporary files with user defined extension, default is .tmp</description>
+	</argument>
 		<return>
 			<type>string</type>
 		</return>
@@ -6725,7 +6750,7 @@ Default list delimiter: comma character.</description>
 			<alias>string</alias>
 			<type>any</type>
 			<required>Yes</required>
-		<description>String to hash.</description>
+		<description>String or byte array to hash.</description>
     </argument>
 		<argument>
 			<name>algorithm</name>
@@ -9786,7 +9811,7 @@ You can find a list of all available timezones in the Lucee administrator (Setti
 	<function>
 		<name>QueryClear</name>
 		<class>lucee.runtime.functions.query.QueryClear</class>
-		<member-name>prepend</member-name>
+		<member-name>clear</member-name>
 		<keywords>query</keywords>
 		<description>Clears all rows from a query</description>
 		<argument>

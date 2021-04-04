@@ -54,7 +54,6 @@ import lucee.runtime.component.ImportDefintion;
 import lucee.runtime.customtag.InitFile;
 import lucee.runtime.db.ClassDefinition;
 import lucee.runtime.db.DataSource;
-import lucee.runtime.db.DatasourceConnectionPool;
 import lucee.runtime.db.JDBCDriver;
 import lucee.runtime.debug.DebuggerPool;
 import lucee.runtime.dump.DumpWriter;
@@ -746,8 +745,13 @@ public class SingleContextConfigWeb extends ConfigBase implements ConfigWebPro {
 	}
 
 	@Override
-	public DatasourceConnectionPool getDatasourceConnectionPool() {
-		return cs.getDatasourceConnectionPool();
+	public DatasourceConnPool getDatasourceConnectionPool(DataSource ds, String user, String pass) {
+		return cs.getDatasourceConnectionPool(ds, user, pass);
+	}
+
+	@Override
+	public Collection<DatasourceConnPool> getDatasourceConnectionPools() {
+		return cs.getDatasourceConnectionPools();
 	}
 
 	@Override
@@ -1323,7 +1327,7 @@ public class SingleContextConfigWeb extends ConfigBase implements ConfigWebPro {
 
 	@Override
 	public RHExtension[] getServerRHExtensions() {
-		return cs.getServerRHExtensions();
+		return cs.getRHExtensions();
 	}
 
 	@Override
@@ -1519,8 +1523,8 @@ public class SingleContextConfigWeb extends ConfigBase implements ConfigWebPro {
 	}
 
 	@Override
-	public TimeSpan getApplicationPathhCacheTimeout() {
-		return cs.getApplicationPathhCacheTimeout();
+	public long getApplicationPathCacheTimeout() {
+		return cs.getApplicationPathCacheTimeout();
 	}
 
 	@Override
@@ -1792,5 +1796,15 @@ public class SingleContextConfigWeb extends ConfigBase implements ConfigWebPro {
 			}
 		}
 		this.mappings = ConfigWebUtil.sort(mappings.values().toArray(new Mapping[mappings.size()]));
+	}
+
+	@Override
+	public void removeDatasourceConnectionPool(DataSource ds) {
+		cs.removeDatasourceConnectionPool(ds);
+	}
+
+	@Override
+	public MockPool getDatasourceConnectionPool() {
+		return cs.getDatasourceConnectionPool();
 	}
 }

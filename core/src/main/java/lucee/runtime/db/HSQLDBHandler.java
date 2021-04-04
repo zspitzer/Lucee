@@ -41,6 +41,7 @@ import lucee.commons.lang.SerializableObject;
 import lucee.commons.lang.StringUtil;
 import lucee.runtime.PageContext;
 import lucee.runtime.config.ConfigPro;
+import lucee.runtime.config.DatasourceConnPool;
 import lucee.runtime.exp.DatabaseException;
 import lucee.runtime.exp.PageException;
 import lucee.runtime.op.Caster;
@@ -432,21 +433,30 @@ public final class HSQLDBHandler {
 				query.setExecutionTime(stopwatch.time());
 				return query;
 			}
-			catch (PageException ex) {}
+			catch (PageException ex) {
+			}
 
 		}
 		catch (PageException e) {
 			qoqException = e;
 		}
 
-		// Debugging option to completely disable HyperSQL for testing
-		if (qoqException != null && hsqldbDisable) {
-			throw Caster.toPageException(qoqException);
-		}
+		
+		if (qoqException != null){
+			// Debugging option to to log all QoQ that fall back on hsqldb in the datasource log
+			if (hsqldbDebug) {
+				pc.getConfig().getLog("datasource").error("QoQ [" + sql.getSQLString() + "] errored and is falling back to HyperSQL.", qoqException);
+			}
 
-		// Debugging option to to log all QoQ that fall back on hsqldb in the datasource log
-		if (qoqException != null && hsqldbDebug) {
-			pc.getConfig().getLog("datasource").error("QoQ [" + sql.getSQLString() + "] errored and is falling back to HyperSQL.", qoqException);
+			// Log an exception if debugging is enabled
+			if (pc.getConfig().debug()) {
+				pc.getDebugger().addException(pc.getConfig(), Caster.toPageException(qoqException));
+			}
+
+			// Debugging option to completely disable HyperSQL for testing
+			if ( hsqldbDisable) {
+				throw Caster.toPageException(qoqException);
+			}
 		}
 
 		// SECOND Chance with hsqldb
@@ -498,11 +508,14 @@ public final class HSQLDBHandler {
 
 			QueryImpl nqr = null;
 			ConfigPro config = (ConfigPro) pc.getConfig();
-			DatasourceConnectionPool pool = config.getDatasourceConnectionPool();
-			DatasourceConnection dc = pool.getDatasourceConnection(config, config.getDataSource(QOQ_DATASOURCE_NAME), "sa", "");
-			Connection conn = dc.getConnection();
+			DatasourceConnection dc = null;
+			Connection conn = null;
 			try {
-				//executeStatement(conn, "CONNECT"); // create a new HSQLDB session for temp tables
+        //executeStatement(conn, "CONNECT"); // create a new HSQLDB session for temp tables
+				DatasourceConnPool pool = config.getDatasourceConnectionPool(config.getDataSource(QOQ_DATASOURCE_NAME), "sa", "");
+				dc = pool.borrowObject();
+				conn = dc.getConnection();
+
 				DBUtil.setAutoCommitEL(conn, false);
 
 				// sql.setSQLString(HSQLUtil.sqlToZQL(sql.getSQLString(),false));
@@ -559,18 +572,19 @@ public final class HSQLDBHandler {
 
 				}
 				catch (SQLException e) {
-					DatabaseException de = new DatabaseException("Error executing SQL statement on query", null, sql, null);
+					DatabaseException de = new DatabaseException("QoQ HSQLDB: error executing sql statement on query", null, sql, null);
 					de.setDetail(e.getMessage());
 					throw de;
 				}
 
 			}
 			finally {
-				removeAll(conn, qoqTables); // even this isn't need with session temp tables?
-				//executeStatement(conn, "DISCONNECT"); // close HSQLDB session with temp tables
-				DBUtil.setAutoCommitEL(conn, true);
-				pool.releaseDatasourceConnection(dc);
-
+				if (conn != null) {
+					removeAll(conn, usedTables);
+          //executeStatement(conn, "DISCONNECT"); // close HSQLDB session with temp tables
+					DBUtil.setAutoCommitEL(conn, true);
+				}
+				if (dc != null) ((DatasourceConnectionPro) dc).release();
 				// manager.releaseConnection(dc);
 			}
 			nqr.setExecutionTime(stopwatch.time());

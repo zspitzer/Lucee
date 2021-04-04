@@ -474,7 +474,7 @@ public final class ConfigAdmin {
 			if (el == null) continue;
 
 			if (checkId) {
-				if (i + 1 == id) {
+				if (i == id) {
 					server = el;
 					break;
 				}
@@ -1381,7 +1381,7 @@ public final class ConfigAdmin {
 			maxLength = access - SecurityManager.NUMBER_OFFSET;
 			hasInsertAccess = maxLength > existingLength;
 		}
-		if (!hasAccess) throw new SecurityException("no access to update datsource connections");
+		if (!hasAccess) throw new SecurityException("no access to update datasource connections");
 
 		// check parameters
 		if (name == null || name.length() == 0) throw new ExpressionException("name can't be an empty value");
@@ -2325,7 +2325,7 @@ public final class ConfigAdmin {
 		checkWriteAccess();
 		boolean hasAccess = ConfigWebUtil.hasAccess(config, SecurityManager.TYPE_DATASOURCE);
 
-		if (!hasAccess) throw new SecurityException("no access to update datsource connections");
+		if (!hasAccess) throw new SecurityException("no access to update datasource connections");
 
 		root.setEL("preserveSingleQuote", Caster.toBooleanValue(psq, true));
 	}
@@ -2443,6 +2443,19 @@ public final class ConfigAdmin {
 			root.setEL("requestTimeout", span.getDay() + "," + span.getHour() + "," + span.getMinute() + "," + span.getSecond());
 		}
 		else rem(root, "requestTimeout");
+	}
+
+	public void updateApplicationPathTimeout(TimeSpan span) throws SecurityException, ApplicationException {
+		checkWriteAccess();
+		boolean hasAccess = ConfigWebUtil.hasAccess(config, SecurityManager.TYPE_SETTING);
+
+		if (!hasAccess) throw new SecurityException("no access to update scope setting");
+
+		if (span != null) {
+			if (span.getMillis() <= 0) throw new ApplicationException("value must be a positive number");
+			root.setEL("applicationPathTimeout", span.getDay() + "," + span.getHour() + "," + span.getMinute() + "," + span.getSecond());
+		}
+		else rem(root, "applicationPathTimeout");
 	}
 
 	/**
@@ -2949,7 +2962,7 @@ public final class ConfigAdmin {
 	 * @throws SecurityException
 	 */
 	public void updateDebug(Boolean debug, Boolean template, Boolean database, Boolean exception, Boolean tracing, Boolean dump, Boolean timer, Boolean implicitAccess,
-			Boolean queryUsage) throws SecurityException {
+			Boolean queryUsage, Boolean thread) throws SecurityException {
 		checkWriteAccess();
 		boolean hasAccess = ConfigWebUtil.hasAccess(config, SecurityManager.TYPE_DEBUGGING);
 		if (!hasAccess) throw new SecurityException("no access to change debugging settings");
@@ -2980,6 +2993,9 @@ public final class ConfigAdmin {
 
 		if (queryUsage != null) root.setEL("debuggingQueryUsage", queryUsage.booleanValue());
 		else rem(root, "debuggingQueryUsage");
+
+		if (queryUsage != null) root.setEL("debuggingThread", thread.booleanValue());
+		else rem(root, "debuggingThread");
 	}
 
 	/**

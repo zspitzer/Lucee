@@ -588,7 +588,10 @@ public final class PageContextImpl extends PageContext {
 		}
 
 		if (config.debug()) {
-			if (!gatewayContext && !isChild) config.getDebuggerPool().store(this, debugger);
+			boolean skipLogThread = isChild;
+			if (skipLogThread && config.hasDebugOptions(ConfigPro.DEBUG_THREAD))
+				skipLogThread = false;
+			if (!gatewayContext && !skipLogThread) config.getDebuggerPool().store(this, debugger);
 			debugger.reset();
 		}
 		else debugger.resetTraces(); // traces can alo be used when debugging is off
@@ -723,6 +726,14 @@ public final class PageContextImpl extends PageContext {
 		_psq = null;
 		dummy = false;
 		listenSettings = false;
+
+		if (ormSession != null) {
+			try {
+				releaseORM();
+			}
+			catch (Exception e) {
+			}
+		}
 	}
 
 	private void releaseORM() throws PageException {
@@ -2452,6 +2463,14 @@ public final class PageContextImpl extends PageContext {
 			log(false);
 		}
 		catch (Throwable t) {
+			if (ormSession != null) {
+				try {
+					releaseORM();
+					removeLastPageSource(true);
+				}
+				catch (Exception e) {
+				}
+			}
 			PageException pe;
 			if (t instanceof ThreadDeath && getTimeoutStackTrace() != null) {
 				t = pe = new RequestTimeoutException(this, (ThreadDeath) t);
