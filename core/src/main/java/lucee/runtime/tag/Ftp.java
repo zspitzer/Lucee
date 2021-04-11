@@ -59,6 +59,7 @@ public final class Ftp extends TagImpl {
 	private static final String ASCCI_EXT_LIST = "txt;htm;html;cfm;cfml;shtm;shtml;css;asp;asa";
 	private static final int PORT_FTP = 21;
 	private static final int PORT_SFTP = 22;
+	private static final int PORT_FTPS = 990;
 
 	private static final Key SUCCEEDED = KeyConstants._succeeded;
 	private static final Key ERROR_CODE = KeyImpl.getInstance("errorCode");
@@ -104,7 +105,7 @@ public final class Ftp extends TagImpl {
 	private String proxyuser;
 	private String proxypassword = "";
 	private String fingerprint;
-	private boolean secure;
+	private String secure;
 
 	private boolean recursive;
 	private String key;
@@ -146,7 +147,7 @@ public final class Ftp extends TagImpl {
 		this.result = null;
 
 		this.fingerprint = null;
-		this.secure = false;
+		this.secure = "";
 		this.recursive = false;
 		this.key = null;
 		this.passphrase = "";
@@ -157,12 +158,12 @@ public final class Ftp extends TagImpl {
 	}
 
 	/**
-	 * sets the attribute action
+	 * sets the secure flag, true / false / sftp
 	 * 
-	 * @param action
+	 * @param secure
 	 */
-	public void setSecure(boolean secure) {
-		this.secure = secure;
+	public void setSecure(String secure) {
+		this.secure = secure.trim().toUpperCase();
 	}
 
 	@Override
@@ -637,7 +638,7 @@ public final class Ftp extends TagImpl {
 		AFTPClient client = pool.remove(conn);
 
 		Struct cfftp = writeCfftp(client);
-		cfftp.setEL("succeeded", Caster.toBoolean(client != null));
+		cfftp.setEL(SUCCEEDED, Caster.toBoolean(client != null));
 		return client;
 	}
 
@@ -659,7 +660,9 @@ public final class Ftp extends TagImpl {
 		AFTPClient client = getClient();
 		client.sendCommand(command, params);
 		
-		Struct cfftp = writeCfftp(client); // there's a trailing NL in the reply string ???
+		Struct cfftp = writeCfftp(client);
+		if (cfftp.get(SUCCEEDED) == Boolean.FALSE) 
+			cfftp.setEL(RETURN_VALUE, (command + " " + params)); // otherwise errortext and returnValue are the same
 		stoponerror = false;
 
 		return client;
@@ -697,7 +700,7 @@ public final class Ftp extends TagImpl {
 		}
 
 		int repCode = client.getReplyCode();
-		String repStr = client.getReplyString();
+		String repStr = client.getReplyString();  // there's a trailing NL in the reply string
 		if (repStr == null) repStr = ""; // no nulls for cfml
 		else repStr = repStr.trim(); // trim coz I was always seeing a trailing new line
 		cfftp.setEL(ERROR_CODE, new Double(repCode));
@@ -805,7 +808,12 @@ public final class Ftp extends TagImpl {
 
 	public int getPort() {
 		if (port != -1) return port;
-		return secure ? PORT_SFTP : PORT_FTP;
+		if (secure.equals("FTPS")) 
+			return PORT_FTPS;
+		else if (secure.equals("TRUE")) 
+			return PORT_SFTP;
+		else 
+			return PORT_FTP;
 	}
 
 	/**

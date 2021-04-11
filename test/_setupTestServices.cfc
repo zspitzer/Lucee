@@ -109,6 +109,12 @@ component {
 			"SFTP_PASSWORD": "",  // DON'T COMMIT
 			"SFTP_PORT": 22,
 			"SFTP_BASE_PATH": "/",
+
+			"FTPS_SERVER": "127.0.0.1",
+			"FTPS_USERNAME": "lucee",
+			"FTPS_PASSWORD": "",  // DON'T COMMIT
+			"FTPS_PORT": 990,
+			"FTPS_BASE_PATH": "/",
 			
 			"S3_ACCESS_KEY_ID": "test",
 			"S3_SECRET_KEY": "",
@@ -136,7 +142,7 @@ component {
 		systemOutput( "", true) ;		
 		systemOutput("-------------- Test Services ------------", true );
 
-		loop list="MySQL,MSsql,postgres,h2,oracle,mongoDb,smtp,pop,imap,s3,ftp,sftp" item="service" {
+		loop list="MySQL,MSsql,postgres,h2,oracle,mongoDb,smtp,pop,imap,s3,ftp,sftp,ftps" item="service" {
 			cfg = server.getTestService( service=service, verify=true );
 			server.test_services[ service ]= {
 				valid: false,
@@ -162,6 +168,9 @@ component {
 							verify = verifyFTP(cfg, service);
 							break;
 						case "sftp":
+							verify = verifyFTP(cfg, service);
+							break;
+						case "ftps":
 							verify = verifyFTP(cfg, service);
 							break;
 						case "mongoDb":
@@ -214,10 +223,13 @@ component {
 	}
 
 	public function verifyFTP ( ftp, service ) localmode=true {
-		secure = (arguments.service contains "sftp");
+		if  (arguments.service eq "ftps" )
+			secure="ftps";
+		else
+			secure = arguments.service eq "sftp"
 		ftp action = "open" 
-			connection = "conn" 
-			timeout = 5
+			connection = "checkConn" 
+			timeout = 2
 			secure= secure
 			username = arguments.ftp.username
 			password = arguments.ftp.password
@@ -228,9 +240,9 @@ component {
 		if (!cfftp.succeeded)
 			throw cfftp.errorText;
 		sig = cfftp.returnValue.trim(); // stash, close changes cfftp
-		ftp action = "close" connection = "conn";
+		ftp action = "close" connection = "checkConn";
 		
-		return sig & ", #arguments.ftp.username#@#arguments.ftp.server#:#arguments.ftp.port#" & (secure? " SFTP" : "");
+		return sig & ", #arguments.ftp.username#@#arguments.ftp.server#:#arguments.ftp.port#";
 	}
 
 	public function verifyS3 ( s3 ) localmode=true{
@@ -280,7 +292,7 @@ component {
 	public struct function getTestService( required string service, string dbFile="", boolean verify=false ) localmode=true {
 		if ( StructKeyExists( server.test_services, arguments.service ) ){
 			if ( !server.test_services[ arguments.service ].valid ){
-				//SystemOutput("Warning service: [ #arguments.service# ] is not available", true);
+				SystemOutput("Warning service: [ #arguments.service# ] is not available", true);
 				if ( !arguments.verify )
 					server.test_services[ arguments.service ].missedTests++;
 				return {};
@@ -375,6 +387,9 @@ component {
 			case "sftp":
 				sftp = server._getSystemPropOrEnvVars( "SERVER, USERNAME, PASSWORD, PORT, BASE_PATH", "SFTP_");
 				return sftp;
+			case "ftps":
+				ftps = server._getSystemPropOrEnvVars( "SERVER, USERNAME, PASSWORD, PORT, BASE_PATH", "FTPS_");
+				return ftps;
 			case "mail":
 				mail = server._getSystemPropOrEnvVars( "USERNAME, PASSWORD", "MAIL_" );
 				return mail;

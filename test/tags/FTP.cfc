@@ -76,9 +76,27 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 			assertEquals(list3.path,file);
 			assertEquals(list3.type,"file");
 
-			// test action="quote", custom commands
-			ftp action="quote" actionParams="SIZE #file#" connection = "conn";
-			expect( trim(cfftp.returnValue) ).toBe( "213 " & Len( FileRead( getCurrentTemplatePath( ) ) ) );
+			//systemOutput("SFTP #secure#", true);
+
+			if ( arguments.secure eq true && arguments.secure neq "FTPS" ){ // ftp and sftp are rather different 
+				ftp action="quote" actionParams="ls" connection = "conn";
+				expect( trim( cfftp.returnValue ) ).NotToBeEmpty();
+				//systemOutput(cfftp, true);
+			} else {
+				ftp action="quote" actionParams="SYST" connection = "conn";
+				expect( trim( cfftp.returnValue ) ).NotToBeEmpty();
+				//systemOutput(cfftp, true);
+
+					// test action="quote", custom command
+				ftp action="quote" actionParams="SIZE #file#" connection = "conn";
+				expect( trim( cfftp.returnValue ) ).toBe( "213 " & Len( FileRead( getCurrentTemplatePath( ) ) ) );
+				//systemOutput(cfftp, true);
+
+				// test action="quote", custom command, trigger a 550 file not found exception
+				ftp action="quote" actionParams="SIZE #file#-missing" connection = "conn";
+				expect( trim( cfftp.errorCode ) ).toBe( "550" );
+				//systemOutput(cfftp, true);
+			}
 			
 			// we read the file
 			var src=getCurrentTemplatePath();
@@ -130,7 +148,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 		}
 	}
 
-	public function testSFTP() {
+	public function testSFTP() skip="#getSFTPCredencials().len() neq 0#" {
 		var sftp=getSFTPCredencials();
 		return {};
 		if(!structCount(sftp)) return;
@@ -143,10 +161,24 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 			base: sftp.base_path
 		);
 	}
+	
+	public function testFTPS() skip="#getFTPSCredencials().len() neq 0#" {
+		var ftps=getFTPSCredencials();
+		return {};
+		if(!structCount(ftps)) return;
+		_test(
+			secure: true,
+			host: ftps.server,
+			user: ftps.username,
+			pass: ftps.password,
+			port: ftps.port,
+			base: ftps.base_path
+		);
+	}
 
-	public function testFTP() {
+	public function testFTP() skip="#getFTPCredencials().len() neq 0#" {
 		var ftp=getFTPCredencials();
-		//return {};
+		return {};
 		if(!structCount(ftp)) return;
 		_test(
 			secure: false,
@@ -160,6 +192,10 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 
 	private struct function getFTPCredencials() {
 		return server.getTestService("ftp");
+	}
+
+	private struct function getFTPSCredencials() {
+		return server.getTestService("ftps");
 	}
 
 	private struct function getSFTPCredencials() {

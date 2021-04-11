@@ -2039,11 +2039,14 @@ To use cached data, the tag must be called with the exact same arguments. Only u
 			<description>the ssh fingerprint</description>
 		</attribute>
 		<attribute>
-			<type>boolean</type>
+			<type>string</type>
 			<name>secure</name>
 			<required>false</required>
 			<rtexprvalue>true</rtexprvalue>
-			<description>Secure connection (sftp|shh) or not.</description>
+			<description>Secure connection
+- false FTP (default)
+- true SFTP
+- sftp FTPS.</description>
 		</attribute>
 		<attribute>
 			<type>boolean</type>
