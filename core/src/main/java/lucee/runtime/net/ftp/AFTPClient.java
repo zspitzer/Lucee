@@ -346,4 +346,6 @@ public abstract class AFTPClient {
 	public abstract boolean isPositiveCompletion();
 
 	public abstract boolean directoryExists(String pathname) throws IOException;
+
+	public abstract String sendCommand(String command, String params) throws IOException;
 }

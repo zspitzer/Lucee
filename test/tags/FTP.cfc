@@ -19,12 +19,6 @@
  ---><cfscript>
 component extends="org.lucee.cfml.test.LuceeTestCase"	{
 	
-	
-	//public function afterTests(){}
-	
-	public function setUp(){}
-
-
 	private function _test(required boolean secure,required string host,required number port=21,required string user,required string pass,required string base){
 
 		ftp action = "open" 
@@ -81,6 +75,10 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 			assertEquals(list3.name,fileName);
 			assertEquals(list3.path,file);
 			assertEquals(list3.type,"file");
+
+			// test action="quote", custom commands
+			ftp action="quote" actionParams="SIZE #file#" connection = "conn";
+			expect( trim(cfftp.returnValue) ).toBe( "213 " & Len( FileRead( getCurrentTemplatePath( ) ) ) );
 			
 			// we read the file
 			var src=getCurrentTemplatePath();
@@ -122,7 +120,6 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 			// we add again a file and directory to be sure we can delete a folder with content
 			ftp action="createdir" directory=subdir connection = "conn";
 			ftp action="putFile"  localfile=getCurrentTemplatePath() remoteFile=subfile connection= "conn";
-			
 
 		}
 		finally {
@@ -131,13 +128,12 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 			ftp action="listdir" directory=base connection = "conn" name="local.list20";
 			assertEquals(list1.recordcount,list20.recordcount);
 		}
-
 	}
 
 	public function testSFTP() {
 		var sftp=getSFTPCredencials();
+		return {};
 		if(!structCount(sftp)) return;
-		return; //disable failing test
 		_test(
 			secure: true,
 			host: sftp.server,
@@ -150,8 +146,8 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 
 	public function testFTP() {
 		var ftp=getFTPCredencials();
+		//return {};
 		if(!structCount(ftp)) return;
-		return; //disable failing test
 		_test(
 			secure: false,
 			host: ftp.server,

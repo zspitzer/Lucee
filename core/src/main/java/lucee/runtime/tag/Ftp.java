@@ -76,6 +76,7 @@ public final class Ftp extends TagImpl {
 	private FTPPoolImpl pool;
 
 	private String action;
+	private String actionParams;
 	private String username;
 	private String password;
 	private String server;
@@ -117,6 +118,7 @@ public final class Ftp extends TagImpl {
 		this.pool = null;
 
 		this.action = null;
+		this.actionParams = null;
 		this.username = null;
 		this.password = null;
 		this.server = null;
@@ -191,11 +193,12 @@ public final class Ftp extends TagImpl {
 				else if (action.equals("existsdir")) client = actionExistsDir();
 				else if (action.equals("existsfile")) client = actionExistsFile();
 				else if (action.equals("exists")) client = actionExists();
+				else if (action.equals("quote")) client = actionQuote();
 				// else if(action.equals("copy")) client=actionCopy();
 
 				else throw new ApplicationException("Attribute [action] has an invalid value [" + action + "]",
 						"valid values are [open, close, listDir, createDir, removeDir, changeDir, getCurrentDir, "
-								+ "getCurrentURL, existsFile, existsDir, exists, getFile, putFile, rename, remove]");
+								+ "getCurrentURL, existsFile, existsDir, exists, getFile, putFile, quote, rename, remove]");
 
 			}
 			catch (IOException ioe) {
@@ -639,6 +642,23 @@ public final class Ftp extends TagImpl {
 	}
 
 	/**
+	 * send a custom command to the FTP server
+	 * 
+	 * @throws IOException, PageException
+	 */
+	private AFTPClient actionQuote() throws IOException, PageException {
+		required("actionParams", actionParams);
+		String command = ListUtil.first(actionParams, " ", false);
+		String params = ListUtil.rest(actionParams, " ", false);
+
+		AFTPClient client = getClient();
+		String result = client.sendCommand(command, params);
+		
+		Struct cfftp = writeCfftp(client);
+		return client;
+	}
+
+	/**
 	 * throw an error if the value is empty (null)
 	 * 
 	 * @param attributeName
@@ -929,5 +949,12 @@ public final class Ftp extends TagImpl {
 
 	public void setFingerprint(String fingerprint) {
 		this.fingerprint = fingerprint;
+	}
+
+	/**
+	 * @param actionParams a custom ftp command, used with action="quote"
+	 */
+	public void setActionparams(String actionParams) {
+		this.actionParams = actionParams;
 	}
 }

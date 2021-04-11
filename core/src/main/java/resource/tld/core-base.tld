@@ -2068,7 +2068,13 @@ To use cached data, the tag must be called with the exact same arguments. Only u
 			<rtexprvalue>true</rtexprvalue>
 			<description>the passphrase that protects ssh private key</description>
 		</attribute>
-		
+		<attribute>
+			<type>string</type>
+			<name>actionParams</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+			<description>used with action="quote" to execute custom ftp commands</description>
+		</attribute>
 		
 	</tag>
 

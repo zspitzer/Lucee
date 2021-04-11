@@ -223,7 +223,7 @@ component {
 			server = arguments.ftp.server
 			port= arguments.ftp.port;
 		
-		//ftp action = "close" connection = "conn";
+		ftp action = "close" connection = "conn";
 		
 		return "Connection Verified";
 	}

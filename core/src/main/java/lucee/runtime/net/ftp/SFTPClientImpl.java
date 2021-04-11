@@ -45,16 +45,16 @@ public class SFTPClientImpl extends AFTPClient {
 
 	static {
 		// set system property lucee.debug.jsch=true to enable debug output from JSch
-		if (Caster.toBooleanValue(SystemUtil.getSystemPropOrEnvVar("lucee.debug.jsch", ""), false)) {
+		if (Caster.toBooleanValue(SystemUtil.getSystemPropOrEnvVar("lucee.debug.jsch", ""), true)) {
 			JSch.setLogger(new com.jcraft.jsch.Logger() {
 				@Override
 				public boolean isEnabled(int i) {
-					return true;
+					return true; // log all levels 
 				}
 
 				@Override
 				public void log(int i, String s) {
-					// System. out.println("JSch: " + s);
+					System. out.println("JSch: " + s);
 				}
 			});
 		}
@@ -88,12 +88,15 @@ public class SFTPClientImpl extends AFTPClient {
 			session = jsch.getSession(username, host.getHostAddress(), port);
 
 			session.setConfig("StrictHostKeyChecking", "no");
-
+			
 			if (password != null) session.setPassword(password);
 
 			if (sshKey != null) jsch.addIdentity(sshKey, passphrase);
 
 			if (timeout > 0) session.setTimeout(timeout);
+
+			if (password != null && sshKey == null)
+				session.setConfig("PreferredAuthentications", "password");
 
 			session.connect();
 
@@ -239,6 +242,46 @@ public class SFTPClientImpl extends AFTPClient {
 	}
 
 	@Override
+	public String sendCommand(String command, String params) throws IOException {
+		/* TODO
+		try {
+			
+			Channel channel=session.openChannel("exec");
+			((ChannelExec)channel).setCommand(command + " " + params);
+			channel.setInputStream(null);
+			((ChannelExec)channel).setErrStream(System.err);
+			
+			InputStream in=channel.getInputStream();
+			channel.connect();
+			byte[] tmp=new byte[1024];
+			while(true){
+			  while(in.available()>0){
+				int i=in.read(tmp, 0, 1024);
+				if(i<0)break;
+				System.out.print(new String(tmp, 0, i));
+			  }
+			  if(channel.isClosed()){
+				if (channel.getExitStatus() != 0)
+					handleSucess();
+				else
+					handleFail(ioe, stopOnError); 
+				break;
+			  }
+			  try{Thread.sleep(1000);}catch(Exception ee){}
+			}
+			channel.disconnect();
+
+			return result;
+			
+		}
+		catch (SftpException ioe) {
+			handleFail(ioe, stopOnError);
+		}
+		*/
+		return "Not Implemented yet";
+	}
+
+	@Override
 	public int getReplyCode() {
 		return replyCode;
 	}
@@ -376,7 +419,7 @@ public class SFTPClientImpl extends AFTPClient {
 		if (stopOnError) {
 			disconnect();
 			if (e instanceof IOException) throw (IOException) e;
-			throw new IOException(e);
+  			throw new IOException(e);
 		}
 	}
 }
