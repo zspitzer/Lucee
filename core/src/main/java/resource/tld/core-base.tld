@@ -1854,7 +1854,7 @@ To use cached data, the tag must be called with the exact same arguments. Only u
 		<attribute>
 			<type>string</type>
 			<name>action</name>
-			<values>copy,exists,existsFile,existsDir,open,close,changeDir,createDir,listDir,removeDir,getFile,putFile,rename,remove,getCurrentDir,getCurrentUrl</values>
+			<values>copy,exists,existsFile,existsDir,open,close,changeDir,createDir,getCurrentDir,getCurrentUrl,listDir,removeDir,getFile,putFile,quote,rename,remove</values>
 			<required>true</required>
 			<rtexprvalue>true</rtexprvalue>
 			<description>the action that should be execute</description>

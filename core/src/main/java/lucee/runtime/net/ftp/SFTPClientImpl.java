@@ -20,6 +20,7 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpATTRS;
 import com.jcraft.jsch.SftpException;
+import com.jcraft.jsch.ChannelExec;
 
 import lucee.commons.io.SystemUtil;
 import lucee.commons.lang.StringUtil;
@@ -243,42 +244,32 @@ public class SFTPClientImpl extends AFTPClient {
 
 	@Override
 	public String sendCommand(String command, String params) throws IOException {
-		/* TODO
-		try {
-			
-			Channel channel=session.openChannel("exec");
+		StringBuilder outputBuffer = new StringBuilder();
+		try
+		{
+			Channel channel = session.openChannel("exec");
 			((ChannelExec)channel).setCommand(command + " " + params);
-			channel.setInputStream(null);
-			((ChannelExec)channel).setErrStream(System.err);
-			
-			InputStream in=channel.getInputStream();
+			InputStream commandOutput = channel.getInputStream();
 			channel.connect();
-			byte[] tmp=new byte[1024];
-			while(true){
-			  while(in.available()>0){
-				int i=in.read(tmp, 0, 1024);
-				if(i<0)break;
-				System.out.print(new String(tmp, 0, i));
-			  }
-			  if(channel.isClosed()){
-				if (channel.getExitStatus() != 0)
-					handleSucess();
-				else
-					handleFail(ioe, stopOnError); 
-				break;
-			  }
-			  try{Thread.sleep(1000);}catch(Exception ee){}
+			int readByte = commandOutput.read();
+			while (commandOutput.available() > 0) {
+				while (readByte != 0xffffffff) {
+					outputBuffer.append((char) readByte);
+					readByte = commandOutput.read();
+				}
+				try {Thread.sleep(1000);} catch (Exception ee) {} // for slow commands
 			}
 			channel.disconnect();
 
-			return result;
-			
-		}
-		catch (SftpException ioe) {
+			if (channel.getExitStatus() != 0)
+				throw new IOException("SFTP server returned [" + channel.getExitStatus() + "]");
+			else
+				handleSucess();
+
+		} catch (JSchException ioe) {
 			handleFail(ioe, stopOnError);
-		}
-		*/
-		return "Not Implemented yet";
+		} 
+		return outputBuffer.toString();
 	}
 
 	@Override
