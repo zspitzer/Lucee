@@ -88,7 +88,7 @@ public class SFTPClientImpl extends AFTPClient {
 			session = jsch.getSession(username, host.getHostAddress(), port);
 
 			session.setConfig("StrictHostKeyChecking", "no");
-			
+
 			if (password != null) session.setPassword(password);
 
 			if (sshKey != null) jsch.addIdentity(sshKey, passphrase);
@@ -419,7 +419,7 @@ public class SFTPClientImpl extends AFTPClient {
 		if (stopOnError) {
 			disconnect();
 			if (e instanceof IOException) throw (IOException) e;
-  			throw new IOException(e);
+			throw new IOException(e);
 		}
 	}
 }
