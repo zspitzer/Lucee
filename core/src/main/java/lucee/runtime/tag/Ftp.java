@@ -196,7 +196,7 @@ public final class Ftp extends TagImpl {
 				else if (action.equals("quote")) client = actionQuote();
 				// else if(action.equals("copy")) client=actionCopy();
 
-				else throw new ApplicationException("Attribute [action] has an invalid value [" + action + "]",
+				else throw new ApplicationException("Tag [ftp] attribute [action] has an invalid value [" + action + "]",
 						"valid values are [open, close, listDir, createDir, removeDir, changeDir, getCurrentDir, "
 								+ "getCurrentURL, existsFile, existsDir, exists, getFile, putFile, quote, rename, remove]");
 
@@ -644,17 +644,24 @@ public final class Ftp extends TagImpl {
 	/**
 	 * send a custom command to the FTP server
 	 * 
+	 * @return FTPCLient
 	 * @throws IOException, PageException
 	 */
 	private AFTPClient actionQuote() throws IOException, PageException {
-		required("actionParams", actionParams);
+		required("actionParams", actionParams); // SIZE filename, etc
+		String params = "";
 		String command = ListUtil.first(actionParams, " ", false);
-		String params = ListUtil.rest(actionParams, " ", false);
+		
+		if (ListUtil.len(actionParams, " ", false) > 1) { // avoid duplicating single commands like "SYSTEM"
+			params = ListUtil.rest(actionParams, " ", false);
+		}
 
 		AFTPClient client = getClient();
-		String result = client.sendCommand(command, params);
+		client.sendCommand(command, params);
 		
-		Struct cfftp = writeCfftp(client);
+		Struct cfftp = writeCfftp(client); // there's a trailing NL in the reply string ???
+		stoponerror = false;
+
 		return client;
 	}
 
@@ -684,15 +691,17 @@ public final class Ftp extends TagImpl {
 		if (client == null) {
 			cfftp.setEL(SUCCEEDED, Boolean.FALSE);
 			cfftp.setEL(ERROR_CODE, new Double(-1));
-			cfftp.setEL(ERROR_TEXT, "");
+			cfftp.setEL(ERROR_TEXT, ""); // TODO provide feedback
 			cfftp.setEL(RETURN_VALUE, "");
 			return cfftp;
 		}
 
 		int repCode = client.getReplyCode();
 		String repStr = client.getReplyString();
+		if (repStr == null) repStr = ""; // no nulls for cfml
+		else repStr = repStr.trim(); // trim coz I was always seeing a trailing new line
 		cfftp.setEL(ERROR_CODE, new Double(repCode));
-		cfftp.setEL(ERROR_TEXT, repStr);
+		cfftp.setEL(ERROR_TEXT, repStr);  
 
 		cfftp.setEL(SUCCEEDED, Caster.toBoolean(client.isPositiveCompletion()));
 		cfftp.setEL(RETURN_VALUE, repStr);
