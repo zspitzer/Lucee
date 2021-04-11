@@ -223,10 +223,10 @@ component {
 	}
 
 	public function verifyFTP ( ftp, service ) localmode=true {
-		if  (arguments.service eq "ftps" )
-			secure="ftps";
+		if  ( arguments.service eq "ftps" )
+			secure = "ftps";
 		else
-			secure = arguments.service eq "sftp"
+			secure = ( arguments.service );
 		ftp action = "open" 
 			connection = "checkConn" 
 			timeout = 2
@@ -237,7 +237,7 @@ component {
 			port= arguments.ftp.port;
 
 		//SystemOutput(cfftp, true);
-		if (!cfftp.succeeded)
+		if ( !cfftp.succeeded )
 			throw cfftp.errorText;
 		sig = cfftp.returnValue.trim(); // stash, close changes cfftp
 		ftp action = "close" connection = "checkConn";
