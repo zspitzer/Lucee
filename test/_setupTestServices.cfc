@@ -104,10 +104,10 @@ component {
 			"FTP_PORT": 21,
 			"FTP_BASE_PATH": "/",
 
-			"SFTP_SERVER"="localhost",
+			"SFTP_SERVER": "127.0.0.1",
 			"SFTP_USERNAME": "lucee",
 			"SFTP_PASSWORD": "",  // DON'T COMMIT
-			"SFTP_PORT": 990,
+			"SFTP_PORT": 22,
 			"SFTP_BASE_PATH": "/",
 			
 			"S3_ACCESS_KEY_ID": "test",
@@ -214,18 +214,23 @@ component {
 	}
 
 	public function verifyFTP ( ftp, service ) localmode=true {
+		secure = (arguments.service contains "sftp");
 		ftp action = "open" 
 			connection = "conn" 
 			timeout = 5
-			secure= (arguments.service contains "sftp")
+			secure= secure
 			username = arguments.ftp.username
 			password = arguments.ftp.password
 			server = arguments.ftp.server
 			port= arguments.ftp.port;
-		
+
+		//SystemOutput(cfftp, true);
+		if (!cfftp.succeeded)
+			throw cfftp.errorText;
+		sig = cfftp.returnValue.trim(); // stash, close changes cfftp
 		ftp action = "close" connection = "conn";
 		
-		return "Connection Verified";
+		return sig & ", #arguments.ftp.username#@#arguments.ftp.server#:#arguments.ftp.port#" & (secure? " SFTP" : "");
 	}
 
 	public function verifyS3 ( s3 ) localmode=true{
