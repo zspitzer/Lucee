@@ -180,13 +180,7 @@ public class FTPClientImpl extends AFTPClient {
 	}
 
 	@Override
-	public String sendCommand(String command, String params) throws IOException {
-		 int code = client.sendCommand(command, params);
-
-		 if (!FTPReply.isPositiveCompletion(code)) {
-			throw new IOException("FTP server returned [" + code + " ] for command [" +command + " " + params + "]" );
-		} else {
-			return client.getReplyString();
-		}
+	public void sendCommand(String command, String params) throws IOException {
+		client.sendCommand(command, params);
 	}
 }

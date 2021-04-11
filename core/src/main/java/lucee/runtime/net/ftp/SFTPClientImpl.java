@@ -109,10 +109,11 @@ public class SFTPClientImpl extends AFTPClient {
 			if (!StringUtil.isEmpty(fingerprint)) {
 				if (!fingerprint.equalsIgnoreCase(fingerprint())) {
 					disconnect();
-					throw new IOException("given fingerprint is not a match.");
+					throw new IOException("SFTP given fingerprint is not a match.");
 				}
 			}
 			handleSucess();
+			replyString = "Connected to " + session.getServerVersion();
 		}
 		catch (JSchException e) {
 			handleFail(e, stopOnError);
@@ -243,33 +244,35 @@ public class SFTPClientImpl extends AFTPClient {
 	}
 
 	@Override
-	public String sendCommand(String command, String params) throws IOException {
-		StringBuilder outputBuffer = new StringBuilder();
+	public void sendCommand(String command, String params) throws IOException {
 		try
 		{
+			StringBuilder outputBuffer = new StringBuilder();
+
 			Channel channel = session.openChannel("exec");
-			((ChannelExec)channel).setCommand(command + " " + params);
+			((ChannelExec) channel).setCommand(command);
 			InputStream commandOutput = channel.getInputStream();
 			channel.connect();
 			int readByte = commandOutput.read();
-			while (commandOutput.available() > 0) {
-				while (readByte != 0xffffffff) {
-					outputBuffer.append((char) readByte);
-					readByte = commandOutput.read();
-				}
-				try {Thread.sleep(1000);} catch (Exception ee) {} // for slow commands
+
+			while (readByte != 0xffffffff) {
+				outputBuffer.append((char) readByte);
+				readByte = commandOutput.read();
 			}
+
 			channel.disconnect();
 
-			if (channel.getExitStatus() != 0)
-				throw new IOException("SFTP server returned [" + channel.getExitStatus() + "]");
-			else
-				handleSucess();
-
+			replyCode = channel.getExitStatus();
+			replyString = outputBuffer.toString();
+			
+			if (replyCode == -1){
+				positiveCompletion = false;
+				throw new IOException("SFTP Error, action [quote], actionParams [" + command + " " + params + "]"
+					+ " server returned code [" + replyCode + "], " +  replyString );
+			} else { positiveCompletion = true; }
 		} catch (JSchException ioe) {
 			handleFail(ioe, stopOnError);
-		} 
-		return outputBuffer.toString();
+		}
 	}
 
 	@Override
