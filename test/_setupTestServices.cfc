@@ -188,7 +188,6 @@ component {
 			}
 		}
 		systemOutput( " ", true) ;
-		throw "zac";
 	}
 
 	public array function reportServiceSkipped () localmode=true {
@@ -247,19 +246,20 @@ component {
 		
 
 	public function addSupportFunctions() {
-
+		/*
 		for (x  in server.system ){
 			SystemOutput(x, true);
 			for (y in server.system[x]) 
 				SystemOutput("#x# #y# #server.system[x][y]#", true);
 		}
+		*/
 
 		server._getSystemPropOrEnvVars = function ( string props="", string prefix="", boolean stripPrefix=true, boolean allowEmpty=false ) localmode=true{
 			st = [=];
 			keys = arguments.props.split( "," );
 			n = arrayLen( keys );
 
-			loop list="custom,environment,properties,environment.env" item="src" {
+			loop list="custom,environment,properties" item="src" {
 				if ( src eq "custom" )
 					props = server.custom_build_env; // server.system is readonly
 				else {

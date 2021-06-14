@@ -124,6 +124,9 @@ function mem(type) {
 	out=SystemOut.setOut(nullValue());
 	//err=SystemOut.setErr(nullValue());
 
+	
+		throw "zac";
+
 	silent {
 		try {
 
