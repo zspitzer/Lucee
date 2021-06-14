@@ -7,8 +7,9 @@ env:
   MYSQL_ROOT_USER: root
   MYSQL_ROOT_PASSWORD: root
 
-on: [push, pull_request, workflow_dispatch]
-
+on:
+  workflow_dispatch:
+    
 jobs:
   build:
 
