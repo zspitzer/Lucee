@@ -47,9 +47,5 @@ jobs:
         sudo -u postgres psql -c 'create database lucee;'
         sudo -u postgres psql -c "create user lucee with encrypted password 'lucee'";
         sudo -u postgres psql -c 'grant all privileges on database lucee to lucee;'
-    - name: Set up Mongodb (local)
-      run: |
-        sudo /etc/init.d/mongod start
-        sudo mongo lucee --eval 'db.createUser({user:"lucee", pwd:"lucee", roles:["readWrite"]});'
     - name: Build with Ant
       run: ant -noinput -buildfile loader/build.xml

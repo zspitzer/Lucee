@@ -246,13 +246,11 @@ component {
 		
 
 	public function addSupportFunctions() {
-		/*
 		for (x  in server.system ){
 			SystemOutput(x, true);
 			for (y in server.system[x]) 
 				SystemOutput("#x# #y# #server.system[x][y]#", true);
-		}
-		*/
+		}		
 
 		server._getSystemPropOrEnvVars = function ( string props="", string prefix="", boolean stripPrefix=true, boolean allowEmpty=false ) localmode=true{
 			st = [=];
@@ -283,8 +281,9 @@ component {
 				else 
 					st = {};
 			}
+			systemOutput( st, true );
 			if ( structCount( st ) eq n ){
-				//systemOutput( st, true);
+				
 				return st; // all or nothing
 			} else {
 				return {};
