@@ -7,8 +7,7 @@ env:
   MYSQL_ROOT_USER: root
   MYSQL_ROOT_PASSWORD: root
 
-on: #[push, pull_request]
-  workflow_dispatch:
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   build:
@@ -43,7 +42,10 @@ jobs:
     - name: Set up Postgres
       run: |
         sudo /etc/init.d/postgresql start
-        psql -c 'CREATE DATABASE lucee;' -U postgres
+        sudo -u postgres psql -c 'create database lucee;'
+        sudo -u postgres psql -c 'create user lucee with encrypted password "lucee"';
+        sudo -u postgres psql -c 'grant all privileges on database lucee to lucee;'
+
     #- name: Build with Ant
     #  run: ant -noinput -buildfile loader/build.xml quick
     #  env:
