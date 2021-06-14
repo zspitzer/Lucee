@@ -250,7 +250,7 @@ component {
 			st = [=];
 			keys = arguments.props.split( "," );
 			n = arrayLen( keys ) ;
-			loop list="custom,environment,properties" item="src" {
+			loop list="custom,environment,properties,environment.env" item="src" {
 				if ( src eq "custom" )
 					props = server.custom_build_env; // server.system is readonly
 				else
