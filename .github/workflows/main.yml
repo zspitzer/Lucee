@@ -43,7 +43,7 @@ jobs:
       run: |
         sudo /etc/init.d/postgresql start
         sudo -u postgres psql -c 'create database lucee;'
-        sudo -u postgres psql -c 'create user lucee with encrypted password lucee';
+        sudo -u postgres psql -c "create user lucee with encrypted password 'lucee'";
         sudo -u postgres psql -c 'grant all privileges on database lucee to lucee;'
 
     #- name: Build with Ant
