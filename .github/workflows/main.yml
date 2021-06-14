@@ -3,8 +3,7 @@
 
 name: Java CI
 
-env:
-  MYSQL_PASSWORD: lucee
+env:  
   MYSQL_ROOT_USER: root
   MYSQL_ROOT_PASSWORD: root
 
@@ -43,3 +42,5 @@ jobs:
         mysql -e 'GRANT ALL PRIVILEGES ON lucee.* TO "lucee"@"localhost"' -u${{ env.MYSQL_ROOT_USER }} -p${{ env.MYSQL_ROOT_PASSWORD }}
     - name: Build with Ant
       run: ant -noinput -buildfile loader/build.xml
+      env:
+        MYSQL_PASSWORD: lucee
