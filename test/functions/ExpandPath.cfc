@@ -45,12 +45,10 @@ component extends="org.lucee.cfml.test.LuceeTestCase"   {
         assertEquals("#parent##SEP#tagx#SEP#",ExpandPath("../tagx/"));
     }
 
-    public void function testSlashJM() skip=true{
+    public void function testSlashJM() {
         assertEquals("#server.coldfusion.rootdir##SEP#jm",ExpandPath("/jm"));
     }
-    public void function testBackSlashJM() skip=true{
-        for (x in server)
-            systemOutput(server[x], true);
+    public void function testBackSlashJM() {
         assertEquals("#server.coldfusion.rootdir##SEP#jm",ExpandPath("\jm"));
     }
 
