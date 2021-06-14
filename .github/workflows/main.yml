@@ -44,7 +44,7 @@ jobs:
       run: |
         sudo /etc/init.d/postgresql start
         psql -c 'CREATE DATABASE lucee;' -U postgres
-    - name: Build with Ant
-      run: ant -noinput -buildfile loader/build.xml quick
-      env:
-        MYSQL_PASSWORD: lucee
+    #- name: Build with Ant
+    #  run: ant -noinput -buildfile loader/build.xml quick
+    #  env:
+    #    MYSQL_PASSWORD: lucee
