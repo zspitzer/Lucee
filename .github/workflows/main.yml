@@ -6,6 +6,7 @@ name: Java CI
 env:
   MYSQL_ROOT_USER: root
   MYSQL_ROOT_PASSWORD: root
+  MYSQL_PASSWORD1: lucee
 
 on: [push, pull_request, workflow_dispatch]
 
@@ -46,7 +47,8 @@ jobs:
         sudo -u postgres psql -c "create user lucee with encrypted password 'lucee'";
         sudo -u postgres psql -c 'grant all privileges on database lucee to lucee;'
 
-    #- name: Build with Ant
-    #  run: ant -noinput -buildfile loader/build.xml quick
-    #  env:
-    #    MYSQL_PASSWORD: lucee
+    - name: Build with Ant
+      run: ant -noinput -buildfile loader/build.xml
+      env:
+        MYSQL_PASSWORD: lucee
+        POSTGRES_PASSWORD: lucee
