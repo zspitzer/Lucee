@@ -35,18 +35,21 @@ jobs:
         path: ~/.m2
         key: ${{ runner.os }}-m2-${{ hashFiles('loader/pom.xml','core/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
-    - name: Set up MySQL
+    - name: Set up MySQL (local)
       run: |
         sudo /etc/init.d/mysql start
         mysql -e 'CREATE DATABASE lucee' -u${{ env.MYSQL_ROOT_USER }} -p${{ env.MYSQL_ROOT_PASSWORD }}
         mysql -e 'CREATE USER "lucee"@"localhost" IDENTIFIED BY "lucee";' -u${{ env.MYSQL_ROOT_USER }} -p${{ env.MYSQL_ROOT_PASSWORD }}
         mysql -e 'GRANT ALL PRIVILEGES ON lucee.* TO "lucee"@"localhost"' -u${{ env.MYSQL_ROOT_USER }} -p${{ env.MYSQL_ROOT_PASSWORD }}
-    - name: Set up Postgres
+    - name: Set up Postgres (local)
       run: |
         sudo /etc/init.d/postgresql start
         sudo -u postgres psql -c 'create database lucee;'
         sudo -u postgres psql -c "create user lucee with encrypted password 'lucee'";
         sudo -u postgres psql -c 'grant all privileges on database lucee to lucee;'
-
+    - name: Set up Mongodb (local)
+      run: |
+        sudo /etc/init.d/mongodb start
+        sudo mongo lucee --eval 'db.createUser({user:"lucee", pwd:"lucee", roles:["readWrite"]});'
     - name: Build with Ant
       run: ant -noinput -buildfile loader/build.xml
