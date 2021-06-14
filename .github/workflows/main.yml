@@ -19,6 +19,11 @@ env:
   POSTGRES_PORT: 5432
   POSTGRES_DATABASE: lucee
 
+  MONGODB_SERVER: localhost
+  MONGODB_PORT: 27017
+  MONGODB_DB: lucee
+  MONGODB_DATABASE: lucee
+
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
@@ -57,5 +62,10 @@ jobs:
         sudo -u postgres psql -c 'create database lucee;'
         sudo -u postgres psql -c "create user lucee with encrypted password 'lucee'";
         sudo -u postgres psql -c 'grant all privileges on database lucee to lucee;'
+    - name: Start MongoDB
+      uses: supercharge/mongodb-github-action@1.6.0
+      with:
+        mongodb-version: 4.4
+        mongodb-port: 27017
     - name: Build with Ant
       run: ant -noinput -buildfile loader/build.xml
