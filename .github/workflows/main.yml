@@ -18,4 +18,4 @@ jobs:
         java-version: '11'
         distribution: 'adopt'
     - name: Build with Ant
-      run: ant -noinput -verbose -buildfile build.xml
+      run: ant -noinput -verbose -buildfile loader/build.xml
