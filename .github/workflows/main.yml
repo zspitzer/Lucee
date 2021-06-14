@@ -5,6 +5,7 @@ name: Java CI
 
 env:
   MYSQL_PASSWORD: lucee
+  MYSQL_ROOT_USER: root
   MYSQL_ROOT_PASSWORD: root
 
 on: #[push, pull_request]
