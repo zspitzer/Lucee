@@ -272,14 +272,16 @@ component {
 						st[ kk ] = props[ k ];
 					}
 				}
+				systemOutput( src, true );
+				systemOutput( st, true );
 				if ( structCount( st ) eq n )
 					break;
 				else 
 					st = {};
 			}
 
-			systemOutput( prefix, true );	
-			systemOutput( st, true );	
+			systemOutput( prefix, true );
+			systemOutput( st, true );
 			
 			if ( structCount( st ) eq n ){
 				return st; // all or nothing
