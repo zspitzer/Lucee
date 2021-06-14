@@ -261,11 +261,7 @@ component {
 				if ( src eq "custom" )
 					props = server.custom_build_env; // server.system is readonly
 				else {
-					if (src contains "."){
-						props = server.system[ src ];
-					} else {
-						props = server.system[ src ];
-					}
+					props = server.system[ src ];
 				}
 				for (k in keys){
 					k = prefix & trim( k );

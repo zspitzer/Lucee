@@ -6,8 +6,19 @@ name: Java CI
 env:
   MYSQL_ROOT_USER: root
   MYSQL_ROOT_PASSWORD: root
+
+  MYSQL_SERVER: localhost
+  MYSQL_USERNAME: lucee
   MYSQL_PASSWORD: lucee
+  MYSQL_PORT": 3306
+  MYSQL_DATABASE": lucee
+  
+  POSTGRES_SERVER": localhost
+  POSTGRES_USERNAME": lucee
   POSTGRES_PASSWORD: lucee
+  POSTGRES_PORT": 5432
+  POSTGRES_DATABASE": lucee
+  
 
 on: [push, pull_request, workflow_dispatch]
 
