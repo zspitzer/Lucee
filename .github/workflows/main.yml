@@ -9,7 +9,7 @@ env:
 
 on:
   workflow_dispatch:
-   
+
 jobs:
   build:
 
@@ -39,11 +39,7 @@ jobs:
         sudo /etc/init.d/mysql start
         mysql -e 'CREATE DATABASE lucee' -u${{ env.MYSQL_ROOT_USER }} -p${{ env.MYSQL_ROOT_PASSWORD }}
         mysql -e 'CREATE USER "lucee"@"localhost" IDENTIFIED BY "lucee";' -u${{ env.MYSQL_ROOT_USER }} -p${{ env.MYSQL_ROOT_PASSWORD }}
-        mysql -e 'GRANT ALL PRIVILEGES ON lucee.* TO "lucee"@"localhost"' -u${{ env.MYSQL_ROOT_USER }} -p${{ env.MYSQL_ROOT_PASSWORD }}
-    - name: Set up Postgres
-      run: |
-        sudo /etc/init.d/postgresql start
-        psql -c 'CREATE DATABASE lucee;' -U postgres
+        mysql -e 'GRANT ALL PRIVILEGES ON lucee.* TO "lucee"@"localhost"' -u${{ env.MYSQL_ROOT_USER }} -p${{ env.MYSQL_ROOT_PASSWORD }}   
     - name: Build with Ant
       #run: ant -noinput -buildfile loader/build.xml
       env:
