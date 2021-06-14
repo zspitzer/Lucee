@@ -49,6 +49,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase"   {
         assertEquals("#server.coldfusion.rootdir##SEP#jm",ExpandPath("/jm"));
     }
     public void function testBackSlashJM(){
+        systemOutput(server, true);
         assertEquals("#server.coldfusion.rootdir##SEP#jm",ExpandPath("\jm"));
     }
 
