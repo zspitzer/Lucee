@@ -73,7 +73,7 @@ jobs:
         MONGODB_DB: lucee
         MONGODB_DATABASE: lucee
         MSSQL_SERVER: localhost
-        MSSQL_USERNAME: lucee
+        MSSQL_USERNAME: sa
         MSSQL_PASSWORD: lucee
         MSSQL_PORT: 1433
         MSSQL_DATABASE: master
@@ -88,7 +88,7 @@ jobs:
         CI_DEPLOY_PASSWORD: ${{ secrets.CI_DEPLOY_PASSWORD }}
         CI_DEPLOY_PASSPHRASE: ${{ secrets.CI_DEPLOY_PASSPHRASE }}
       #run: ant -noinput -buildfile loader/build.xml
-      run: mvn -e -f loader/pom.xml clean install
+      run: mvn -e -f loader/pom.xml clean install -DtestFilter="2586"
     - name: Update Provider
       run: |
         curl "https://update.lucee.org/rest/update/provider/buildLatest"
