@@ -14,6 +14,13 @@ component extends="org.lucee.cfml.test.LuceeTestCase"{
 					template:"#variables.uri#/test.cfm",
 					forms:{Scene:1}
 				);
+				SystemOutput("", true);
+				SystemOutput("JVM timezone", true);
+				SystemOutput(GetTimeZoneInfo( "jvm" ), true);
+				SystemOutput("CF timezone", true);
+				SystemOutput(GetTimeZoneInfo( GetTimeZone() ), true);
+				SystemOutput("", true);
+
 				expect(local.result.filecontent.trim()).toBe("{ts '2018-08-01 12:00:00'}");
 			});
 			it(title = "Checking timestamp with createOdbcDateTime()",skip=isNotSupported(), body = function( currentSpec ) {
