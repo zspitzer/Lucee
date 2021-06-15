@@ -14,7 +14,7 @@ jobs:
         env:
           MSSQL_PID: Express
           ACCEPT_EULA: Y
-          SA_PASSWORD: lucee
+          SA_PASSWORD: Lucee!1433
         ports:
           - 1433:1433
         options: --health-cmd="/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P ${SA_PASSWORD} -Q 'SELECT 1' || exit 1"  --health-interval 10s --health-timeout 5s --health-retries 5
@@ -75,7 +75,7 @@ jobs:
         MONGODB_DATABASE: lucee
         MSSQL_SERVER: localhost
         MSSQL_USERNAME: sa
-        MSSQL_PASSWORD: lucee
+        MSSQL_PASSWORD: Lucee!1433
         MSSQL_PORT: 1433
         MSSQL_DATABASE: master
         S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_ID_TEST }}
