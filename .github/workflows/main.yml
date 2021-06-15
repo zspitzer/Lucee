@@ -33,24 +33,18 @@ jobs:
         key: ${{ runner.os }}-m2-${{ hashFiles('loader/pom.xml','core/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
     - name: Set up MySQL (local)
-      env:
-        MYSQL_ROOT_USER: root
-        MYSQL_ROOT_PASSWORD: root
-        MYSQL_USERNAME: lucee
-        MYSQL_PASSWORD: lucee
-        MYSQL_DATABASE: lucee
       run: |
         sudo /etc/init.d/mysql start
-        mysql -e 'CREATE DATABASE lucee' -u${{ env.MYSQL_ROOT_USER }} -p${{ env.MYSQL_ROOT_PASSWORD }}
-        mysql -e 'CREATE USER "lucee"@"localhost" IDENTIFIED WITH mysql_native_password BY "lucee";' -u${{ env.MYSQL_ROOT_USER }} -p${{ env.MYSQL_ROOT_PASSWORD }}
-        mysql -e 'GRANT ALL PRIVILEGES ON lucee.* TO "lucee"@"localhost"' -u${{ env.MYSQL_ROOT_USER }} -p${{ env.MYSQL_ROOT_PASSWORD }}
+        mysql -e 'CREATE DATABASE lucee' -ulucee -plucee
+        mysql -e 'CREATE USER "lucee"@"localhost" IDENTIFIED WITH mysql_native_password BY "lucee";' -ulucee -plucee
+        mysql -e 'GRANT ALL PRIVILEGES ON lucee.* TO "lucee"@"localhost"' -ulucee -plucee
     - name: Set up Postgres (local)
       run: |
         sudo /etc/init.d/postgresql start
         sudo -u postgres psql -c 'create database lucee;'
         sudo -u postgres psql -c "create user lucee with encrypted password 'lucee'";
         sudo -u postgres psql -c 'grant all privileges on database lucee to lucee;'
-    - name: Start MongoDB
+    - name: Start MongoDB (docker)
       uses: supercharge/mongodb-github-action@1.6.0
       with:
         mongodb-version: 4.4
@@ -71,4 +65,15 @@ jobs:
         MONGODB_PORT: 27017
         MONGODB_DB: lucee
         MONGODB_DATABASE: lucee
-      run: ant -noinput -buildfile loader/build.xml
+        DO_DEPLOY: false
+      #run: ant -noinput -buildfile loader/build.xml
+      run: mvn -e -f loader/pom.xml clean install
+    - name: Update Provider
+      run: |
+        curl "https://update.lucee.org/rest/update/provider/buildLatest"
+        curl "https://extension.lucee.org/rest/extension/provider/reset"
+        curl "https://download.lucee.org/?type=snapshots&reset=force"
+    - name: Trigger Docker Build
+      run: |
+        chmod +x travis-docker-build.sh
+        ./travis-docker-build.sh
