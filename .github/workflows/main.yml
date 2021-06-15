@@ -14,7 +14,7 @@ jobs:
         env:
           MSSQL_PID: Express
           ACCEPT_EULA: Y
-          SA_PASSWORD: Lucee!1433
+          SA_PASSWORD: Lucee!1433 # password must be complex or it won't start
         ports:
           - 1433:1433
         options: --health-cmd="/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P ${SA_PASSWORD} -Q 'SELECT 1' || exit 1"  --health-interval 10s --health-timeout 5s --health-retries 5
@@ -39,7 +39,9 @@ jobs:
       with:
         path: ~/.m2
         key: ${{ runner.os }}-m2-${{ hashFiles('loader/pom.xml','core/pom.xml') }}
-        restore-keys: ${{ runner.os }}-m2
+        restore-keys: |
+          ${{ runner.os }}-m2
+          maven-cache
     - name: Set up MySQL (local)
       run: |
         sudo /etc/init.d/mysql start
@@ -89,7 +91,7 @@ jobs:
         CI_DEPLOY_PASSWORD: ${{ secrets.CI_DEPLOY_PASSWORD }}
         CI_DEPLOY_PASSPHRASE: ${{ secrets.CI_DEPLOY_PASSPHRASE }}
       #run: ant -noinput -buildfile loader/build.xml
-      run: mvn -e -f loader/pom.xml clean install -DtestFilter="2586"
+      run: mvn -e -f loader/pom.xml clean install #-DtestFilter="2586"
     - name: Update Provider
       run: |
         curl "https://update.lucee.org/rest/update/provider/buildLatest"
