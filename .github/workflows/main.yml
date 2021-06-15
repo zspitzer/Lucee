@@ -12,6 +12,7 @@ jobs:
         # Docker Hub image
         image: mcr.microsoft.com/mssql/server:2019-latest
         env:
+          MSSQL_PID: Express
           ACCEPT_EULA: Y
           SA_PASSWORD: lucee
         ports:
