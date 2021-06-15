@@ -73,7 +73,7 @@ jobs:
         CI_DEPLOY_PASSWORD: ${{ secrets.CI_DEPLOY_PASSWORD }}
         CI_DEPLOY_PASSPHRASE: ${{ secrets.CI_DEPLOY_PASSPHRASE }}
       #run: ant -noinput -buildfile loader/build.xml
-      run: mvn --debug -e -f loader/pom.xml clean install
+      run: mvn -e -f loader/pom.xml clean install
     - name: Update Provider
       run: |
         curl "https://update.lucee.org/rest/update/provider/buildLatest"
