@@ -1099,7 +1099,7 @@ Reference Button
 						<cfset sectionId = "Exceptions">
 						<cfset isOpen = this.isSectionOpen( sectionId )>
 
-						<div class="section-title">Caught Exceptions</div>
+						<div class="section-title">Exceptions</div>
 						<table>
 
 							<cfset renderSectionHeadTR( sectionId, "#arrayLen(local.exceptions)# Exception#arrayLen( local.exceptions ) GT 1 ? 's' : ''# Caught" )>
@@ -1122,8 +1122,10 @@ Reference Button
 												<td>#exp.type#</td>
 												<td>#exp.message#</td>
 												<td>#exp.detail#</td>
-												<td>#exp.TagContext[1].template#</td>
-												<td class="txt-r">#exp.TagContext[1].line#</td>
+												<cfif arrayLen(exp.TagContext) gt 0>
+													<td>#exp.TagContext[1].template#</td>
+													<td class="txt-r">#exp.TagContext[1].line#</td>
+												</cfif>
 											</tr>
 										</cfloop>
 									</tbody>

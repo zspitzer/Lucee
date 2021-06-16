@@ -4356,10 +4356,9 @@ public final class ConfigAdmin {
 		Log logger = ci.getLog("deploy");
 		String type = ci instanceof ConfigWeb ? "web" : "server";
 		// load already installed previous version and uninstall the parts no longer needed
-
 		String extName = rhext.getName();
 		logger.log(Log.LEVEL_INFO, extName, "Installing version [" + rhext.getVersion() + "]");
-
+    
 		RHExtension existingRH = getRHExtension(ci, rhext.getId(), null);
 		if (existingRH != null) {
 			if ( rhext.getId().compareTo(existingRH.getId()) != 0 ){
@@ -5240,7 +5239,6 @@ public final class ConfigAdmin {
 
 	public void removeFLDs(Log logger, String extName, String[] names) throws IOException {
 		if (ArrayUtil.isEmpty(names)) return;
-
 		Resource file = config.getFldFile();
 		for (int i = 0; i < names.length; i++) {
 			logger.log(Log.LEVEL_DEBUG, extName, "Remove FLD file [" + names[i] + "]");
@@ -6095,7 +6093,7 @@ public final class ConfigAdmin {
 		return list.toArray(new BundleDefinition[list.size()]);
 	}
 
-	private RHExtension getRHExtension(ConfigPro config, String id, RHExtension defaultValue) {
+	private RHExtension getRHExtension(final ConfigPro config, final String id, final RHExtension defaultValue) {
 		Array children = ConfigWebUtil.getAsArray("extensions", root);
 
 		//Log logger = config.getLog("deploy");
@@ -6106,7 +6104,7 @@ public final class ConfigAdmin {
 				//logger.log(Log.LEVEL_ERROR, "debug", "getRHExtension: " + " i " + i + ", " + id );
 				Struct tmp = Caster.toStruct(children.get(i, null), null);
 				if (tmp == null) continue;
-				String _id = id = Caster.toString(tmp.get(KeyConstants._id, null), null);
+				String _id = Caster.toString(tmp.get(KeyConstants._id, null), null);
 				if (!id.equals(_id)) continue;
 				try {
 					return new RHExtension(config, _id, Caster.toString(tmp.get(KeyConstants._version), null), null, false);
@@ -6148,8 +6146,8 @@ public final class ConfigAdmin {
 			for (int key: keys) {
 				Struct sct = Caster.toStruct(children.get(key, null), null);
 				if (sct == null) continue;
-				id = Caster.toString(sct.get(KeyConstants._id));
-				v = Caster.toString(sct.get(KeyConstants._version));
+				id = Caster.toString(sct.get(KeyConstants._id, null), null);
+				v = Caster.toString(sct.get(KeyConstants._version, null), null);
 				if (!RHExtension.isInstalled(config, id, v)) continue;
 
 				if (ed.equals(new ExtensionDefintion(id, v))) return new RHExtension(config, id, v, null, false);
