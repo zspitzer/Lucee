@@ -17,7 +17,7 @@
  * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
  * 
  ---><cfscript>
-component extends="org.lucee.cfml.test.LuceeTestCase"	{
+component extends="org.lucee.cfml.test.LuceeTestCase" labels="orm" {
 
 	//public function setUp(){}
 
@@ -60,6 +60,16 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 		assertEquals(200,result.status);
 		assertEquals("moduleLangs:1;2;Tags:1;2;",trim(result.fileContent));
 	}
+
+	public void function testEvents() {
+		local.uri=createURI("events/index.cfm");
+		systemOutput( "", true ); 
+		local.result=_InternalRequest(uri);
+		systemOutput( "", true ); 
+		expect( result.status ).toBe( 200 );
+		expect( trim( result.fileContent ) ).toBe( 10 ); // dunno what number this should be yet
+	}
+
 	
 	private string function createURI(string calledName){
 		var baseURI="/test/#listLast(getDirectoryFromPath(getCurrenttemplatepath()),"\/")#/";

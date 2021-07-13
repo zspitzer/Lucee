@@ -1,9 +1,10 @@
-<cfcomponent extends="org.lucee.cfml.test.LuceeTestCase">
+<cfcomponent extends="org.lucee.cfml.test.LuceeTestCase" labels="s3">
 	<cfscript>
 		// skip closure
 		function isNotSupported() {
 			variables.s3Details=getCredentials();
-			if(!isNull(variables.s3Details.ACCESS_KEY_ID) && !isNull(variables.s3Details.S3_SECRET_KEY)) {
+			if(structIsEmpty(s3Details)) return true;
+			if(!isNull(variables.s3Details.ACCESS_KEY_ID) && !isNull(variables.s3Details.SECRET_KEY)) {
 				variables.supported = true;
 			}
 			else
@@ -16,8 +17,8 @@
 			if(isNotSupported()) return;
 			s3Details = getCredentials();
 			mitrahsoftBucketName = "lucee-testsuite-ldev1489";
-			base = "s3://#s3Details.ACCESS_KEY_ID#:#s3Details.S3_SECRET_KEY#@";
-			variables.baseWithBucketName = "s3://#s3Details.ACCESS_KEY_ID#:#s3Details.S3_SECRET_KEY#@/#mitrahsoftBucketName#";
+			base = "s3://#s3Details.ACCESS_KEY_ID#:#s3Details.SECRET_KEY#@";
+			variables.baseWithBucketName = "s3://#s3Details.ACCESS_KEY_ID#:#s3Details.SECRET_KEY#@/#mitrahsoftBucketName#";
 			// for skipping rest of the cases, if error occurred.
 			hasError = false;
 			// for replacing s3 access keys from error msgs
@@ -89,7 +90,7 @@
 		}
 
 		private function removeFullControl(acl) {
-			index=0;
+			local.index=0;
 			loop array=acl index="local.i" item="local.el" {
 				if(el.permission=="FULL_CONTROL")
 					local.index=i;

@@ -16,7 +16,7 @@
  * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
  * 
  ---><cfscript>
-component extends="org.lucee.cfml.test.LuceeTestCase"	{
+component extends="org.lucee.cfml.test.LuceeTestCase" labels="s3"	{
 	
 	
 	//public function afterTests(){}
@@ -25,7 +25,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 		if(isNotSupported()) return;
 		s3Details = getCredentials();
 		bucketName = "lucee-testsuite";
-		base = "s3://#s3Details.S3_ACCESS_KEY_ID#:#s3Details.S3_SECRET_KEY#@/#bucketName#";
+		base = "s3://#s3Details.ACCESS_KEY_ID#:#s3Details.SECRET_KEY#@/#bucketName#";
 
 	}
 
@@ -60,7 +60,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 		assertTrue(directoryExists(sub));
 		assertFalse(fileExists(sub));
 
-		children = directoryList(sub, true,'query');
+		var children = directoryList(sub, true,'query');
 		assertEquals(1,children.recordcount);
 		}
 		finally {
@@ -77,7 +77,6 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 	private struct function getCredentials() {
 		return server.getTestService("s3");
 	}
-
 
 } 
 </cfscript>
