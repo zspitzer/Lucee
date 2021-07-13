@@ -251,7 +251,7 @@ public final class ConfigAdmin {
 		try {
 			ConfigAdmin admin = ConfigAdmin.newInstance(ci, null);
 			admin._reload();
-			LogUtil.log(ThreadLocalPageContext.getConfig(config), Log.LEVEL_INFO, ConfigAdmin.class.getName(), "reloaded the configuration [" + file + "] automatically");
+			LogUtil.log(ThreadLocalPageContext.getConfig(config), Log.LEVEL_INFO, ConfigAdmin.class.getName(), "Reloaded the configuration [" + file + "] automatically");
 		}
 		catch (Throwable t) {
 			ExceptionUtil.rethrowIfNecessary(t);
@@ -1114,15 +1114,15 @@ public final class ConfigAdmin {
 	}
 
 	public void updateJar(Resource resJar) throws IOException, BundleException {
-		updateJar(config, resJar, true);
+		updateJar(config, "extension", resJar, true); // TODO extName
 	}
 
-	public static void updateJar(Config config, Resource resJar, boolean reloadWhenClassicJar) throws IOException, BundleException {
+	public static void updateJar(Config config, String extName, Resource resJar, boolean reloadWhenClassicJar) throws IOException, BundleException {
 		BundleFile bf = BundleFile.getInstance(resJar);
 
 		// resJar is a bundle
 		if (bf.isBundle()) {
-			bf = installBundle(config, bf);
+			bf = installBundle(config, extName, bf);
 			OSGiUtil.loadBundle(bf);
 			return;
 		}
@@ -1134,21 +1134,36 @@ public final class ConfigAdmin {
 		// if there is an existing, has the file changed?
 		if (fileLib.length() != resJar.length()) {
 			IOUtil.closeEL(config.getClassLoader());
+
+			Log logger = config.getLog("deploy"); 
+			logger.log(Log.LEVEL_DEBUG, extName, "Update Jar [" + bf.getSymbolicName() + "-" + bf.getVersion().toString() + ".jar" + "]");
+
 			ResourceUtil.copy(resJar, fileLib);
 			if (reloadWhenClassicJar) ConfigWebUtil.reloadLib(config);
+		}
+	}
+
+	static void updateJar(Config config, InputStream is, String fileName, boolean closeStream) throws IOException, BundleException {
+		Resource tmp = SystemUtil.getTempDirectory().getRealResource(fileName);
+		try {
+			IOUtil.copy(is, tmp, closeStream);
+			updateJar(config, "extension", tmp, true); // TODO extName
+		}
+		finally {
+			tmp.delete();
 		}
 	}
 
 	/*
 	 * important! returns null when not a bundle!
 	 */
-	static BundleFile installBundle(Config config, Resource resJar, String extVersion, boolean convert2bundle) throws IOException, BundleException {
+	static BundleFile installBundle(Config config, Resource resJar, String extName, String extVersion, boolean convert2bundle) throws IOException, BundleException {
 
 		BundleFile bf = BundleFile.getInstance(resJar);
 
 		// resJar is a bundle
 		if (bf.isBundle()) {
-			return installBundle(config, bf);
+			return installBundle(config, extName, bf);
 		}
 
 		if (!convert2bundle) return null;
@@ -1161,22 +1176,25 @@ public final class ConfigAdmin {
 		Version version = bf.getVersion();
 		if (version == null) version = OSGiUtil.toVersion(extVersion);
 
-		LogUtil.log(ThreadLocalPageContext.getConfig(config), Log.LEVEL_INFO, ConfigAdmin.class.getName(), "failed to load [" + resJar + "] as OSGi Bundle");
+		LogUtil.log(ThreadLocalPageContext.getConfig(config), Log.LEVEL_DEBUG, ConfigAdmin.class.getName(), "Failed to load [" + resJar + "] as OSGi Bundle");
 		BundleBuilderFactory bbf = new BundleBuilderFactory(resJar, name);
 		bbf.setVersion(version);
 		bbf.setIgnoreExistingManifest(false);
 		bbf.build();
 
 		bf = BundleFile.getInstance(resJar);
-		LogUtil.log(ThreadLocalPageContext.getConfig(config), Log.LEVEL_INFO, ConfigAdmin.class.getName(), "converted  [" + resJar + "] to an OSGi Bundle");
-		return installBundle(config, bf);
+		LogUtil.log(ThreadLocalPageContext.getConfig(config), Log.LEVEL_DEBUG, ConfigAdmin.class.getName(), "Converted  [" + resJar + "] to an OSGi Bundle");
+		return installBundle(config, extName, bf);
 	}
 
-	private static BundleFile installBundle(Config config, BundleFile bf) throws IOException, BundleException {
+	private static BundleFile installBundle(Config config, String extName, BundleFile bf) throws IOException, BundleException {
 
 		// does this bundle already exists
 		BundleFile _bf = OSGiUtil.getBundleFile(bf.getSymbolicName(), bf.getVersion(), null, null, false, null);
 		if (_bf != null) return _bf;
+
+		Log logger = config.getLog("deploy");
+		logger.log(Log.LEVEL_DEBUG, extName, "Install Bundle [" + bf.getSymbolicName() + "-" + bf.getVersion().toString() + ".jar" + "]");
 
 		CFMLEngine engine = CFMLEngineFactory.getInstance();
 		CFMLEngineFactory factory = engine.getCFMLEngineFactory();
@@ -1206,9 +1224,9 @@ public final class ConfigAdmin {
 	 * @throws IOException
 	 * @throws BundleException
 	 */
-	static Bundle updateBundle(Config config, InputStream is, String name, String extensionVersion, boolean closeStream) throws IOException, BundleException {
-		Object obj = installBundle(config, is, name, extensionVersion, closeStream, false);
-		if (!(obj instanceof BundleFile)) throw new BundleException("input is not an OSGi Bundle.");
+	static Bundle updateBundle(Config config, InputStream is, String fileName, String extName, String extensionVersion, boolean closeStream) throws IOException, BundleException {
+		Object obj = installBundle(config, is, fileName, extName, extensionVersion, closeStream, false);
+		if (!(obj instanceof BundleFile)) throw new BundleException("Input is not an OSGi Bundle [" + fileName + "]");
 
 		BundleFile bf = (BundleFile) obj;
 		return OSGiUtil.loadBundle(bf);
@@ -1225,29 +1243,18 @@ public final class ConfigAdmin {
 	 * @throws IOException
 	 * @throws BundleException
 	 */
-	public static Object installBundle(Config config, InputStream is, String name, String extensionVersion, boolean closeStream, boolean convert2bundle)
+	public static Object installBundle(Config config, InputStream is, String fileName, String extName, String extensionVersion, boolean closeStream, boolean convert2bundle)
 			throws IOException, BundleException {
-		Resource tmp = SystemUtil.getTempDirectory().getRealResource(name);
-		OutputStream os = tmp.getOutputStream();
+		Resource tmpRes = SystemUtil.getTempDirectory().getRealResource(fileName);
+		OutputStream os = tmpRes.getOutputStream();
 		IOUtil.copy(is, os, closeStream, true);
 
-		BundleFile bf = installBundle(config, tmp, extensionVersion, convert2bundle);
+		BundleFile bf = installBundle(config, tmpRes, extName, extensionVersion, convert2bundle);
 		if (bf != null) {
-			tmp.delete();
+			tmpRes.delete();
 			return bf;
 		}
-		return tmp;
-	}
-
-	static void updateJar(Config config, InputStream is, String name, boolean closeStream) throws IOException, BundleException {
-		Resource tmp = SystemUtil.getTempDirectory().getRealResource(name);
-		try {
-			IOUtil.copy(is, tmp, closeStream);
-			updateJar(config, tmp, true);
-		}
-		finally {
-			tmp.delete();
-		}
+		return tmpRes;
 	}
 
 	/**
@@ -4349,14 +4356,21 @@ public final class ConfigAdmin {
 		Log logger = ci.getLog("deploy");
 		String type = ci instanceof ConfigWeb ? "web" : "server";
 		// load already installed previous version and uninstall the parts no longer needed
+		String extName = rhext.getName();
+		logger.log(Log.LEVEL_INFO, extName, "Installing version [" + rhext.getVersion() + "]");
+    
 		RHExtension existingRH = getRHExtension(ci, rhext.getId(), null);
 		if (existingRH != null) {
+			if ( rhext.getId().compareTo(existingRH.getId()) != 0 ){
+				throw new ApplicationException("updateRHExtension: getRHExtension returned the wrong extension, " +  existingRH.getId() + ", expected " + rhext.getId() );
+			}
+			logger.log(Log.LEVEL_INFO, extName, "Uninstalling previous version [" + existingRH.getName() + ":" + existingRH.getVersion() + "]");// + rhext.getId() + " " + existingRH.getId());
 			// same version
 			if (existingRH.getVersion().compareTo(rhext.getVersion()) == 0) {
 				removeRHExtension(config, existingRH, rhext, false);
+			} else {
+				removeRHExtension(config, existingRH, rhext, true);
 			}
-			else removeRHExtension(config, existingRH, rhext, true);
-
 		}
 		// INSTALL
 		try {
@@ -4382,25 +4396,25 @@ public final class ConfigAdmin {
 				if (!entry.isDirectory() && (startsWith(path, type, "jars") || startsWith(path, type, "jar") || startsWith(path, type, "bundles")
 						|| startsWith(path, type, "bundle") || startsWith(path, type, "lib") || startsWith(path, type, "libs")) && (StringUtil.endsWithIgnoreCase(path, ".jar"))) {
 
-					Object obj = ConfigAdmin.installBundle(config, zis, fileName, rhext.getVersion(), false, false);
+					Object obj = ConfigAdmin.installBundle(config, zis, extName, fileName, rhext.getVersion(), false, false);
 					// jar is not a bundle, only a regular jar
 					if (!(obj instanceof BundleFile)) {
 						Resource tmp = (Resource) obj;
 						Resource tmpJar = tmp.getParentResource().getRealResource(ListUtil.last(path, "\\/"));
 						tmp.moveTo(tmpJar);
-						ConfigAdmin.updateJar(config, tmpJar, false);
+						ConfigAdmin.updateJar(config, extName, tmpJar, false);
 					}
 				}
 
 				// flds
 				if (!entry.isDirectory() && startsWith(path, type, "flds") && (StringUtil.endsWithIgnoreCase(path, ".fld") || StringUtil.endsWithIgnoreCase(path, ".fldx"))) {
-					logger.log(Log.LEVEL_INFO, "extension", "Deploy fld [" + fileName + "]");
+					logger.log(Log.LEVEL_DEBUG, extName, "Deploy FLD [" + fileName + "]");
 					updateFLD(zis, fileName, false);
 					reloadNecessary = true;
 				}
 				// tlds
 				if (!entry.isDirectory() && startsWith(path, type, "tlds") && (StringUtil.endsWithIgnoreCase(path, ".tld") || StringUtil.endsWithIgnoreCase(path, ".tldx"))) {
-					logger.log(Log.LEVEL_INFO, "extension", "Deploy tld/tldx [" + fileName + "]");
+					logger.log(Log.LEVEL_DEBUG, extName, "Deploy TLD/TLDX [" + fileName + "]");
 					updateTLD(zis, fileName, false);
 					reloadNecessary = true;
 				}
@@ -4408,7 +4422,7 @@ public final class ConfigAdmin {
 				// tags
 				if (!entry.isDirectory() && startsWith(path, type, "tags")) {
 					String sub = subFolder(entry);
-					logger.log(Log.LEVEL_INFO, "extension", "Deploy tag [" + sub + "]");
+					logger.log(Log.LEVEL_DEBUG, extName, "Deploy Tag [" + sub + "]");
 					updateTag(zis, sub, false);
 					// clearTags=true;
 					reloadNecessary = true;
@@ -4417,7 +4431,7 @@ public final class ConfigAdmin {
 				// functions
 				if (!entry.isDirectory() && startsWith(path, type, "functions")) {
 					String sub = subFolder(entry);
-					logger.log(Log.LEVEL_INFO, "extension", "Deploy function [" + sub + "]");
+					logger.log(Log.LEVEL_DEBUG, extName, "Deploy Function [" + sub + "]");
 					updateFunction(zis, sub, false);
 					// clearFunction=true;
 					reloadNecessary = true;
@@ -4426,7 +4440,7 @@ public final class ConfigAdmin {
 				// mappings
 				if (!entry.isDirectory() && (startsWith(path, type, "archives") || startsWith(path, type, "mappings"))) {
 					String sub = subFolder(entry);
-					logger.log(Log.LEVEL_INFO, "extension", "deploy mapping " + sub);
+					logger.log(Log.LEVEL_DEBUG, extName, "Deploy Mapping [" + sub + "]");
 					updateArchive(zis, sub, false);
 					reloadNecessary = true;
 					// clearFunction=true;
@@ -4437,7 +4451,7 @@ public final class ConfigAdmin {
 						&& (StringUtil.endsWithIgnoreCase(path, "." + Constants.getCFMLComponentExtension())
 								|| StringUtil.endsWithIgnoreCase(path, "." + Constants.getLuceeComponentExtension()))) {
 					String sub = subFolder(entry);
-					logger.log(Log.LEVEL_INFO, "extension", "Deploy event-gateway [" + sub + "]");
+					logger.log(Log.LEVEL_DEBUG, extName, "Deploy Event-Gateway [" + sub + "]");
 					updateEventGateway(zis, sub, false);
 				}
 
@@ -4445,15 +4459,15 @@ public final class ConfigAdmin {
 				String realpath;
 				if (!entry.isDirectory() && startsWith(path, type, "context") && !StringUtil.startsWith(fileName(entry), '.')) {
 					realpath = path.substring(8);
-					logger.log(Log.LEVEL_INFO, "extension", "Deploy context [" + realpath + "]");
+					logger.log(Log.LEVEL_DEBUG, extName, "Deploy file to Context [" + realpath + "]");
 					updateContext(zis, realpath, false, false);
 				}
-				// web contextS
+				// web contexts
 				boolean first;
 				if (!entry.isDirectory() && ((first = startsWith(path, type, "webcontexts")) || startsWith(path, type, "web.contexts"))
 						&& !StringUtil.startsWith(fileName(entry), '.')) {
 					realpath = path.substring(first ? 12 : 13);
-					logger.log(Log.LEVEL_INFO, "extension", "Deploy webcontext [" + realpath + "]");
+					logger.log(Log.LEVEL_DEBUG, extName, "Deploy file to Web Context(s) [" + realpath + "]");
 					updateWebContexts(zis, realpath, false, false);
 				}
 				// applications
@@ -4465,26 +4479,26 @@ public final class ConfigAdmin {
 					else index = 4; // web
 
 					realpath = path.substring(index);
-					logger.log(Log.LEVEL_INFO, "extension", "Deploy application [" + realpath + "]");
+					logger.log(Log.LEVEL_DEBUG, extName, "Deploy Application [" + realpath + "]");
 					updateApplication(zis, realpath, false);
 				}
 				// configs
 				if (!entry.isDirectory() && (startsWith(path, type, "config")) && !StringUtil.startsWith(fileName(entry), '.')) {
 					realpath = path.substring(7);
-					logger.log(Log.LEVEL_INFO, "extension", "Deploy config [" + realpath + "]");
+					logger.log(Log.LEVEL_DEBUG, extName, "Deploy Config [" + realpath + "]");
 					updateConfigs(zis, realpath, false, false);
 				}
 				// components
 				if (!entry.isDirectory() && (startsWith(path, type, "components")) && !StringUtil.startsWith(fileName(entry), '.')) {
 					realpath = path.substring(11);
-					logger.log(Log.LEVEL_INFO, "extension", "Deploy component [" + realpath + "]");
+					logger.log(Log.LEVEL_DEBUG, extName, "Deploy Component [" + realpath + "]");
 					updateComponent(zis, realpath, false, false);
 				}
 
 				// plugins
 				if (!entry.isDirectory() && (startsWith(path, type, "plugins")) && !StringUtil.startsWith(fileName(entry), '.')) {
 					realpath = path.substring(8);
-					logger.log(Log.LEVEL_INFO, "extension", "Deploy plugin [" + realpath + "]");
+					logger.log(Log.LEVEL_DEBUG, extName, "Deploy Plugin file [" + realpath + "]");
 					updatePlugin(zis, realpath, false);
 				}
 
@@ -4513,8 +4527,10 @@ public final class ConfigAdmin {
 					if (cd != null && cd.isBundle()) {
 						_updateCache(cd);
 						reloadNecessary = true;
+						logger.debug(extName, "Install Cache [" + cd + "]");
+					} else {
+						logger.error(extName, "Failed to install Cache [" + cd + "]");
 					}
-					logger.info("extension", "Update cache [" + cd + "] from extension [" + rhext.getName() + ":" + rhext.getVersion() + "]");
 				}
 			}
 
@@ -4529,8 +4545,10 @@ public final class ConfigAdmin {
 					if (!StringUtil.isEmpty(_id) && cd != null && cd.hasClass()) {
 						_updateCacheHandler(_id, cd);
 						reloadNecessary = true;
+						logger.debug(extName, "Install cache handler [" + cd + "]");
+					} else {
+						logger.error(extName, "Failed to install Cache Handler [" + cd + "]");
 					}
-					logger.info("extension", "Update cache handler [" + cd + "] from extension [" + rhext.getName() + ":" + rhext.getVersion() + "]");
 				}
 			}
 
@@ -4544,8 +4562,10 @@ public final class ConfigAdmin {
 					if (cd != null && cd.hasClass()) {
 						_updateSearchEngine(cd);
 						reloadNecessary = true;
+						logger.debug(extName, "Install Search Engine [" + cd + "]");
+					} else {
+						logger.error(extName, "Failed to install Search Engine [" + cd + "]");
 					}
-					logger.info("extension", "Update search engine [" + cd + "] from extension [" + rhext.getName() + ":" + rhext.getVersion() + "]");
 				}
 			}
 
@@ -4563,8 +4583,10 @@ public final class ConfigAdmin {
 						args.remove("scheme");
 						_updateResourceProvider(scheme, cd, args);
 						reloadNecessary = true;
+						logger.debug(extName, "Install Resource Provider [" + scheme + "]");
+					} else {
+						logger.error(extName, "Failed to install Resource Provider [" + cd + "]");
 					}
-					logger.info("extension", "Update resource provider [" + scheme + "] from extension [" + rhext.getName() + ":" + rhext.getVersion() + "]");
 				}
 			}
 
@@ -4579,8 +4601,10 @@ public final class ConfigAdmin {
 					if (cd != null && cd.hasClass()) {
 						_updateORMEngine(cd);
 						reloadNecessary = true;
+						logger.debug(extName, "Install ORM Engine [" + cd + "]");
+					} else {
+						logger.error(extName, "Failed to install ORM Engine [" + cd + "]");
 					}
-					logger.info("extension", "Update orm engine [" + cd + "] from extension [" + rhext.getName() + ":" + rhext.getVersion() + "]");
 				}
 			}
 
@@ -4595,8 +4619,10 @@ public final class ConfigAdmin {
 					if (cd != null && cd.hasClass()) {
 						_updateWebserviceHandler(cd);
 						reloadNecessary = true;
+						logger.debug(extName, "Install Webservice Handler [" + cd + "]");
+					} else {
+						logger.error(extName, "Failed to install Webservice Handler [" + cd + "]");
 					}
-					logger.info("extension", "Update webservice handler [" + cd + "] from extension [" + rhext.getName() + ":" + rhext.getVersion() + "]");
 				}
 			}
 
@@ -4611,8 +4637,10 @@ public final class ConfigAdmin {
 						_updateMonitorEnabled(true);
 						_updateMonitor(cd, map.get("type"), map.get("name"), true);
 						reloadNecessary = true;
+						logger.debug(extName, "Install Monitor Engine [" + cd + "]");
+					} else {
+						logger.error(extName, "Failed to install Monitor Engine [" + cd + "]");
 					}
-					logger.info("extension", "Update monitor engine [" + cd + "] from extension [" + rhext.getName() + ":" + rhext.getVersion() + "]");
 				}
 			}
 
@@ -4628,8 +4656,10 @@ public final class ConfigAdmin {
 					if (cd != null && cd.isBundle()) {
 						_updateJDBCDriver(_label, _id, cd);
 						reloadNecessary = true;
+						logger.debug(extName, "Install JDBC Driver [" + _label + ":" + cd + "]");
+					} else {
+						logger.error(extName, "Failed to install JDBC Driver [" + cd + "]");
 					}
-					logger.info("extension", "Update JDBC Driver [" + _label + ":" + cd + "] from extension [" + rhext.getName() + ":" + rhext.getVersion() + "]");
 				}
 			}
 
@@ -4643,8 +4673,10 @@ public final class ConfigAdmin {
 					if (cd != null && cd.isBundle()) {
 						_updateStartupHook(cd);
 						reloadNecessary = true;
+						logger.debug(extName, "Install Startup Hook [" + cd + "]");
+					} else {
+						logger.error(extName, "Failed to install Startup Hook [" + cd + "]");
 					}
-					logger.info("extension", "Update Startup Hook [" + cd + "] from extension [" + rhext.getName() + ":" + rhext.getVersion() + "]");
 				}
 			}
 
@@ -4674,7 +4706,7 @@ public final class ConfigAdmin {
 					_updateMapping(virtual, physical, archive, primary, inspect, toplevel, lmode, ltype, readonly);
 					reloadNecessary = true;
 
-					logger.info("extension", "Update Mapping [" + virtual + "]");
+					logger.debug(extName, "Install Mapping [" + virtual + "]");
 				}
 			}
 
@@ -4710,9 +4742,10 @@ public final class ConfigAdmin {
 
 					if (!StringUtil.isEmpty(id) && (!StringUtil.isEmpty(cfcPath) || (cd != null && cd.hasClass()))) {
 						_updateGatewayEntry(id, cd, cfcPath, listenerCfcPath, startupMode, custom, readOnly);
+						logger.debug(extName, "Install Event Gateway entry [" + id + "]");
+					} else {
+						logger.error(extName, "Failed to install Event Gateway entry [" + id + "]");
 					}
-
-					logger.info("extension", "Update event gateway entry [" + id + "] from extension [" + rhext.getName() + ":" + rhext.getVersion() + "]");
 				}
 			}
 
@@ -4764,6 +4797,9 @@ public final class ConfigAdmin {
 		Log logger = ci.getLog("deploy");
 
 		// MUST check replacementRH everywhere
+		String extName = rhe.getName();// + ":" + rhe.getVersion();
+
+		logger.log(Log.LEVEL_INFO, extName, "Removing version [" + rhe.getVersion() + "]");
 
 		try {
 			// remove the bundles
@@ -4783,31 +4819,31 @@ public final class ConfigAdmin {
 			ConfigAdmin.cleanBundles(rhe, ci, candidatesToRemove);
 
 			// FLD
-			removeFLDs(logger, rhe.getFlds()); // MUST check if others use one of this fld
+			removeFLDs(logger, extName, rhe.getFlds()); // MUST check if others use one of this fld
 
 			// TLD
-			removeTLDs(logger, rhe.getTlds()); // MUST check if others use one of this tld
+			removeTLDs(logger, extName, rhe.getTlds()); // MUST check if others use one of this tld
 
 			// Tag
-			removeTags(logger, rhe.getTags());
+			removeTags(logger, extName, rhe.getTags());
 
 			// Functions
-			removeFunctions(logger, rhe.getFunctions());
+			removeFunctions(logger, extName, rhe.getFunctions());
 
 			// Event Gateway
-			removeEventGateways(logger, rhe.getEventGateways());
+			removeEventGateways(logger, extName, rhe.getEventGateways());
 
 			// context
-			removeContext(config, false, logger, rhe.getContexts()); // MUST check if others use one of this
+			removeContext(config, false, logger, extName, rhe.getContexts()); // MUST check if others use one of this
 
 			// web contextS
-			removeWebContexts(config, false, logger, rhe.getWebContexts()); // MUST check if others use one of this
+			removeWebContexts(config, false, logger, extName, rhe.getWebContexts()); // MUST check if others use one of this
 
 			// applications
-			removeApplications(config, logger, rhe.getApplications()); // MUST check if others use one of this
+			removeApplications(config, logger, extName, rhe.getApplications()); // MUST check if others use one of this
 
 			// plugins
-			removePlugins(config, logger, rhe.getPlugins()); // MUST check if others use one of this
+			removePlugins(config, logger, extName, rhe.getPlugins()); // MUST check if others use one of this
 
 			// remove cache handler
 			if (!ArrayUtil.isEmpty(rhe.getCacheHandlers())) {
@@ -4821,8 +4857,8 @@ public final class ConfigAdmin {
 					if (!StringUtil.isEmpty(_id) && cd != null && cd.hasClass()) {
 						_removeCacheHandler(_id);
 						// reload=true;
+						logger.debug(extName, "Remove Cache Handler [" + _id + "]");
 					}
-					logger.info("extension", "Remove cache handler [" + cd + "] from extension [" + rhe.getName() + ":" + rhe.getVersion() + "]");
 				}
 			}
 
@@ -4836,8 +4872,8 @@ public final class ConfigAdmin {
 					if (cd != null && cd.isBundle()) {
 						_removeCache(cd);
 						// reload=true;
+						logger.debug(extName, "Remove Cache [" + cd + "]");
 					}
-					logger.info("extension", "Remove cache handler [" + cd + "] from extension [" + rhe.getName() + ":" + rhe.getVersion() + "]");
 				}
 			}
 
@@ -4851,8 +4887,9 @@ public final class ConfigAdmin {
 					if (cd != null && cd.hasClass()) {
 						_removeSearchEngine();
 						// reload=true;
+						logger.debug(extName, "Remove Search Engine [" + cd + "]");
 					}
-					logger.info("extension", "Remove search engine [" + cd + "] from extension [" + rhe.getName() + ":" + rhe.getVersion() + "]");
+					
 				}
 			}
 
@@ -4866,8 +4903,8 @@ public final class ConfigAdmin {
 					String scheme = map.get("scheme");
 					if (cd != null && cd.hasClass()) {
 						_removeResourceProvider(scheme);
+						logger.debug(extName, "Remove Resource Provider [" + cd + "]");
 					}
-					logger.info("extension", "Remove resource [" + cd + "] from extension [" + rhe.getName() + ":" + rhe.getVersion() + "]");
 				}
 			}
 
@@ -4882,8 +4919,8 @@ public final class ConfigAdmin {
 					if (cd != null && cd.hasClass()) {
 						_removeORMEngine();
 						// reload=true;
+						logger.debug(extName, "Remove ORM Engine [" + cd + "]");
 					}
-					logger.info("extension", "Remove orm engine [" + cd + "] from extension [" + rhe.getName() + ":" + rhe.getVersion() + "]");
 				}
 			}
 
@@ -4898,8 +4935,8 @@ public final class ConfigAdmin {
 					if (cd != null && cd.hasClass()) {
 						_removeWebserviceHandler();
 						// reload=true;
+						logger.debug(extName, "Remove Webservice Handler [" + cd + "]");
 					}
-					logger.info("extension", "Remove webservice handler [" + cd + "] from extension [" + rhe.getName() + ":" + rhe.getVersion() + "]");
 				}
 			}
 
@@ -4917,7 +4954,7 @@ public final class ConfigAdmin {
 					_removeMonitor(map.get("type"), name = map.get("name"));
 					// reload=true;
 					// }
-					logger.info("extension", "Remove monitor [" + name + "] from extension [" + rhe.getName() + ":" + rhe.getVersion() + "]");
+					logger.debug(extName, "Remove Monitor [" + name + "]");
 				}
 			}
 
@@ -4930,8 +4967,9 @@ public final class ConfigAdmin {
 					ClassDefinition cd = RHExtension.toClassDefinition(config, map, null);
 					if (cd != null && cd.isBundle()) {
 						_removeJDBCDriver(cd);
+						logger.debug(extName, "Remove JDBC Driver [" + cd + "]");
 					}
-					logger.info("extension", "Remove JDBC Driver [" + cd + "] from extension [" + rhe.getName() + ":" + rhe.getVersion() + "]");
+					
 				}
 			}
 
@@ -4944,8 +4982,8 @@ public final class ConfigAdmin {
 					ClassDefinition cd = RHExtension.toClassDefinition(config, map, null);
 					if (cd != null && cd.isBundle()) {
 						_removeStartupHook(cd);
+						logger.debug(extName, "Remove Startup Hook [" + cd + "]");
 					}
-					logger.info("extension", "Remove Startup Hook [" + cd + "] from extension [" + rhe.getName() + ":" + rhe.getVersion() + "]");
 				}
 			}
 
@@ -4958,7 +4996,7 @@ public final class ConfigAdmin {
 					map = itl.next();
 					virtual = map.get("virtual");
 					_removeMapping(virtual);
-					logger.info("extension", "remove Mapping [" + virtual + "]");
+					logger.debug(extName, "Remove Mapping [" + virtual + "]");
 				}
 			}
 
@@ -4972,7 +5010,7 @@ public final class ConfigAdmin {
 					id = Caster.toString(map.get("id"), null);
 					if (!StringUtil.isEmpty(id)) {
 						_removeGatewayEntry(id);
-						logger.info("extension", "remove event gateway entry [" + id + "]");
+						logger.debug(extName, "Remove Event Gateway entry [" + id  + "]");
 					}
 				}
 			}
@@ -4992,7 +5030,7 @@ public final class ConfigAdmin {
 					// archives
 					if (!entry.isDirectory() && (startsWith(path, type, "archives") || startsWith(path, type, "mappings"))) {
 						String sub = subFolder(entry);
-						logger.log(Log.LEVEL_INFO, "extension", "Remove archive [" + sub + "] registered as a mapping");
+						logger.log(Log.LEVEL_DEBUG, extName, "Remove Archive [" + sub + "] registered as a mapping ");
 						tmp = SystemUtil.getTempFile(".lar", false);
 						IOUtil.copy(zis, tmp, false);
 						removeArchive(tmp);
@@ -5129,29 +5167,29 @@ public final class ConfigAdmin {
 		removeFromDirectory(config.getTldFile(), name);
 	}
 
-	public void removeTLDs(Log logger, String[] names) throws IOException {
+	public void removeTLDs(Log logger, String extName, String[] names) throws IOException {
 		if (ArrayUtil.isEmpty(names)) return;
 		Resource file = config.getTldFile();
 		for (int i = 0; i < names.length; i++) {
-			logger.log(Log.LEVEL_INFO, "extension", "Remove TLD file " + names[i]);
+			logger.log(Log.LEVEL_DEBUG, extName, "Remove TLD file [" + names[i] + "]");
 			removeFromDirectory(file, names[i]);
 		}
 	}
 
-	public void removeEventGateways(Log logger, String[] relpath) throws IOException {
+	public void removeEventGateways(Log logger, String extName, String[] relpath) throws IOException {
 		if (ArrayUtil.isEmpty(relpath)) return;
 		Resource dir = config.getEventGatewayDirectory();// get Event gateway Directory
 		for (int i = 0; i < relpath.length; i++) {
-			logger.log(Log.LEVEL_INFO, "extension", "Remove Event Gateway " + relpath[i]);
+			logger.log(Log.LEVEL_DEBUG, extName, "Remove Event Gateway [" + relpath[i] + "]");
 			removeFromDirectory(dir, relpath[i]);
 		}
 	}
 
-	public void removeFunctions(Log logger, String[] relpath) throws IOException {
+	public void removeFunctions(Log logger, String extName, String[] relpath) throws IOException {
 		if (ArrayUtil.isEmpty(relpath)) return;
 		Resource file = config.getDefaultFunctionMapping().getPhysical();
 		for (int i = 0; i < relpath.length; i++) {
-			logger.log(Log.LEVEL_INFO, "extension", "Remove Function " + relpath[i]);
+			logger.log(Log.LEVEL_DEBUG, extName, "Remove Function [" + relpath[i] + "]");
 			removeFromDirectory(file, relpath[i]);
 		}
 	}
@@ -5173,7 +5211,7 @@ public final class ConfigAdmin {
 			Attributes attr = manifest.getMainAttributes();
 			virtual = StringUtil.unwrap(attr.getValue("mapping-virtual-path"));
 			type = StringUtil.unwrap(attr.getValue("mapping-type"));
-			logger.info("archive", "Remove " + type + " mapping [" + virtual + "]");
+			logger.debug("archive", "Remove " + type + " mapping [" + virtual + "]");
 
 			if ("regular".equalsIgnoreCase(type)) removeMapping(virtual);
 			else if ("cfc".equalsIgnoreCase(type)) removeComponentMapping(virtual);
@@ -5190,20 +5228,20 @@ public final class ConfigAdmin {
 		}
 	}
 
-	public void removeTags(Log logger, String[] relpath) throws IOException {
+	public void removeTags(Log logger, String extName, String[] relpath) throws IOException {
 		if (ArrayUtil.isEmpty(relpath)) return;
 		Resource file = config.getDefaultTagMapping().getPhysical();
 		for (int i = 0; i < relpath.length; i++) {
-			logger.log(Log.LEVEL_INFO, "extension", "Remove Tag [" + relpath[i] + "]");
+			logger.log(Log.LEVEL_DEBUG, extName, "Remove Tag [" + relpath[i] + "]");
 			removeFromDirectory(file, relpath[i]);
 		}
 	}
 
-	public void removeFLDs(Log logger, String[] names) throws IOException {
+	public void removeFLDs(Log logger, String extName, String[] names) throws IOException {
 		if (ArrayUtil.isEmpty(names)) return;
 		Resource file = config.getFldFile();
 		for (int i = 0; i < names.length; i++) {
-			logger.log(Log.LEVEL_INFO, "extension", "Remove FLD file [" + names[i] + "]");
+			logger.log(Log.LEVEL_DEBUG, extName, "Remove FLD file [" + names[i] + "]");
 			removeFromDirectory(file, names[i]);
 		}
 	}
@@ -5668,11 +5706,11 @@ public final class ConfigAdmin {
 		return false;
 	}
 
-	public boolean removeContext(Config config, boolean store, Log logger, String... realpathes) throws PageException, IOException, BundleException, ConverterException {
+	public boolean removeContext(Config config, boolean store, Log logger, String extName, String... realpathes) throws PageException, IOException, BundleException, ConverterException {
 		if (ArrayUtil.isEmpty(realpathes)) return false;
 		boolean force = false;
 		for (int i = 0; i < realpathes.length; i++) {
-			logger.log(Log.LEVEL_INFO, "extension", "remove " + realpathes[i]);
+			logger.log(Log.LEVEL_DEBUG, extName, "Remove Context file [" + realpathes[i] + "]");
 			if (_removeContext(config, realpathes[i], store)) force = true;
 		}
 		return force;
@@ -5691,16 +5729,16 @@ public final class ConfigAdmin {
 		return false;
 	}
 
-	public boolean removeWebContexts(Config config, boolean store, Log logger, String... realpathes) throws PageException, IOException, BundleException, ConverterException {
+	public boolean removeWebContexts(Config config, boolean store, Log logger, String extName, String... realpathes) throws PageException, IOException, BundleException, ConverterException {
 		if (ArrayUtil.isEmpty(realpathes)) return false;
 
 		if (config instanceof ConfigWeb) {
-			return removeContext(config, store, logger, realpathes);
+			return removeContext(config, store, logger, extName, realpathes);
 		}
 
 		boolean force = false;
 		for (int i = 0; i < realpathes.length; i++) {
-			logger.log(Log.LEVEL_INFO, "extension", "Remove Context [" + realpathes[i] + "]");
+			logger.log(Log.LEVEL_DEBUG, extName, "Remove Context file [" + realpathes[i] + "]");
 			if (_removeWebContexts(config, realpathes[i], store)) force = true;
 		}
 		return force;
@@ -5777,18 +5815,18 @@ public final class ConfigAdmin {
 		filesDeployed.add(trg);
 	}
 
-	private void removePlugins(Config config, Log logger, String[] realpathes) throws PageException, IOException {
+	private void removePlugins(Config config, Log logger, String extName, String[] realpathes) throws PageException, IOException {
 		if (ArrayUtil.isEmpty(realpathes)) return;
 		for (int i = 0; i < realpathes.length; i++) {
-			logger.log(Log.LEVEL_INFO, "extension", "Remove plugin [" + realpathes[i] + "]");
+			logger.log(Log.LEVEL_DEBUG, extName, "Remove Plugin file [" + realpathes[i] + "]");
 			removeFiles(config, ((ConfigPro) config).getPluginDirectory(), realpathes[i]);
 		}
 	}
 
-	private void removeApplications(Config config, Log logger, String[] realpathes) throws PageException, IOException {
+	private void removeApplications(Config config, Log logger, String extName, String[] realpathes) throws PageException, IOException {
 		if (ArrayUtil.isEmpty(realpathes)) return;
 		for (int i = 0; i < realpathes.length; i++) {
-			logger.log(Log.LEVEL_INFO, "extension", "Remove application [" + realpathes[i] + "]");
+			logger.log(Log.LEVEL_DEBUG, extName, "Remove Application [" + realpathes[i] + "]");
 			removeFiles(config, config.getRootDirectory(), realpathes[i]);
 		}
 	}
@@ -5847,7 +5885,7 @@ public final class ConfigAdmin {
 
 	public BundleDefinition[] _removeExtension(ConfigPro config, String extensionID, boolean removePhysical)
 			throws IOException, PageException, BundleException, ConverterException {
-		if (!Decision.isUUId(extensionID)) throw new IOException("id [" + extensionID + "] is invalid, it has to be a UUID");
+		if (!Decision.isUUId(extensionID)) throw new IOException("Extension id [" + extensionID + "] is invalid, it has to be a UUID");
 
 		Array children = ConfigWebUtil.getAsArray("extensions", root);
 		int[] keys = children.intKeys();
@@ -5860,6 +5898,8 @@ public final class ConfigAdmin {
 		BundleDefinition[] bundles;
 		Log log = config.getLog("deploy");
 		int key;
+		String extName;
+
 		for (int i = keys.length - 1; i >= 0; i--) {
 			key = keys[i];
 			el = Caster.toStruct(children.get(key, null), null);
@@ -5869,26 +5909,29 @@ public final class ConfigAdmin {
 			if (extensionID.equalsIgnoreCase(id)) {
 				bundles = RHExtension.toBundleDefinitions(ConfigWebUtil.getAsString("bundles", el, null)); // get existing bundles before populate new ones
 
+				extName = Caster.toString(el.get(KeyConstants._name, null), id); // um
+				log.info(extName, "Removing extension");
+
 				// bundles
 				arr = _removeExtensionCheckOtherUsage(children, el, "bundles");
 				// removeBundles(arr,removePhysical);
 				// flds
 				arr = _removeExtensionCheckOtherUsage(children, el, "flds");
-				removeFLDs(log, arr);
+				removeFLDs(log, extName, arr);
 				// tlds
 				arr = _removeExtensionCheckOtherUsage(children, el, "tlds");
-				removeTLDs(log, arr);
+				removeTLDs(log, extName, arr);
 				// contexts
 				arr = _removeExtensionCheckOtherUsage(children, el, "contexts");
-				storeChildren = removeContext(config, false, log, arr);
+				storeChildren = removeContext(config, false, log, extName, arr);
 
 				// webcontexts
 				arr = _removeExtensionCheckOtherUsage(children, el, "webcontexts");
-				storeChildren = removeWebContexts(config, false, log, arr);
+				storeChildren = removeWebContexts(config, false, log, extName,  arr);
 
 				// applications
 				arr = _removeExtensionCheckOtherUsage(children, el, "applications");
-				removeApplications(config, log, arr);
+				removeApplications(config, log, extName, arr);
 
 				// components
 				arr = _removeExtensionCheckOtherUsage(children, el, "components");
@@ -5900,7 +5943,7 @@ public final class ConfigAdmin {
 
 				// plugins
 				arr = _removeExtensionCheckOtherUsage(children, el, "plugins");
-				removePlugins(config, log, arr);
+				removePlugins(config, log, extName, arr);
 				children.removeEL(key);
 
 				// remove files
@@ -6053,24 +6096,28 @@ public final class ConfigAdmin {
 	private RHExtension getRHExtension(final ConfigPro config, final String id, final RHExtension defaultValue) {
 		Array children = ConfigWebUtil.getAsArray("extensions", root);
 
+		//Log logger = config.getLog("deploy");
+		//logger.log(Log.LEVEL_ERROR, "debug", "getRHExtension: " + children.toString());
 		if (children != null) {
 			int[] keys = children.intKeys();
 			for (int i: keys) {
-
+				//logger.log(Log.LEVEL_ERROR, "debug", "getRHExtension: " + " i " + i + ", " + id );
 				Struct tmp = Caster.toStruct(children.get(i, null), null);
 				if (tmp == null) continue;
-
 				String _id = Caster.toString(tmp.get(KeyConstants._id, null), null);
 				if (!id.equals(_id)) continue;
-
 				try {
 					return new RHExtension(config, _id, Caster.toString(tmp.get(KeyConstants._version), null), null, false);
 				}
 				catch (Exception e) {
+					//logger.log(Log.LEVEL_ERROR, "debug", "getRHExtension: " + " i " + i + ", " + id + " on error threw [" + e.getMessage() + "]");
 					return defaultValue;
 				}
 			}
 		}
+
+		//logger.log(Log.LEVEL_DEBUG, "debug", "getRHExtension: [" + id + "] returned default ["  + defaultValue + "]");
+
 		return defaultValue;
 	}
 

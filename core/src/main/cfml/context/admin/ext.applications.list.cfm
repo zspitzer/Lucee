@@ -33,6 +33,9 @@
 	</cfoutput>
 	<cfset structDelete(session, "extremoved", false) />
 </cfif>
+<cfparam name="listinstalled" default="0">
+<cfparam name="listnotinstalled" default="0">
+
 <cfset extCount=(serverExtensions.recordcount?:0)+extensions.recordcount>
 <cfif extensions.recordcount || (!isNull(serverExtensions) && serverExtensions.recordcount)>
 	<cfoutput>
@@ -58,8 +61,6 @@
 			</cfformClassic>
 		</div>
 		</cfif>
-		<cfparam name="listinstalled" default="0">
-		<cfparam name="listnotinstalled" default="0">
 		<cfloop list="#request.adminType=="web"?"server,web":"web"#" item="_type">
 			<cfset _extensions=_type=="web"?extensions:serverExtensions>
 		<cfif _type=="server">
@@ -80,21 +81,21 @@
 				</cfif>
 				
 				<cfset cat=_extensions.categories>
-				<cfif 
-				session.extFilter.filter eq ""
-				or doFilter(session.extFilter.filter,_extensions.name,false)
-				or doFilter(session.extFilter.filter,arrayToList(cat),false)
-				or doFilter(session.extFilter.filter,provTitle,false)
-				><cfscript>
-					latest=getLatestVersion(_extensions.id);
-					hasUpdates=latest.vs GT toVersionSortable(_extensions.version);
-					link="#request.self#?action=#url.action#&action2=detail&id=#_extensions.id#";
-					img=_extensions.image;
-					if(len(img)==0) {
-						loop query="#external#"{
-							if(external.id==_extensions.id) {
-								img=external.image;
-								break;
+				<cfif session.extFilter.filter eq ""
+						or doFilter(session.extFilter.filter,_extensions.name,false)
+						or doFilter(session.extFilter.filter,arrayToList(cat),false)
+						or doFilter(session.extFilter.filter,provTitle,false)>
+					<cfscript>
+						latest=getLatestVersion(_extensions.id);
+						hasUpdates=latest.vs GT toVersionSortable(_extensions.version);
+						link="#request.self#?action=#url.action#&action2=detail&id=#_extensions.id#";
+						img=_extensions.image;
+						if(len(img)==0) {
+							loop query="#external#"{
+								if(external.id==_extensions.id) {
+									img=external.image;
+									break;
+								}
 							}
 						}
 					}
