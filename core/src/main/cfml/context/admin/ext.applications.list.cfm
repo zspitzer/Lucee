@@ -98,8 +98,7 @@
 								}
 							}
 						}
-					}
-					dn=getDumpNail(img,130,50);
+						dn=getDumpNail(img,130,50);
 					</cfscript>
 					<div class="extensionthumb">
 						<a <cfif _type=="web">href="#link#"<cfelse>style="border-color: ##E0E0E0;"</cfif> title="#_extensions.name#
