@@ -21,12 +21,12 @@ package lucee.commons.io.log.log4j.appender;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-import org.apache.log4j.Appender;
-import org.apache.log4j.Layout;
-import org.apache.log4j.Logger;
-import org.apache.log4j.jdbc.JDBCAppender;
-import org.apache.log4j.spi.LoggingEvent;
-import org.apache.log4j.spi.ThrowableInformation;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.Layout;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.appender.db.jdbc.JdbcAppender;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.spi.ThrowableInformation;
 
 import lucee.commons.io.IOUtil;
 import lucee.commons.io.log.log4j.LogAdapter;
@@ -47,7 +47,7 @@ import lucee.runtime.engine.ThreadLocalPageContext;
 import lucee.runtime.exp.PageException;
 import lucee.runtime.type.QueryImpl;
 
-public class DatasourceAppender extends JDBCAppender implements Appender {
+public class DatasourceAppender extends JdbcAppender implements AbstractAppender {
 
 	// private DatasourceManagerImpl manager;
 	private DataSource datasource;
@@ -81,7 +81,7 @@ public class DatasourceAppender extends JDBCAppender implements Appender {
 	}
 
 	@Override
-	public void append(LoggingEvent event) {
+	public void append(LogEvent event) {
 		if (Boolean.TRUE.equals(in.get())) {
 			logConsole(event);
 			return;
@@ -188,7 +188,7 @@ public class DatasourceAppender extends JDBCAppender implements Appender {
 		if (!closed) IOUtil.closeEL(conn);
 	}
 
-	private void logConsole(LoggingEvent event) {
+	private void logConsole(LogEvent event) {
 		ThrowableInformation ti = event.getThrowableInformation();
 		Throwable t;
 		if (ti != null && (t = ti.getThrowable()) != null) {

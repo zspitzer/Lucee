@@ -21,9 +21,9 @@ package lucee.commons.io.log.log4j.layout;
 import java.util.Locale;
 import java.util.TimeZone;
 
-import org.apache.log4j.Layout;
-import org.apache.log4j.spi.LoggingEvent;
-import org.apache.log4j.spi.ThrowableInformation;
+import org.apache.logging.log4j.core.Layout;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.spi.ThrowableInformation;
 
 import lucee.commons.lang.ExceptionUtil;
 import lucee.commons.lang.StringUtil;
@@ -55,7 +55,7 @@ public class ClassicLayout extends Layout {
 	}
 
 	@Override
-	public String format(LoggingEvent event) {
+	public String format(LogEvent event) {
 
 		StringBuilder data = new StringBuilder();
 		String application;

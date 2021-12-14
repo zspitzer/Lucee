@@ -500,9 +500,9 @@ public class CFConfigImport {
 
 			if ("classic".equalsIgnoreCase(val)) return "lucee.commons.io.log.log4j.layout.ClassicLayout";
 			if ("datasource".equalsIgnoreCase(val)) return "lucee.commons.io.log.log4j.layout.DatasourceLayout";
-			if ("html".equalsIgnoreCase(val)) return "org.apache.log4j.HTMLLayout";
-			if ("xml".equalsIgnoreCase(val)) return "org.apache.log4j.xml.XMLLayout";
-			if ("pattern".equalsIgnoreCase(val)) return "org.apache.log4j.PatternLayout";
+			if ("html".equalsIgnoreCase(val)) return "org.apache.logging.log4j.core.layout.HtmlLayout";
+			if ("xml".equalsIgnoreCase(val)) return "org.apache.logging.log4j.core.layout.XmlLayout";
+			if ("pattern".equalsIgnoreCase(val)) return "org.apache.logging.log4j.core.layout.PatternLayout";
 
 			return val;
 		}

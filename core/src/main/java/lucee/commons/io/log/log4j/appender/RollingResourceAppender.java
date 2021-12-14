@@ -22,16 +22,16 @@ import java.io.IOException;
 import java.io.Writer;
 import java.nio.charset.Charset;
 
-import org.apache.log4j.Appender;
-import org.apache.log4j.Layout;
-import org.apache.log4j.helpers.CountingQuietWriter;
-import org.apache.log4j.helpers.LogLog;
-import org.apache.log4j.spi.LoggingEvent;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.Layout;
+import org.apache.logging.log4j.core.helpers.CountingQuietWriter;
+import org.apache.logging.log4j.status.StatusLogger;
+import org.apache.logging.log4j.core.LogEvent;
 
 import lucee.commons.io.res.Resource;
 import lucee.commons.io.retirement.RetireListener;
 
-public class RollingResourceAppender extends ResourceAppender implements Appender {
+public class RollingResourceAppender extends ResourceAppender implements AbstractAppender {
 
 	public static final long DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024;
 	public static final int DEFAULT_MAX_BACKUP_INDEX = 10;
@@ -116,12 +116,12 @@ public class RollingResourceAppender extends ResourceAppender implements Appende
 
 		if (qw != null) {
 			long size = ((CountingQuietWriter) qw).getCount();
-			LogLog.debug("rolling over count=" + size);
+			StatusLogger.debug("rolling over count=" + size);
 			// if operation fails, do not roll again until
 			// maxFileSize more bytes are written
 			nextRollover = size + maxFileSize;
 		}
-		LogLog.debug("maxBackupIndex=" + maxBackupIndex);
+		StatusLogger.debug("maxBackupIndex=" + maxBackupIndex);
 
 		boolean renameSucceeded = true;
 		Resource parent = res.getParentResource();
@@ -138,7 +138,7 @@ public class RollingResourceAppender extends ResourceAppender implements Appende
 				file = parent.getRealResource(res.getName() + "." + i + ".bak");
 				if (file.exists()) {
 					target = parent.getRealResource(res.getName() + "." + (i + 1) + ".bak");
-					LogLog.debug("Renaming file " + file + " to " + target);
+					StatusLogger.debug("Renaming file " + file + " to " + target);
 					renameSucceeded = file.renameTo(target);
 				}
 			}
@@ -150,7 +150,7 @@ public class RollingResourceAppender extends ResourceAppender implements Appende
 				this.closeFile(); // keep windows happy.
 
 				file = res;
-				LogLog.debug("Renaming file " + file + " to " + target);
+				StatusLogger.debug("Renaming file " + file + " to " + target);
 				renameSucceeded = file.renameTo(target);
 
 				// if file rename failed, reopen file with append = true
@@ -160,7 +160,7 @@ public class RollingResourceAppender extends ResourceAppender implements Appende
 						this.setFile(true);
 					}
 					catch (IOException e) {
-						LogLog.error("setFile(" + res + ", true) call failed.", e);
+						StatusLogger.error("setFile(" + res + ", true) call failed.", e);
 					}
 				}
 			}
@@ -176,7 +176,7 @@ public class RollingResourceAppender extends ResourceAppender implements Appende
 				nextRollover = 0;
 			}
 			catch (IOException e) {
-				LogLog.error("setFile(" + res + ", false) call failed.", e);
+				StatusLogger.error("setFile(" + res + ", false) call failed.", e);
 			}
 		}
 	}
@@ -213,7 +213,7 @@ public class RollingResourceAppender extends ResourceAppender implements Appende
 	 * @since 0.9.0
 	 */
 	@Override
-	protected void subAppend(LoggingEvent event) {
+	protected void subAppend(LogEvent event) {
 		super.subAppend(event);
 		if (res != null && qw != null) {
 			long size = ((CountingQuietWriter) qw).getCount();

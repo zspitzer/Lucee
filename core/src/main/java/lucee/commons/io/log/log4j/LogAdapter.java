@@ -20,8 +20,8 @@ package lucee.commons.io.log.log4j;
 
 import java.lang.reflect.InvocationTargetException;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.Logger;
 
 import lucee.commons.io.log.Log;
 import lucee.commons.lang.ExceptionUtil;

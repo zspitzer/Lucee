@@ -21,13 +21,13 @@ package lucee.commons.io.log.log4j.appender;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 
-import org.apache.log4j.Appender;
-import org.apache.log4j.Layout;
-import org.apache.log4j.WriterAppender;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.Layout;
+import org.apache.logging.log4j.core.appender.WriterAppender;
 
 import lucee.commons.lang.SerializableObject;
 
-public class ConsoleAppender extends WriterAppender implements AppenderState, Appender {
+public class ConsoleAppender extends WriterAppender implements AppenderState, AbstractAppender {
 
 	private Object sync = new SerializableObject();
 

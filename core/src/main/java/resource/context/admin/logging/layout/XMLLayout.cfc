@@ -7,7 +7,7 @@
 		)>
     
 	<cffunction name="getClass" returntype="string" output="false">
-    	<cfreturn "org.apache.log4j.xml.XMLLayout">
+    	<cfreturn "org.apache.logging.log4j.layout.XmlLayout">
     </cffunction>
     
 	<cffunction name="getLabel" returntype="string" output="false">

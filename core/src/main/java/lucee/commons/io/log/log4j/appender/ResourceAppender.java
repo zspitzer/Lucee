@@ -23,19 +23,19 @@ import java.io.IOException;
 import java.io.Writer;
 import java.nio.charset.Charset;
 
-import org.apache.log4j.Appender;
-import org.apache.log4j.Layout;
-import org.apache.log4j.RollingFileAppender;
-import org.apache.log4j.WriterAppender;
-import org.apache.log4j.helpers.LogLog;
-import org.apache.log4j.helpers.QuietWriter;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.Layout;
+import org.apache.logging.log4j.core.appender.RollingFileAppender;
+import org.apache.logging.log4j.core.appender.WriterAppender;
+import org.apache.logging.log4j.status.StatusLogger;
+import org.apache.logging.log4j.helpers.QuietWriter;
 
 import lucee.commons.io.res.Resource;
 import lucee.commons.io.retirement.RetireListener;
 import lucee.commons.io.retirement.RetireOutputStream;
 import lucee.commons.lang.SerializableObject;
 
-public class ResourceAppender extends WriterAppender implements AppenderState, Appender {
+public class ResourceAppender extends WriterAppender implements AppenderState, AbstractAppender {
 
 	private static final int DEFAULT_BUFFER_SIZE = 8 * 1024;
 
@@ -152,7 +152,7 @@ public class ResourceAppender extends WriterAppender implements AppenderState, A
 			catch (java.io.IOException e) {
 				// Exceptionally, it does not make sense to delegate to an
 				// ErrorHandler. Since a closed appender is basically dead.
-				LogLog.error("Could not close " + qw, e);
+				StatusLogger.error("Could not close " + qw, e);
 			}
 		}
 	}
@@ -191,7 +191,7 @@ public class ResourceAppender extends WriterAppender implements AppenderState, A
 	 */
 	protected void setFile(boolean append) throws IOException {
 		synchronized (sync) {
-			LogLog.debug("setFile called: " + res + ", " + append);
+			StatusLogger.debug("setFile called: " + res + ", " + append);
 
 			// It does not make sense to have immediate flush and bufferedIO.
 			if (bufferedIO) {
@@ -208,7 +208,7 @@ public class ResourceAppender extends WriterAppender implements AppenderState, A
 			}
 			this.setQWForFiles(fw);
 			if (writeHeader) writeHeader();
-			LogLog.debug("setFile ended");
+			StatusLogger.debug("setFile ended");
 		}
 	}
 

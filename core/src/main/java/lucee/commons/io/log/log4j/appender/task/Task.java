@@ -18,8 +18,8 @@
  **/
 package lucee.commons.io.log.log4j.appender.task;
 
-import org.apache.log4j.Appender;
-import org.apache.log4j.spi.LoggingEvent;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.LogEvent;
 
 import lucee.commons.lang.ExceptionUtil;
 import lucee.loader.engine.CFMLEngine;
@@ -47,10 +47,10 @@ public class Task implements SpoolerTaskPro {
 	private boolean closed;
 	private final Struct detail;
 
-	private final Appender appender;
-	private final LoggingEvent le;
+	private final AbstractAppender appender;
+	private final LogEvent le;
 
-	public Task(Appender appender, LoggingEvent le) {
+	public Task(Appender appender, LogEvent le) {
 		this.appender = appender;
 		this.le = le;
 		CFMLEngine engine = CFMLEngineFactory.getInstance();

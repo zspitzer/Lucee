@@ -8,15 +8,14 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.log4j.Appender;
-import org.apache.log4j.AppenderSkeleton;
-import org.apache.log4j.HTMLLayout;
-import org.apache.log4j.Layout;
-import org.apache.log4j.Level;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
-import org.apache.log4j.xml.XMLLayout;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.layout.HtmlLayout;
+import org.apache.logging.log4j.core.Layout;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.layout.PatternLayout;
+import org.apache.logging.log4j.core.layout.XmlLayout;
 
 import lucee.commons.io.CharsetUtil;
 import lucee.commons.io.log.Log;
@@ -66,7 +65,7 @@ public class Log4jEngine extends LogEngine {
 
 	@Override
 	public Log getResourceLog(Resource res, Charset charset, String name, int level, int timeout, RetireListener listener, boolean async) throws IOException {
-		Appender a = new RollingResourceAppender(new ClassicLayout(), res, charset, true, RollingResourceAppender.DEFAULT_MAX_FILE_SIZE,
+		AbstractAppender a = new RollingResourceAppender(new ClassicLayout(), res, charset, true, RollingResourceAppender.DEFAULT_MAX_FILE_SIZE,
 				RollingResourceAppender.DEFAULT_MAX_BACKUP_INDEX, timeout, listener); // no open stream at all
 
 		if (async) {
@@ -107,8 +106,8 @@ public class Log4jEngine extends LogEngine {
 	public ClassDefinition layoutClassDefintion(String className) {
 		if ("classic".equalsIgnoreCase(className)) return new ClassDefinitionImpl(ClassicLayout.class);
 		if ("datasource".equalsIgnoreCase(className)) return new ClassDefinitionImpl(DatasourceLayout.class);
-		if ("html".equalsIgnoreCase(className)) return new ClassDefinitionImpl(HTMLLayout.class);
-		if ("xml".equalsIgnoreCase(className)) return new ClassDefinitionImpl(XMLLayout.class);
+		if ("html".equalsIgnoreCase(className)) return new ClassDefinitionImpl(HtmlLayout.class);
+		if ("xml".equalsIgnoreCase(className)) return new ClassDefinitionImpl(XmlLayout.class);
 		if ("pattern".equalsIgnoreCase(className)) return new ClassDefinitionImpl(PatternLayout.class);
 
 		return new ClassDefinitionImpl(className);
@@ -125,7 +124,7 @@ public class Log4jEngine extends LogEngine {
 	 * if ("datasource".equalsIgnoreCase(className)) return new
 	 * ClassDefinitionImpl(DatasourceLayout.class); if ("html".equalsIgnoreCase(className)) return new
 	 * ClassDefinitionImpl(HTMLLayout.class); if ("xml".equalsIgnoreCase(className)) return new
-	 * ClassDefinitionImpl(XMLLayout.class); if ("pattern".equalsIgnoreCase(className)) return new
+	 * ClassDefinitionImpl(XmlLayout.class); if ("pattern".equalsIgnoreCase(className)) return new
 	 * ClassDefinitionImpl(PatternLayout.class);
 	 * 
 	 * String name = bundleName(sct); Version version = bundleVersion(sct);
@@ -152,8 +151,8 @@ public class Log4jEngine extends LogEngine {
 				layout = new DatasourceLayout(name);
 			}
 			// HTML Layout
-			else if (HTMLLayout.class.getName().equalsIgnoreCase(cd.getClassName())) {
-				HTMLLayout html = new HTMLLayout();
+			else if (HtmlLayout.class.getName().equalsIgnoreCase(cd.getClassName())) {
+				HtmlLayout html = new HtmlLayout();
 				layout = html;
 
 				// Location Info
@@ -169,8 +168,8 @@ public class Log4jEngine extends LogEngine {
 
 			}
 			// XML Layout
-			else if (XMLLayout.class.getName().equalsIgnoreCase(cd.getClassName())) {
-				XMLLayout xml = new XMLLayout();
+			else if (XmlLayout.class.getName().equalsIgnoreCase(cd.getClassName())) {
+				XmlLayout xml = new XmlLayout();
 				layout = xml;
 
 				// Location Info
@@ -231,7 +230,7 @@ public class Log4jEngine extends LogEngine {
 	public final Object getAppender(Config config, Object layout, String name, ClassDefinition cd, Map<String, String> appenderArgs) {
 		if (appenderArgs == null) appenderArgs = new HashMap<String, String>();
 		// Appender
-		Appender appender = null;
+		AbstractAppender appender = null;
 		if (cd != null && cd.hasClass()) {
 			// Console Appender
 			if (ConsoleAppender.class.getName().equalsIgnoreCase(cd.getClassName())) {
@@ -346,7 +345,7 @@ public class Log4jEngine extends LogEngine {
 				Object obj = ClassUtil.loadInstance(cd.getClazz(null), null, null);
 				if (obj instanceof Appender) {
 					appender = toAppender(obj);
-					AppenderSkeleton as = obj instanceof AppenderSkeleton ? (AppenderSkeleton) obj : null;
+					AbstractAppender as = obj instanceof AbstractAppender ? (AbstractAppender) obj : null;
 					appender.setName(name);
 					appender.setLayout(toLayout(layout));
 					Iterator<Entry<String, String>> it = appenderArgs.entrySet().iterator();
@@ -375,8 +374,8 @@ public class Log4jEngine extends LogEngine {
 				}
 			}
 		}
-		if (appender instanceof AppenderSkeleton) {
-			((AppenderSkeleton) appender).activateOptions();
+		if (appender instanceof AbstractAppender) {
+			((AbstractAppender) appender).activateOptions();
 		}
 		else if (appender == null) {
 			PrintWriter pw;
