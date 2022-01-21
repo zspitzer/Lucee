@@ -27,9 +27,12 @@ import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Set;
+
 
 import lucee.commons.db.DBUtil;
 import lucee.commons.io.SystemUtil;
@@ -54,7 +57,10 @@ import lucee.runtime.type.QueryColumn;
 import lucee.runtime.type.QueryImpl;
 import lucee.runtime.type.dt.TimeSpan;
 import lucee.runtime.type.util.CollectionUtil;
+import lucee.runtime.type.Struct;
+import lucee.runtime.type.StructImpl;
 
+import lucee.commons.lang.SystemOut;
 /**
  * class to reexecute queries on the resultset object inside the cfml environment
  */
@@ -96,52 +102,120 @@ public final class HSQLDBHandler {
 	 * @throws SQLException
 	 * @throws PageException
 	 */
-	private static void addTable(Connection conn, PageContext pc, String name, Query query, boolean doSimpleTypes, ArrayList<String> usedTables)
+	private static void createTable(Connection conn, PageContext pc, String dbTableName, String cfQueryName, boolean doSimpleTypes)
 			throws SQLException, PageException {
+
+		Stopwatch stopwatch = new Stopwatch(Stopwatch.UNIT_MILLI);
+		stopwatch.start();
+
+		Query query = Caster.toQuery(pc.getVariable(StringUtil.removeQuotes(cfQueryName, true)));
 		Statement stat;
-		usedTables.add(name);
+		
 		stat = conn.createStatement();
-		Key[] keys = CollectionUtil.keys(query);
+		Key[] cols = CollectionUtil.keys(query);
 		int[] types = query.getTypes();
 		int[] innerTypes = toInnerTypes(types);
-		// CREATE STATEMENT
-		String comma = "";
-		StringBuilder create = new StringBuilder("CREATE TABLE " + name + " (");
-		StringBuilder insert = new StringBuilder("INSERT INTO  " + name + " (");
-		StringBuilder values = new StringBuilder("VALUES (");
-		for (int i = 0; i < keys.length; i++) {
-			String key = keys[i].getString();
-			String type = (doSimpleTypes) ? "VARCHAR_IGNORECASE" : toUsableType(types[i]);
 
-			create.append(comma + key);
+		String comma = "";
+		String escape = "\""; // use double qoutes around column and tables names to avoid problems with reserved words
+
+		// TODO use DECLARE LOCAL TEMPORARY TABLE
+		StringBuilder create = new StringBuilder("CREATE TABLE ").append(escape).append(StringUtil.toUpperCase(dbTableName)).append(escape).append(" (");
+
+		for (int i = 0; i < cols.length; i++) {
+			String col = StringUtil.toUpperCase(cols[i].getString()); // quoted objects are case insensitive
+			String type = (doSimpleTypes) ? "VARCHAR_IGNORECASE" : toUsableType(types[i]);
+			create.append(comma);
+			create.append(escape);
+			create.append(col);
+			create.append(escape);
 			create.append(" ");
 			create.append(type);
-			insert.append(comma + key);
-			values.append(comma + "?");
 			comma = ",";
 		}
 		create.append(")");
+		SystemOut.print("SQL: " + Caster.toString(create));
+		stat.execute(create.toString());
+		SystemOut.print("Create Table: [" + dbTableName + "] took " + stopwatch.time());
+	}
+
+	/**
+	 * populates a table to the memory database, but only the required columns from the source query
+	 * 
+	 * @param conn
+	 * @param pc
+	 * @param name name of the new table
+	 * @param query data source for table
+	 * @throws SQLException
+	 * @throws PageException
+	 */
+	
+	private static void populateTable(Connection conn, PageContext pc, String dbTableName, String cfQueryName, boolean doSimpleTypes, Struct tableCols)
+			throws SQLException, PageException {
+
+		Stopwatch stopwatch = new Stopwatch(Stopwatch.UNIT_MILLI);
+		stopwatch.start();
+		Query query = Caster.toQuery(pc.getVariable(StringUtil.removeQuotes(cfQueryName, true)));
+
+		Key[] cols = CollectionUtil.keys(query);
+		ArrayList<String> usedCols = new ArrayList<String>();
+		
+		int[] types = query.getTypes();
+		int[] innerTypes = toInnerTypes(types);
+		String comma = "";
+		String escape = "\"";
+		
+		StringBuilder insert = new StringBuilder("INSERT INTO  ").append(escape).append(StringUtil.toUpperCase(dbTableName)).append(escape).append(" (");
+		StringBuilder values = new StringBuilder("VALUES (");
+		Key colName = null;
+
+		for (int i = 0; i < cols.length; i++) {
+			String col = StringUtil.toUpperCase(cols[i].getString()); // quoted objects are case insensitive in HSQLDB
+			//colName = Caster.toKey(cols[i].getString());
+			if (tableCols == null || tableCols.containsKey(col)){
+				usedCols.add(col);
+
+				insert.append(comma);
+				insert.append(escape);
+				insert.append(col);
+				insert.append(escape);
+
+				values.append(comma);
+				values.append("?");
+				comma = ",";
+			}
+		}
 		insert.append(")");
 		values.append(")");
-		stat.execute(create.toString());
-		PreparedStatement prepStat = conn.prepareStatement(insert.toString() + values.toString());
 
+		if (tableCols != null && usedCols.size() == 0){
+			SystemOut.print("Populate Table, table has no used columns: " + dbTableName);
+			return;
+		}
+
+		SystemOut.print("SQL: " + Caster.toString(insert));
+		SystemOut.print("SQL: " + Caster.toString(values));
+		
 		// INSERT STATEMENT
 		// HashMap integerTypes=getIntegerTypes(types);
+		PreparedStatement prepStat = conn.prepareStatement(insert.toString() + values.toString());
 
-		int count = query.getRecordcount();
-		QueryColumn[] columns = new QueryColumn[keys.length];
-		for (int i = 0; i < keys.length; i++) {
-			columns[i] = query.getColumn(keys[i]);
+		int rows = query.getRecordcount();
+		int count = usedCols.size();
+		String col = null;
+
+		QueryColumn[] columns = new QueryColumn[count];
+		for (int i = 0; i < count; i++) {
+			columns[i] = query.getColumn(usedCols.get(i));
 		}
-		for (int y = 0; y < count; y++) {
-			for (int i = 0; i < keys.length; i++) {
+		for (int y = 0; y < rows; y++) {
+			for (int i = 0; i < count; i++) {
 				int type = innerTypes[i];
 				Object value = columns[i].get(y + 1, null);
+				col = usedCols.get(i);
 
 				// print.out("*** "+type+":"+Caster.toString(value));
 				if (doSimpleTypes) {
-
 					prepStat.setObject(i + 1, Caster.toString(value));
 				}
 				else {
@@ -151,24 +225,24 @@ public final class HSQLDBHandler {
 						// print.out(new java.util.Date(new
 						// Date(DateCaster.toDateAdvanced(value,pc.getTimeZone()).getTime()).getTime()));
 
-						prepStat.setTimestamp(i + 1, (value.equals("")) ? null : new Timestamp(DateCaster.toDateAdvanced(query.getAt(keys[i], y + 1), pc.getTimeZone()).getTime()));
+						prepStat.setTimestamp(i + 1, (value.equals("")) ? null : new Timestamp(DateCaster.toDateAdvanced(query.getAt(col, y + 1), pc.getTimeZone()).getTime()));
 						// prepStat.setObject(i+1,Caster.toDate(value,null));
 						// prepStat.setDate(i+1,(value==null || value.equals(""))?null:new
 						// Date(DateCaster.toDateAdvanced(value,pc.getTimeZone()).getTime()));
 					}
 					else if (type == TIME)
-						prepStat.setTime(i + 1, (value.equals("")) ? null : new Time(DateCaster.toDateAdvanced(query.getAt(keys[i], y + 1), pc.getTimeZone()).getTime()));
+						prepStat.setTime(i + 1, (value.equals("")) ? null : new Time(DateCaster.toDateAdvanced(query.getAt(col, y + 1), pc.getTimeZone()).getTime()));
 					else if (type == TIMESTAMP)
-						prepStat.setTimestamp(i + 1, (value.equals("")) ? null : new Timestamp(DateCaster.toDateAdvanced(query.getAt(keys[i], y + 1), pc.getTimeZone()).getTime()));
-					else if (type == DOUBLE) prepStat.setDouble(i + 1, (value.equals("")) ? 0 : Caster.toDoubleValue(query.getAt(keys[i], y + 1)));
-					else if (type == INT) prepStat.setLong(i + 1, (value.equals("")) ? 0 : Caster.toLongValue(query.getAt(keys[i], y + 1)));
+						prepStat.setTimestamp(i + 1, (value.equals("")) ? null : new Timestamp(DateCaster.toDateAdvanced(query.getAt(col, y + 1), pc.getTimeZone()).getTime()));
+					else if (type == DOUBLE) prepStat.setDouble(i + 1, (value.equals("")) ? 0 : Caster.toDoubleValue(query.getAt(col, y + 1)));
+					else if (type == INT) prepStat.setLong(i + 1, (value.equals("")) ? 0 : Caster.toLongValue(query.getAt(col, y + 1)));
 					else if (type == STRING) prepStat.setObject(i + 1, Caster.toString(value));
 				}
 
 			}
 			prepStat.execute();
 		}
-
+		SystemOut.print("Populate Table: [" + dbTableName + "] with [" + rows + "] rows, took " + stopwatch.time());
 	}
 
 	private static int[] toInnerTypes(int[] types) {
@@ -218,12 +292,10 @@ public final class HSQLDBHandler {
 	 * 
 	 * @param conn
 	 */
-	private static void removeAll(Connection conn, ArrayList<String> usedTables) {
-		int len = usedTables.size();
-
+	private static void removeAll(Connection conn, ArrayList<String> qoqTables) {
+		int len = qoqTables.size();
 		for (int i = 0; i < len; i++) {
-
-			String tableName = usedTables.get(i).toString();
+			String tableName = qoqTables.get(i).toString();
 			// print.out("remove:"+tableName);
 			try {
 				removeTable(conn, tableName);
@@ -232,6 +304,99 @@ public final class HSQLDBHandler {
 				ExceptionUtil.rethrowIfNecessary(t);
 			}
 		}
+	}
+
+	/**
+	 * wrap the execute statement, urrghh ugly
+	 * 
+	 * @param conn
+	 * @param sql
+	 */
+	private static void executeStatement(Connection conn, String sql) {
+		try {
+			_executeStatement(conn, sql);
+		}
+		catch (Throwable t) {
+			ExceptionUtil.rethrowIfNecessary(t);
+		}
+	}
+
+	/**
+	 * toggle database session
+	 * 
+	 * @param conn
+	 * @param sql
+	 * @throws DatabaseException
+	 */
+	private static void _executeStatement(Connection conn, String sql) throws SQLException {
+		Statement stat = conn.createStatement();
+		stat.execute(sql);		
+		//DBUtil.commitEL(conn);
+	}
+
+	/**
+	 * find out which columns are used for query, by creating a view and reading the VIEW_COLUMN_USAGE
+	 * 
+	 * @param conn
+	 * @param sql
+	 * @throws DatabaseException
+	 */
+	private static Struct getUsedColumnsForQuery(Connection conn, SQL sql) throws SQLException {
+		Stopwatch stopwatch = new Stopwatch(Stopwatch.UNIT_MILLI);
+		stopwatch.start();
+		ResultSet rs = null;
+		ResultSetMetaData rsmd = null;
+		String view = "V_QOQ_TEMP";
+		Struct tables = new StructImpl();
+		return tables;
+		/*
+		// this doesn't work yet, I think due to hsqldb being ancient aka 1.8.0
+		// INFORMATION_SCHEMA.VIEW_COLUMN_USAGE doesn't exist
+		// if VIEW_COLUMN_USAGE doesn't contain all the columns required, we could use the QoQ parser?
+		try {
+			Statement stat = conn.createStatement();
+			stat.execute("CREATE VIEW " + view + " AS " + sql.toString());
+			
+			StringBuilder viewUsage = new StringBuilder("SELECT COLUMN_NAME, TABLE_NAME ");
+			viewUsage.append("FROM INFORMATION_SCHEMA.VIEW_COLUMN_USAGE WHERE VIEW_NAME='");
+			viewUsage.append(view);
+			viewUsage.append("' ORDER BY TABLE_NAME, COLUMN_NAME");
+			rs = stat.executeQuery(viewUsage.toString()); 
+			// dump out the column names, not sure what they are lol (can be removed)
+			rsmd = rs.getMetaData();
+			int columnCount = rsmd.getColumnCount();
+			String name = null;
+			for (int i = 1; i <= columnCount; i++ ) {
+				name = rsmd.getColumnName(i);
+				SystemOut.print("View Column : [" + name + "]");
+			}
+			
+			// load tables and columns into a nested struct
+			Key tableName = null;
+			Struct tableCols = null;
+			while(rs.next()){
+				tableName = Caster.toKey(rs.getString("TABLE_NAME"));
+				if (!tables.containsKey(tableName))
+					tables.setEL(tableName, new StructImpl());
+				tableCols = ((Struct) tables.get(tableName));
+				tableCols.setEl(Caster.toKey(rs.getString("COLUMN_NAME")), null); 
+			}
+			// don't need the view anymore, bye bye
+			stat.execute("DROP VIEW " + view);
+		} catch (Exception e) {
+			SystemOut.print("Exception: " + e.toString());
+		} finally {
+			try {
+				if (rs != null) {
+					rs.close();
+				}
+			} catch (SQLException e) {
+				SystemOut.print(e.toString());
+			}
+		}
+		SystemOut.print("getUsedColumnsForQuery: took " + stopwatch.time());
+		return tables;
+		*/
 	}
 
 	/**
@@ -329,6 +494,7 @@ public final class HSQLDBHandler {
 		}
 		catch (PageException pe) {
 			if (isUnion || StringUtil.indexOf(pe.getMessage(), "NumberFormatException:") != -1) {
+				SystemOut.print("HSQLDB Retry with Simple Types after: " + pe.getMessage());
 				return __execute(pc, sql, maxrows, fetchsize, timeout, stopwatch, tables, true);
 			}
 			throw pe;
@@ -337,7 +503,7 @@ public final class HSQLDBHandler {
 
 	public static QueryImpl __execute(PageContext pc, SQL sql, int maxrows, int fetchsize, TimeSpan timeout, Stopwatch stopwatch, Set<String> tables, boolean doSimpleTypes)
 			throws PageException {
-		ArrayList<String> usedTables = new ArrayList<String>();
+		ArrayList<String> qoqTables = new ArrayList<String>();
 		synchronized (lock) {
 
 			QueryImpl nqr = null;
@@ -345,6 +511,7 @@ public final class HSQLDBHandler {
 			DatasourceConnection dc = null;
 			Connection conn = null;
 			try {
+        //executeStatement(conn, "CONNECT"); // create a new HSQLDB session for temp tables
 				DatasourceConnPool pool = config.getDatasourceConnectionPool(config.getDataSource(QOQ_DATASOURCE_NAME), "sa", "");
 				dc = pool.borrowObject();
 				conn = dc.getConnection();
@@ -354,17 +521,45 @@ public final class HSQLDBHandler {
 				// sql.setSQLString(HSQLUtil.sqlToZQL(sql.getSQLString(),false));
 				try {
 					Iterator<String> it = tables.iterator();
+					String cfQueryName = null; // name of the source query variable
+					String dbTableName = null; // name of the table in the database
+					String modSql = null;
 					// int len=tables.size();
 					while (it.hasNext()) {
-						String tableName = it.next().toString();// tables.get(i).toString();
+						cfQueryName = it.next().toString();// tables.get(i).toString();
+						dbTableName = cfQueryName.replace('.', '_');
 
-						String modTableName = tableName.replace('.', '_');
-						String modSql = StringUtil.replace(sql.getSQLString(), tableName, modTableName, false);
+						// this could match the wrong strings??
+						modSql = StringUtil.replace(sql.getSQLString(), cfQueryName, dbTableName, false);
 						sql.setSQLString(modSql);
 						if (sql.getItems() != null && sql.getItems().length > 0) sql = new SQLImpl(sql.toString());
-
-						addTable(conn, pc, modTableName, Caster.toQuery(pc.getVariable(tableName)), doSimpleTypes, usedTables);
+						
+						createTable(conn, pc, dbTableName, cfQueryName, doSimpleTypes); 
+						qoqTables.add(dbTableName);
 					}
+					
+					SystemOut.print("QoQ HSQLDB CREATED TABLES: " + sql.toString());
+
+					// create the sql as a view, to find out which table columns are needed
+					Struct allTableColumns = getUsedColumnsForQuery(conn, sql);
+					Struct tableColumns = null;
+					Key tableKey = null;
+					
+					// load data into tables
+					it = tables.iterator();
+					while (it.hasNext()) {
+						cfQueryName = it.next().toString();
+						dbTableName = cfQueryName.replace('.', '_');
+
+						tableKey = Caster.toKey(dbTableName);
+						tableColumns = allTableColumns.containsKey(tableKey) ? ((Struct) tableColumns.get(tableKey)) : null;
+
+						// only populate tables with data if there are used columns, or no needed column data at all
+						if (tableColumns == null || tableColumns.size() > 0){
+							populateTable(conn, pc, dbTableName, cfQueryName , doSimpleTypes, tableColumns); 
+						}
+					}
+
 					DBUtil.setReadOnlyEL(conn, true);
 					try {
 						nqr = new QueryImpl(pc, dc, sql, maxrows, fetchsize, timeout, "query", null, false, false, null);
@@ -385,11 +580,11 @@ public final class HSQLDBHandler {
 			}
 			finally {
 				if (conn != null) {
-					removeAll(conn, usedTables);
+					removeAll(conn, qoqTables);
+          //executeStatement(conn, "DISCONNECT"); // close HSQLDB session with temp tables
 					DBUtil.setAutoCommitEL(conn, true);
 				}
 				if (dc != null) ((DatasourceConnectionPro) dc).release();
-
 				// manager.releaseConnection(dc);
 			}
 			nqr.setExecutionTime(stopwatch.time());

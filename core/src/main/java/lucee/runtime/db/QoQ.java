@@ -578,7 +578,7 @@ public final class QoQ {
 	 * @throws PageException
 	 */
 	private Query getSingleTable(PageContext pc, Column table) throws PageException {
-		return Caster.toQuery(pc.getVariable(table.getFullName()));
+		return Caster.toQuery(pc.getVariable(StringUtil.removeQuotes(table.getFullName(), true)));
 	}
 
 	/**
