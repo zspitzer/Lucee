@@ -1,4 +1,4 @@
-component extends="org.lucee.cfml.test.LuceeTestCase" {
+component extends="org.lucee.cfml.test.LuceeTestCase" labels="markdown" {
 	
     variables.markdownString=trim(" 
     #### Headline with ID ####
@@ -40,24 +40,24 @@ This is code!
 </ul>
 </li>
 </ol>');
+	variables.htmlString = Replace( variables.htmlString, "#chr(13)##chr(10)#",chr(10), "all"); // force to LF,
 	
 	function run( testResults, testBox ){
 		describe( title="Testcase for markdownToHTML()", body=function() {
 			it( title = "Checking with markdownToHTML with a string", body=function( currentSpec ) {
 				assertEquals(
 					variables.htmlString,
-					markdownToHTML(variables.markdownString)
+					Replace( markdownToHTML(variables.markdownString).trim(), "#chr(13)##chr(10)#",chr(10), "all") // force to LF
 				);
 			});
 
 			it( title = "Checking with markdownToHTML with a file", body=function( currentSpec ) {
-				var curr=getDirectoryFromPath(getCurrentTemplatePath());
-				var file=curr&"markdownToHTML/test.md";
+				var file=getTempFile( getTempDirectory(), "markdown", "md" );
 				try {
 					fileWrite(file, markdownString);
 					assertEquals(
 						variables.htmlString,
-						markdownToHTML(file)
+						Replace( markdownToHTML(file).trim(), "#chr(13)##chr(10)#",chr(10), "all") // force to LF
 					);
 				}
 				finally {
