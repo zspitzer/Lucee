@@ -139,7 +139,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 
 	public function testSFTP() {
 	    var sftp=getSFTPCredencials();
-		if(true || !structCount(sftp)) return;
+		if(!structCount(sftp)) return;
 	    _test(
 	        secure:true,
 	        host:sftp.server,
@@ -153,7 +153,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 
 	public function testFTP() {
 		var ftp=getFTPCredencials();
-		if(true || !structCount(ftp)) return;
+		if(!structCount(ftp)) return;
 	    _test(
 	        secure:false,
 	        host:ftp.server,
