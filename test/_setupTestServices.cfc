@@ -269,8 +269,9 @@ component {
 				else 
 					st = {};
 			}
+			systemOutput( st, true);
 			if ( structCount( st ) eq n ){
-				//systemOutput( st, true);
+				
 				return st; // all or nothing
 			} else {
 				return {};

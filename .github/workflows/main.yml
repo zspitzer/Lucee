@@ -37,6 +37,8 @@ jobs:
         env:
           FTP_PASS: lucee
           FTP_USER: lucee
+        volumes:
+          - '/data:/home/user'
     steps:
     - uses: szenius/set-timezone@v1.0
       with:
