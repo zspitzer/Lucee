@@ -113,6 +113,7 @@ jobs:
         MSSQL_DATABASE: master
         FTP_SERVER: localhost
         FTP_USERNAME: lucee
+        FTP_PASSWORD: lucee
         FTP_PORT: 21
         FTP_BASE_PATH: /
         SFTP_SERVER: localhost
