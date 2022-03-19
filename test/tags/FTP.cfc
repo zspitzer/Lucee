@@ -146,7 +146,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 	        user:sftp.username,
 	        pass:sftp.password,
 	        port:sftp.port,
-	        base:sftp.base
+	        base:sftp.base_path
 	    );
 
 	}
@@ -160,7 +160,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 	        user:ftp.username,
 	        pass:ftp.password,
 	        port:ftp.port,
-	        base:ftp.base
+	        base:ftp.base_path
 	    );
 	}
 
