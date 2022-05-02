@@ -132,12 +132,12 @@ jobs:
         curl --no-progress-meter -sIXGET "https://update.lucee.org/rest/update/provider/buildLatest"
         curl --no-progress-meter -sIXGET "https://extension.lucee.org/rest/extension/provider/reset"
         curl --no-progress-meter -sIXGET "https://download.lucee.org/?type=snapshots&reset=force"
-    - name: Trigger Docker Build
-      if: ${{ github.event_name == 'push' }}
-      env:
-        TRAVIS_JOB_ID: ${{ github.run_id }}
-        TRAVIS_TOKEN: ${{ secrets.DOCKER_AUTH_TOKEN }} # not set up yet
+    - name: Set Lucee Version as env var
       run: |
-        echo "Trigger Docker Build on Travis https://travis-ci.com/github/lucee/lucee-dockerfiles"
-        chmod +x travis-docker-build.sh
-        ./travis-docker-build.sh
+        echo "LUCEE_VERSION=$(cat ~/buildVersionNumber.txt)" >> $GITHUB_ENV
+    - name: Trigger Docker Builds
+      uses: lucee/lucee-dockerfiles@master
+      if: ${{ github.event_name == 'push' }}
+      with:
+        BRANCH: ${{ github.ref }}
+        LUCEE_VERSION: ${{ env.LUCEE_VERSION }}
