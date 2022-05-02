@@ -135,9 +135,9 @@ jobs:
     - name: Set Lucee Version as env var
       run: |
         echo "LUCEE_VERSION=$(cat ~/buildVersionNumber.txt)" >> $GITHUB_ENV
-    - name: Trigger Docker Builds
-      uses: lucee/lucee-dockerfiles@master
-      if: ${{ github.event_name == 'push' }}
-      with:
-        BRANCH: ${{ github.ref }}
-        LUCEE_VERSION: ${{ env.LUCEE_VERSION }}
+  build_lucee_docker_files:
+    uses: lucee/lucee-dockerfiles/.github/workflows/main.yml@master
+    if: ${{ github.event_name == 'push' }}
+    with:
+      BRANCH: ${{ github.ref }}
+      LUCEE_VERSION: ${{ env.LUCEE_VERSION }}
