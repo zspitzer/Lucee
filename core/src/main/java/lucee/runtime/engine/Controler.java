@@ -381,11 +381,13 @@ public final class Controler extends Thread {
 				 * t){ExceptionUtil.rethrowIfNecessary(t);}
 				 */
 				// contract Page Pool
-				try {
-					doClearPagePools(config);
-				}
-				catch (Exception e) {
-					if (log != null) log.error("controler", e);
+				if (!firstRun){ // skip first run to allow startup to complete
+					try {
+						doClearPagePools(config);
+					}
+					catch (Exception e) {
+						if (log != null) log.error("controler", e);
+					}
 				}
 				// try{checkPermGenSpace((ConfigWebPro) config);}catch(Throwable t)
 				// {ExceptionUtil.rethrowIfNecessary(t);}
