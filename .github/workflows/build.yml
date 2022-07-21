@@ -1,0 +1,41 @@
+name: Build with Java 18
+
+on: 
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      LUCEE_TEST_JAVA_VERSION:
+        required: true
+        type: string
+      LUCEE_BUILD_JAVA_VERSION:
+        required: true
+        type: string
+        default: '8'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up build JDK 8 (Lucee default)
+        uses: actions/setup-java@v2
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+      - name: Cache Lucee extensions 
+        uses: actions/cache@v2
+        with:
+          path: ~/work/Lucee/Lucee/cache/
+          key: lucee-extensions
+          restore-keys: lucee-extensions
+      - name: Cache Maven packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2
+      - name: Build Lucee with ant quickly, avoid setting up CI services when code doesn't complile
+        run: ant -noinput -buildfile loader/build.xml quick
+      - name: Run full and test with Maven 
+        uses: ./.github/workflows/main.yml
+        with:
+          LUCEE_TEST_JAVA_VERSION:  ${{ inputs.LUCEE_TEST_JAVA_VERSION }}
+          LUCEE_BUILD_JAVA_VERSION: $ {{ inputs.LUCEE_TEST_JAVA_VERSION }}

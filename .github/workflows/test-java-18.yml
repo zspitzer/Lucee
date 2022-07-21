@@ -4,6 +4,6 @@ on: [workflow_dispatch]
 
 jobs:
   build:
-    uses: ./.github/workflows/main.yml
+    uses: ./.github/workflows/build.yml
     with:
       LUCEE_TEST_JAVA_VERSION: '18'
