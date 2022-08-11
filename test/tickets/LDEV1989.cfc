@@ -1,6 +1,7 @@
-component extends="org.lucee.cfml.test.LuceeTestCase" labels="zip"{
+component extends="org.lucee.cfml.test.LuceeTestCase" labels="zip" skip=true {
 	function beforeAll(){
 		variables.uri = createURI("LDEV1989");
+		systemOutput( "start LDEV1989", true );
 	}
 	function run( testResults , testBox ) {
 		describe( "Test suite for LDEV-1989", function() {
