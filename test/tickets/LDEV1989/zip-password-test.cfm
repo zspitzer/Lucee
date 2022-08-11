@@ -4,6 +4,8 @@
 
 	workingDir = getDirectoryFromPath( getCurrentTemplatePath() ) & "zip";
 
+	systemOutput( workingDir, true );
+
 	if ( directoryExists( workingDir ) )
 		directoryDelete( workingDir, true );
 
@@ -13,9 +15,14 @@
 
 	zipfile = "#workingDir#/passwordWithEncryptionAlgorithm-#url.encryptionAlgorithm#.zip";
 
+	src = expandPath( '.' );
+	systemOutput( src, true );
+
 	zip action="zip" file="#zipFile#"  overwrite="true" password="#zipPassword#" {
-		zipparam encryptionAlgorithm="#url.encryptionAlgorithm#" source="#expandPath('.')#" filter="*.cfm";
+		zipparam encryptionAlgorithm="#url.encryptionAlgorithm#" source="#src#" filter="*.cfm";
 	}
+
+	systemOutput( "zip created", true );
 
 	zip action="list" file="#zipfile#" name="res";
 
