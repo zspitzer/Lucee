@@ -5,7 +5,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="zip"  {
 	}
 	function run( testResults , testBox ) {
 		describe( "Test suite for LDEV-1989", function() {
-			it( title='Checking password and empty encryptionAlgorithm in CFZIP', body=function( currentSpec ) {
+			it( title='Checking password and empty encryptionAlgorithm in CFZIP', skip=true, body=function( currentSpec ) {
 				systemOutput( "LDEV1989 - 1 ", true );
 				local.result = _InternalRequest(
 					template:"#variables.uri#/zip-password-test.cfm",
