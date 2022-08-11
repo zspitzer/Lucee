@@ -1,11 +1,12 @@
-component extends="org.lucee.cfml.test.LuceeTestCase" labels="zip" skip=true {
+component extends="org.lucee.cfml.test.LuceeTestCase" labels="zip"  {
 	function beforeAll(){
 		variables.uri = createURI("LDEV1989");
-		systemOutput( "start LDEV1989", true );
+		systemOutput( "start LDEV1989 #uri#", true );
 	}
 	function run( testResults , testBox ) {
 		describe( "Test suite for LDEV-1989", function() {
 			it( title='Checking password and empty encryptionAlgorithm in CFZIP', body=function( currentSpec ) {
+				systemOutput( "LDEV1989 - 1 ", true );
 				local.result = _InternalRequest(
 					template:"#variables.uri#/zip-password-test.cfm",
 					url: {
@@ -16,6 +17,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="zip" skip=true {
 			});
 
 			it( title='Checking password and encryptionAlgorithm=standard in CFZIP', body=function( currentSpec ) {
+				systemOutput( "LDEV1989 - 2 ", true );
 				local.result = _InternalRequest(
 					template:"#variables.uri#/zip-password-test.cfm",
 					url: {
@@ -26,6 +28,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="zip" skip=true {
 			});
 
 			it( title='Checking password and encryptionAlgorithm=aes in CFZIP', body=function( currentSpec ) {
+				systemOutput( "LDEV1989 - 3 ", true );
 				local.result = _InternalRequest(
 					template:"#variables.uri#/zip-password-test.cfm",
 					url: {
@@ -36,6 +39,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="zip" skip=true {
 			});
 
 			it( title='Checking password and encryptionAlgorithm=aes128 in CFZIP', body=function( currentSpec ) {
+				systemOutput( "LDEV1989 - 4 ", true );
 				local.result = _InternalRequest(
 					template:"#variables.uri#/zip-password-test.cfm",
 					url: {
