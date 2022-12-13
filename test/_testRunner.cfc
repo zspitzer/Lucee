@@ -190,6 +190,8 @@ component {
 		failedTestCases = [];
 
 		try {
+			application action="create" name="initial-empty-test-application";  // ensure each testcase runs in a clean application
+
 			var filterTimer = getTickCount();
 			var bundles = getBundles( "/test", request.testFolder );
 			//SystemOutput( bundles, true);
@@ -227,6 +229,14 @@ component {
 		//"============================================================="
 		systemOutput( TAB & meta.name & " ", false );
 		SystemOut.setOut( nullValue() );
+
+		try { 
+			applicationStop(); 
+		} catch( e ) {  
+			// will error if there is no applciation scope 
+		};
+		application action="create" name="test-#meta.name#";  // ensure each testcase runs in a clean application
+
 		//SystemOut.setErr(nullValue());
 	} // onBundleStart = function
 	,onBundleEnd = function( cfc, testResults ){
