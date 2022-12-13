@@ -233,7 +233,10 @@ component {
 		try { 
 			applicationStop(); 
 		} catch( e ) {  
-			// will error if there is no applciation scope 
+			// will error if there is no application scope, which is ok
+			if (e.message does not contain "there is no application context defined"){
+				rethrow;
+			}			
 		};
 		application action="create" name="test-#meta.name#";  // ensure each testcase runs in a clean application
 
