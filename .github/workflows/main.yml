@@ -208,8 +208,11 @@ jobs:
       uses: actions/setup-go@v3
     - name: Install OSV Scanner
       run: go install github.com/google/osv-scanner/cmd/osv-scanner@v1
-    - name: OSV Scanner
-      run: 'PATH="${PATH}:$(go env GOPATH)/bin" osv-scanner -r ${{ github.workspace }} >> $GITHUB_STEP_SUMMARY'
+    - name: Run OSV vulnerabilities Scanner
+      run: |
+        echo "```" >> $GITHUB_STEP_SUMMARY
+        'PATH="${PATH}:$(go env GOPATH)/bin" osv-scanner -r ${{ github.workspace }}' # >> $GITHUB_STEP_SUMMARY'
+        echo "\n```" >> $GITHUB_STEP_SUMMARY
     - name: clean github.ref_name
       uses: mad9000/actions-find-and-replace-string@3
       id: cleanrefname
