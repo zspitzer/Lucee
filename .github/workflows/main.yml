@@ -204,6 +204,10 @@ jobs:
           echo "------- Maven Install on ${{ github.event_name }} ---------";
           mvn -B -e -f loader/pom.xml clean install -DtestJavaVersionExec="${{ env.LUCEE_TEST_JAVA_EXEC }}"
         fi
+    - name: run Google OSV Scanner
+      uses: google/osv-scanner
+      with:
+        to_scan: loader/target
     - name: clean github.ref_name
       uses: mad9000/actions-find-and-replace-string@3
       id: cleanrefname
