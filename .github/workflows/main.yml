@@ -210,6 +210,7 @@ jobs:
       run: go install github.com/google/osv-scanner/cmd/osv-scanner@v1
     - name: Run OSV vulnerabilities Scanner
       run: |
+        echo "# OSV vulnerabilities Scanner" >> $GITHUB_STEP_SUMMARY
         echo "```" >> $GITHUB_STEP_SUMMARY
         'PATH="${PATH}:$(go env GOPATH)/bin" osv-scanner -r ${{ github.workspace }}' # >> $GITHUB_STEP_SUMMARY'
         echo "\n```" >> $GITHUB_STEP_SUMMARY
