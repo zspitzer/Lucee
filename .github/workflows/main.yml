@@ -205,7 +205,8 @@ jobs:
           mvn -B -e -f loader/pom.xml clean install -DtestJavaVersionExec="${{ env.LUCEE_TEST_JAVA_EXEC }}"
         fi
     - name: run Google OSV Scanner
-      uses: google/osv-scanner
+      uses: google/osv-scanner@v1
+      if: always()
       with:
         to_scan: loader/target
     - name: clean github.ref_name
