@@ -638,6 +638,9 @@ component {
 			_bundle.append( q_bundles.headers );
 			bundles[ _bundle[ 'Bundle-SymbolicName' ] ] = _bundle[ 'Bundle-Version' ];
 		}
+		systemOutput("----------bundles----------------", true);
+		systemOutput(bundles, true);
+		systemOutput("----------bundles----------------", true);
 		return bundles;
 	}
 
