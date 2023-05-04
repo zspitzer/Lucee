@@ -43,6 +43,19 @@ component extends="org.lucee.cfml.test.LuceeTestCase"{
 				expect(msg).toBe("sorry but we cannot help!");
 			});
 
+			it(title="test listener tracks accessed values", body=function(){
+				var accessed = {};
+				var sct=structNew(onMissingKey:function(key,data,isMissing){
+					if (!isMissing) accessed[arguments.key]=true;
+					else return "notexistingvalue";
+				});
+				sct.a=1;
+				var b = sct.a; // populate accessed, onMissingKey called with isMissing=false
+				expect(accessed).toHaveKey("a");
+				expect(sct.notexistingkey).toBe("notexistingvalue");
+				expect(structKeyList(sct)).toBe("a");
+			});
+
 		});
 	}
 }

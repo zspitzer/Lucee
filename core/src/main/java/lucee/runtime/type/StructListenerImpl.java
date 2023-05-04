@@ -22,7 +22,7 @@ public class StructListenerImpl extends StructImpl {
 	public Object get(Key key, Object defaultValue) {
 		Object res = super.get(key, NULL);
 		if (res == NULL) return onMissingKey(null, key, defaultValue);
-
+		else onKey(null, key, null);
 		return res;
 	}
 
@@ -30,6 +30,7 @@ public class StructListenerImpl extends StructImpl {
 	public Object g(Key key, Object defaultValue) {
 		Object res = super.g(key, NULL);
 		if (res == NULL) return onMissingKey(null, key, defaultValue);
+		else onKey(null, key, null);
 		return res;
 	}
 
@@ -37,7 +38,7 @@ public class StructListenerImpl extends StructImpl {
 	public Object get(PageContext pc, Key key, Object defaultValue) {
 		Object res = super.get(pc, key, NULL);
 		if (res == NULL) return onMissingKey(pc, key, defaultValue);
-
+		else onKey(pc, key, null);
 		return res;
 	}
 
@@ -45,6 +46,7 @@ public class StructListenerImpl extends StructImpl {
 	public Object g(Key key) throws PageException {
 		Object res = super.g(key, NULL);
 		if (res == NULL) return onMissingKey(null, key);
+		else onKey(null, key);
 		return res;
 	}
 
@@ -52,6 +54,7 @@ public class StructListenerImpl extends StructImpl {
 	public Object get(Key key) throws PageException {
 		Object res = super.get(key, NULL);
 		if (res == NULL) return onMissingKey(null, key);
+		else onKey(null, key);
 		return res;
 	}
 
@@ -59,6 +62,7 @@ public class StructListenerImpl extends StructImpl {
 	public Object get(PageContext pc, Key key) throws PageException {
 		Object res = super.get(pc, key, NULL);
 		if (res == NULL) return onMissingKey(pc, key);
+		else onKey(pc, key);
 		return res;
 	}
 
@@ -71,7 +75,7 @@ public class StructListenerImpl extends StructImpl {
 
 	private Object onMissingKey(PageContext pc, Key key) throws PageException {
 		pc = ThreadLocalPageContext.get(pc);
-		return udf.call(pc, new Object[] { key, this }, true);
+		return udf.call(pc, new Object[] { key, this, true }, true);
 	}
 
 	private Object onMissingKey(PageContext pc, Key key, Object defaultValue) {
@@ -81,5 +85,17 @@ public class StructListenerImpl extends StructImpl {
 		catch (Exception e) {
 			return defaultValue;
 		}
+	}
+
+	private void onKey(PageContext pc, Key key) throws PageException {
+		pc = ThreadLocalPageContext.get(pc);
+		udf.call(pc, new Object[] { key, this, false }, true);
+	}
+
+	private void onKey(PageContext pc, Key key, Object defaultValue) {
+		try {
+			onKey(pc, key);
+		}
+		catch (Exception e) {}
 	}
 }
