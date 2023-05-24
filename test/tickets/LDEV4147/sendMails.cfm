@@ -1,5 +1,5 @@
 <cfscript>
-    param name="form.username" default="";  
+    param name="form.username" default="";
 
     creds = { "smtp" : server.getTestService("smtp") };
     creds.username = form.username
@@ -13,7 +13,7 @@
             try {
                 mail to = "#creds.username#"
                 from = "luceeldev4147@localhost"
-                subject = "sending the mail for LDEV4147" 
+                subject = "test mail for #thread.name#"
                 server="#creds.smtp.server#"
                 password="#creds.smtp.password#"
                 username="luceeldev4147@localhost"
