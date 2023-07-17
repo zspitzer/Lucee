@@ -21,3 +21,7 @@ jobs:
       run: go install github.com/google/osv-scanner/cmd/osv-scanner@v1
     - name: Run OSV vulnerabilities Scanner
       run: 'PATH="${PATH}:$(go env GOPATH)/bin" osv-scanner -r ${{ github.workspace }}'
+    - name: Scan current project
+      uses: anchore/scan-action@v3
+      with:
+        path: "."
