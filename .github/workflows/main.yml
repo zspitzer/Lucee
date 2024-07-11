@@ -44,7 +44,7 @@ jobs:
       if: ${{ env.DOCKERHUB_PUBLIC_USERNAME != '' }}
       uses: ./.github/workflows/build-services.yml
     - name: Start Docker Services (without credentials)
-      if: ${{ env.DOCKERHUB_PUBLIC_USERNAME != '' }}
+      if: ${{ env.DOCKERHUB_PUBLIC_USERNAME == '' }}
       uses: ./.github/workflows/build-services-no-credentials.yml
 
     - name: Configure Build Java Version
