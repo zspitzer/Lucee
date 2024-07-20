@@ -22,6 +22,13 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				arrayAppend( tests, _dir( dir, "777", "777" ) );
 				arrayAppend( tests, _dir( dir, "644", "644" ) );
 
+				var files = directoryList( dir, true, "query");
+				var st = QueryToStruct( files, "name" );
+
+				loop array=st index="local.item"{
+					systemOutput( item, true );
+				}
+
 				arrayAppend( tests, _file( dir, "644.txt", "644" ) );
 				arrayAppend( tests, _file( dir, "743.txt", "743" ) );
 				arrayAppend( tests, _file( dir, "043.txt", "043" ) );
@@ -46,7 +53,8 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 	}
 
 	private function _dir(parent, name, mode){
-		var dir = directoryCreate( name & mode );
+		var dir = parent & name;
+		directoryCreate( dir );
 		fileSetAccessMode( dir, mode );
 		return {
 			name: dir,
@@ -56,7 +64,8 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 	}
 
 	private function _file(parent, name, mode){
-		var file = fileWrite( parent & name, "" );
+		var file = parent & name;
+		fileWrite( file, "" );
 		fileSetAccessMode( file, mode );
 		return {
 			name: file,
