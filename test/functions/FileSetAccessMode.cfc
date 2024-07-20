@@ -45,9 +45,26 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				}
 				loop array=tests item="local.test" {
 					systemOutput( test, true );
-					expect( st ).toHaveKey( mid( test.name, len( dir ) + 1 ) );
-					expect( test.mode ).toBe( st.mode, test.name );
+					var key = mid( test.name, len( dir ) + 1 );
+					expect( st ).toHaveKey( key );
+					expect( test.mode ).toBe( st[ key ].mode, test.name );
 				}
+
+				var tar = getTempFile(getTempDirectory(), "LDEV-5034", ".tar.gz")
+
+				compress( "tgz", dir, tar );
+				var dest = getTempDirectory() & "LDEV-5034-" & createUUID() & "/";
+				extract( "tgz", tar, dest );
+				var extractedFiles = directoryList( dest, true, "query" );
+				expect( files.recordcount ).toBe( extractedFiles.recordcount );
+
+				loop array=tests item="local.test" {
+					systemOutput( test, true );
+					var key = mid( test.name, len( dest) + 1 );
+					expect( st ).toHaveKey( key );
+					expect( test.mode ).toBe( st[ key ].mode, test.name );
+				}
+
 			});
 		} );
 	}
