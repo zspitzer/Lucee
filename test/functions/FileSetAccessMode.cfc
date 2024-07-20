@@ -45,7 +45,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				}
 				loop array=tests item="local.test" {
 					systemOutput( test, true );
-					expect( st ).toHaveKey( test.name );
+					expect( st ).toHaveKey( mid(test.name, len( dir ) +1 );
 					expect( test.mode ).toBe( st.mode, test.name );
 				}
 			});
