@@ -46,8 +46,10 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				loop array=tests item="local.test" {
 					systemOutput( test, true );
 					var key = mid( test.name, len( dir ) + 1 );
+					systemOutput( key, true );
 					expect( st ).toHaveKey( key );
-					expect( test.mode ).toBe( st[ key ].mode, test.name );
+					systemOutput( st[ key ], true );
+					expect( test.mode ).toBe( st[ key ].mode );
 				}
 
 				var tar = getTempFile(getTempDirectory(), "LDEV-5034", ".tar.gz")
@@ -55,7 +57,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				compress( "tgz", dir, tar );
 				var dest = getTempDirectory() & "LDEV-5034-" & createUUID() & "/";
 				extract( "tgz", tar, dest );
-				
+
 				var extractedFiles = directoryList( dest, true, "query" );
 				var st2 = QueryToStruct( files, "name" );
 				loop collection=st2 item="local.item"{
@@ -68,6 +70,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 					systemOutput( test, true );
 					var key = mid( test.name, len( dest) + 1 );
 					expect( st ).toHaveKey( key );
+					systemOutput( st[ key ], true );
 					expect( test.mode ).toBe( st[ key ].mode, test.name );
 				}
 
