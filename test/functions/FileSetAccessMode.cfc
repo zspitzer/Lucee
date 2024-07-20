@@ -1,15 +1,21 @@
 component extends="org.lucee.cfml.test.LuceeTestCase" { 
 
+	function beforeAll(){
+		variables.dir = getTempDirectory() & "fileSetAccessMode/";
+		if ( !directoryExists( dir ) ){
+			directoryCreate( dir );
+		};
+	};
+
+	function afterAll(){
+		if ( directoryExists( dir ) ){
+			directoryDelere( dir, true );
+		};
+	};
+
 	function run( testResults, testBox ){ 
 		describe( "fileSetAccessMode", function(){
-
 			it( title="test access modes", skip=isNotUnix(), body=function(){
-				
-				var dir = getTempDirectory() & "fileSetAccessMode/";
-				if ( !directoryExists( dir ) ){
-					directoryCreate( dir );
-				};
-
 				var tests = [];
 
 				arrayAppend( tests, _dir( dir, "755", "755" ) );
@@ -24,16 +30,18 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				var files = directoryList( dir, true, "query");
 				var st = QueryToStruct( files, "name" );
 
-				loop array=tests index="local.test"{
-					systemOutput( test, true );
-				}
-
 				loop array=st index="local.item"{
 					systemOutput( item, true );
 				}
-
+				loop array=tests index="local.test" {
+					systemOutput( test, true );
+				}
+				loop array=tests index="local.test" {
+					systemOutput( test, true );
+					expect( st ).toHaveKey( test.name );
+					expect( test.mode ).toBe( st.mode, test.name );
+				}
 			});
-
 		} );
 	}
 
@@ -58,7 +66,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 	}	
 
 	private function isNotUnix(){
-		return (server.os.name != "windows");
+		return (server.os.name == "windows");
 	}
 
 }
