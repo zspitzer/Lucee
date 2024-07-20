@@ -37,13 +37,13 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				var files = directoryList( dir, true, "query");
 				var st = QueryToStruct( files, "name" );
 
-				loop array=st index="local.item"{
+				loop collection=st item="local.item"{
 					systemOutput( item, true );
 				}
-				loop array=tests index="local.test" {
+				loop array=tests item="local.test" {
 					systemOutput( test, true );
 				}
-				loop array=tests index="local.test" {
+				loop array=tests item="local.test" {
 					systemOutput( test, true );
 					expect( st ).toHaveKey( test.name );
 					expect( test.mode ).toBe( st.mode, test.name );
