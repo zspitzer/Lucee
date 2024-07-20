@@ -55,7 +55,13 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				compress( "tgz", dir, tar );
 				var dest = getTempDirectory() & "LDEV-5034-" & createUUID() & "/";
 				extract( "tgz", tar, dest );
+				
 				var extractedFiles = directoryList( dest, true, "query" );
+				var st2 = QueryToStruct( files, "name" );
+				loop collection=st2 item="local.item"{
+					systemOutput( item, true );
+				}
+
 				expect( files.recordcount ).toBe( extractedFiles.recordcount );
 
 				loop array=tests item="local.test" {
