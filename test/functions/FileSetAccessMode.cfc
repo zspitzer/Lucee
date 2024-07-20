@@ -9,7 +9,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 
 	function afterAll(){
 		if ( directoryExists( dir ) ){
-			directoryDelere( dir, true );
+			directoryDelete( dir, true );
 		};
 	};
 
@@ -22,10 +22,9 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				arrayAppend( tests, _dir( dir, "777", "777" ) );
 				arrayAppend( tests, _dir( dir, "644", "644" ) );
 
-				arrayAppend( tests, _file( dir, "777/644.txt", "644" ) );
-				arrayAppend( tests, _file( dir, "777/743.txt", "743" ) );
-				arrayAppend( tests, _file( dir, "777/043.txt", "043" ) );
-
+				arrayAppend( tests, _file( dir, "644.txt", "644" ) );
+				arrayAppend( tests, _file( dir, "743.txt", "743" ) );
+				arrayAppend( tests, _file( dir, "043.txt", "043" ) );
 				arrayAppend( tests, _file( dir, "400.txt", "400" ) );
 
 				var files = directoryList( dir, true, "query");
