@@ -71,7 +71,7 @@ public class LazyConverter extends ConverterSupport {
 	}
 
 	private static String serializeStruct(Struct struct, Set<Object> done) {
-		StringBuilder sb = new StringBuilder( struct.size() * 10 );
+		StringBuilder sb = new StringBuilder( struct.size() * 20 );
 		sb.append("{");
 		Iterator<Key> it = struct.keyIterator();
 		Key key;
@@ -90,7 +90,7 @@ public class LazyConverter extends ConverterSupport {
 	}
 
 	private static String serializeArray(Array array, Set<Object> done) {
-		StringBuilder sb = new StringBuilder( array.size() * 10 );
+		StringBuilder sb = new StringBuilder( array.size() * 20 );
 		sb.append("[");
 		int len = array.size();
 		for (int i = 1; i <= len; i++) {
