@@ -64,9 +64,11 @@ public final class ScopeFactory {
 	 */
 	public void recycle(PageContext pc, Argument argument) {
 		return;
+		/*
 		if (arguments.size() >= MAX_SIZE || argument.isBind()) return;
 		argument.release(pc);
 		arguments.add(argument);
+		*/
 	}
 
 	/**
@@ -74,9 +76,11 @@ public final class ScopeFactory {
 	 */
 	public void recycle(PageContext pc, LocalImpl local) {
 		return;
+		/*
 		if (locals.size() >= MAX_SIZE || local.isBind()) return;
 		local.release(pc);
 		locals.add(local);
+		*/
 	}
 
 	/**
