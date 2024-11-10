@@ -38,21 +38,24 @@ public final class ScopeFactory {
 	 * @return returns an Argument scope
 	 */
 	public Argument getArgumentInstance() {
+		/*
 		Argument arg = arguments.poll();
 		if (arg != null) {
 			return arg;
 		}
 		return new ArgumentImpl();
+		*/
 	}
 
 	/**
 	 * @return retruns a Local Instance
 	 */
 	public LocalImpl getLocalInstance() {
-		LocalImpl lcl = locals.poll();
+	/* 	LocalImpl lcl = locals.poll();
 		if (lcl != null) {
 			return lcl;
 		}
+		*/
 		return new LocalImpl();
 	}
 
@@ -60,6 +63,7 @@ public final class ScopeFactory {
 	 * @param argument recycle an Argument scope for reuse
 	 */
 	public void recycle(PageContext pc, Argument argument) {
+		return;
 		if (arguments.size() >= MAX_SIZE || argument.isBind()) return;
 		argument.release(pc);
 		arguments.add(argument);
@@ -69,6 +73,7 @@ public final class ScopeFactory {
 	 * @param local recycle a Local scope for reuse
 	 */
 	public void recycle(PageContext pc, LocalImpl local) {
+		return;
 		if (locals.size() >= MAX_SIZE || local.isBind()) return;
 		local.release(pc);
 		locals.add(local);

@@ -26,7 +26,7 @@ public final class VariablesImpl extends ScopeSupport implements Variables {
 	private boolean bind;
 
 	public VariablesImpl() {
-		super("variables", SCOPE_VARIABLES, StructImpl.TYPE_UNDEFINED, 32);
+		super("variables", SCOPE_VARIABLES, StructImpl.TYPE_UNDEFINED);
 	}
 
 	public void registerUDF(Key key, UDF udf) {
