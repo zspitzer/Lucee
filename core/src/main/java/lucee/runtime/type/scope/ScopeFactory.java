@@ -43,8 +43,8 @@ public final class ScopeFactory {
 		if (arg != null) {
 			return arg;
 		}
-		return new ArgumentImpl();
 		*/
+		return new ArgumentImpl();
 	}
 
 	/**
