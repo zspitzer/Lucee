@@ -64,13 +64,14 @@ public final class ArgumentImpl extends ScopeSupport implements Argument, ArrayP
 	private boolean bind;
 	private Set functionArgumentNames;
 	// private boolean supportFunctionArguments;
-
+	public static final int ARG_DEFAULT_INITIAL_CAPACITY = 4;
+	
 	/**
 	 * constructor of the class
 	 */
 	public ArgumentImpl() {
 		// super("arguments", SCOPE_ARGUMENTS, StructImpl.TYPE_LINKED, 4);
-		super("arguments", SCOPE_ARGUMENTS, StructImpl.TYPE_LINKED_NOT_SYNC, 4);
+		super("arguments", SCOPE_ARGUMENTS, StructImpl.TYPE_LINKED_NOT_SYNC, ARG_DEFAULT_INITIAL_CAPACITY);
 	}
 
 	public ArgumentImpl(int size) {

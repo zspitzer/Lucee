@@ -33,30 +33,26 @@ public final class ScopeFactory {
 	int argumentCounter = 0;
 
 	private final ConcurrentLinkedQueue<Argument> arguments = new ConcurrentLinkedQueue<Argument>();
+	private final ConcurrentLinkedQueue<Argument> argumentsLarge = new ConcurrentLinkedQueue<Argument>();
 	private final ConcurrentLinkedQueue<LocalImpl> locals = new ConcurrentLinkedQueue<LocalImpl>();
 
 	/**
 	 * @return returns an Argument scope
+	 * most arguments have only 0-3 keys
 	 */
-	public Argument getArgumentInstance() {
-		Argument arg = arguments.poll();
+	public Argument getArgumentInstance(Object[] args) {
+		if (args == null || args.length < ArgumentImpl.ARG_DEFAULT_INITIAL_CAPACITY){
+			Argument arg = arguments.poll();
+			if (arg != null) {
+				return arg;
+			}
+			return new ArgumentImpl();
+		}
+		Argument arg = argumentsLarge.poll();
 		if (arg != null) {
 			return arg;
 		}
-		//aprint.o("arguments new! " + arguments.size());
-		return new ArgumentImpl();
-	}
-
-	/**
-	 * @return returns an Argument scope
-	 */
-	public Argument getArgumentInstance(int size) {
-		Argument arg = arguments.poll();
-		if (arg != null) {
-			return arg;
-		}
-		//aprint.o("arguments new! " + arguments.size());
-		return size < 7 ? new ArgumentImpl(8) : new ArgumentImpl(16);
+		return new ArgumentImpl(ArgumentImpl.ARG_DEFAULT_INITIAL_CAPACITY * 2);
 	}
 
 	/**
@@ -75,10 +71,16 @@ public final class ScopeFactory {
 	 * @param argument recycle an Argument scope for reuse
 	 */
 	public void recycle(PageContext pc, Argument argument) {
-		if (arguments.size() >= MAX_SIZE || argument.isBind()) return;
-		//if (argument.size() > 0) aprint.o("arg: " + argument.size());
-		argument.release(pc);
-		arguments.add(argument);
+		if (argument.isBind()) return;
+		if (argument.size() < ArgumentImpl.ARG_DEFAULT_INITIAL_CAPACITY ){
+			if (arguments.size() >= MAX_SIZE ) return;
+			argument.release(pc);
+			arguments.add(argument);
+		} else {
+			if (argumentsLarge.size() >= MAX_SIZE ) return;
+			argument.release(pc);
+			argumentsLarge.add(argument);
+		}
 	}
 
 	/**
