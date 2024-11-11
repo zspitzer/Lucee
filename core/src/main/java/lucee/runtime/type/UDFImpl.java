@@ -303,7 +303,11 @@ public class UDFImpl extends MemberSupport implements UDFPlus, Externalizable {
 	private Object _call(PageContext pc, Collection.Key calledName, Object[] args, Struct values, boolean doIncludePath, Argument newArgs) throws PageException {
 		PageContextImpl pci = (PageContextImpl) pc;
 		boolean existingNewArgs = newArgs != null;
-		if (!existingNewArgs) newArgs = pci.getScopeFactory().getArgumentInstance();
+		
+		if (!existingNewArgs){
+			if (args == null) newArgs = pci.getScopeFactory().getArgumentInstance();
+			else newArgs = pci.getScopeFactory().getArgumentInstance(args.length);
+		} 
 		newArgs.setFunctionArgumentNames(properties.getArgumentsSet());
 		LocalImpl newLocal = pci.getScopeFactory().getLocalInstance();
 

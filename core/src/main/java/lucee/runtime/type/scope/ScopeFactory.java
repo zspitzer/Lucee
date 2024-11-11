@@ -21,6 +21,7 @@ package lucee.runtime.type.scope;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import lucee.runtime.PageContext;
+//import lucee.aprint;
 
 /**
  * creates Local and Argument scopes and recyle it
@@ -38,24 +39,35 @@ public final class ScopeFactory {
 	 * @return returns an Argument scope
 	 */
 	public Argument getArgumentInstance() {
-		/*
 		Argument arg = arguments.poll();
 		if (arg != null) {
 			return arg;
 		}
-		*/
+		//aprint.o("arguments new! " + arguments.size());
 		return new ArgumentImpl();
+	}
+
+	/**
+	 * @return returns an Argument scope
+	 */
+	public Argument getArgumentInstance(int size) {
+		Argument arg = arguments.poll();
+		if (arg != null) {
+			return arg;
+		}
+		//aprint.o("arguments new! " + arguments.size());
+		return size > 3 ? new ArgumentImpl(8) : new ArgumentImpl();
 	}
 
 	/**
 	 * @return retruns a Local Instance
 	 */
 	public LocalImpl getLocalInstance() {
-	/* 	LocalImpl lcl = locals.poll();
+		LocalImpl lcl = locals.poll();
 		if (lcl != null) {
 			return lcl;
 		}
-		*/
+		//aprint.o("local new! " + locals.size());
 		return new LocalImpl();
 	}
 
@@ -63,24 +75,20 @@ public final class ScopeFactory {
 	 * @param argument recycle an Argument scope for reuse
 	 */
 	public void recycle(PageContext pc, Argument argument) {
-		return;
-		/*
 		if (arguments.size() >= MAX_SIZE || argument.isBind()) return;
+		//if (argument.size() > 0) aprint.o("arg: " + argument.size());
 		argument.release(pc);
 		arguments.add(argument);
-		*/
 	}
 
 	/**
 	 * @param local recycle a Local scope for reuse
 	 */
 	public void recycle(PageContext pc, LocalImpl local) {
-		return;
-		/*
 		if (locals.size() >= MAX_SIZE || local.isBind()) return;
+		//if (local.size() > 0) aprint.o("local: " + local.size());
 		local.release(pc);
 		locals.add(local);
-		*/
 	}
 
 	/**

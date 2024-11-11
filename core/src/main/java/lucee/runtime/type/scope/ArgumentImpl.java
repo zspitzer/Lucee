@@ -70,7 +70,12 @@ public final class ArgumentImpl extends ScopeSupport implements Argument, ArrayP
 	 */
 	public ArgumentImpl() {
 		// super("arguments", SCOPE_ARGUMENTS, StructImpl.TYPE_LINKED, 4);
-		super("arguments", SCOPE_ARGUMENTS, StructImpl.TYPE_LINKED_NOT_SYNC, 8);
+		super("arguments", SCOPE_ARGUMENTS, StructImpl.TYPE_LINKED_NOT_SYNC, 4);
+	}
+
+	public ArgumentImpl(int size) {
+		// super("arguments", SCOPE_ARGUMENTS, StructImpl.TYPE_LINKED, 4);
+		super("arguments", SCOPE_ARGUMENTS, StructImpl.TYPE_LINKED_NOT_SYNC, size);
 	}
 
 	@Override
