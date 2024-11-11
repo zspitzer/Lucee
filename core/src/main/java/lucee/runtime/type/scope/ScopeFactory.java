@@ -56,7 +56,7 @@ public final class ScopeFactory {
 			return arg;
 		}
 		//aprint.o("arguments new! " + arguments.size());
-		return size > 3 ? new ArgumentImpl(8) : new ArgumentImpl();
+		return size < 7 ? new ArgumentImpl(8) : new ArgumentImpl(16);
 	}
 
 	/**

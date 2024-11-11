@@ -305,7 +305,7 @@ public class UDFImpl extends MemberSupport implements UDFPlus, Externalizable {
 		boolean existingNewArgs = newArgs != null;
 		
 		if (!existingNewArgs){
-			if (args == null) newArgs = pci.getScopeFactory().getArgumentInstance();
+			if (args == null || args.length < 4) newArgs = pci.getScopeFactory().getArgumentInstance();
 			else newArgs = pci.getScopeFactory().getArgumentInstance(args.length);
 		} 
 		newArgs.setFunctionArgumentNames(properties.getArgumentsSet());
