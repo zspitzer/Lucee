@@ -54,7 +54,7 @@ public class SourceCode {
 		this.hash = strText.hashCode();
 		lcText = new char[text.length];
 
-		ArrayList<Integer> arr = new ArrayList<Integer>();
+		ArrayList<Integer> arr = new ArrayList<Integer>((int)strText.lines().count());
 
 		for (int i = 0; i < text.length; i++) {
 			pos = i;
