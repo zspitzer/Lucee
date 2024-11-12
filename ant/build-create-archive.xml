@@ -22,6 +22,7 @@
 	<echots message="Starting Lucee"/>
 	<script language="CFML">
 	<![CDATA[
+	start = getTickCount();
 	systemOutput("---------- #DateTimeFormat(now(),'yyyy-mm-dd HH:nn:ss')# - Lucee Started ----------", true);
 
 	SystemOutput("srcCFML: #srcCFML#", true);
@@ -181,7 +182,7 @@
 		systemOutput( "ERROR: #cfcatch.message#", true);	
 		rethrow;
 	}
-	systemOutput( DateTimeFormat(now(),'yyyy-mm-dd HH:nn:ss') & " finished", true);
+	systemOutput( DateTimeFormat(now(),'yyyy-mm-dd HH:nn:ss') & " finished, in #numberFormat(getTickCount()-start)#ms", true);
 	]]>
   </script>
 </target>

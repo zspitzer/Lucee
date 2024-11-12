@@ -194,7 +194,20 @@ public class SourceCode {
 	 */
 	public boolean isCurrentVariableCharacter() {
 		if (!isValidIndex()) return false;
-		return isCurrentLetter() || isCurrentNumber() || isCurrent('$') || isCurrent('_');
+		char c = lcText[pos];
+		return isCurrentLetter(c) || isCurrentNumber(c) || isCurrentFast(c,'$') || isCurrentFast(c,'_');
+	}
+
+	/**
+	 * returns if the current character is a letter (a-z,A-Z)
+	 * 
+	 * @return is a letter
+	 */
+	private static boolean isCurrentLetter(char c) {
+		//char c = lcText[pos];
+        //return (c | 32) >= 'a' && (c | 32) <= 'z';
+		//return c >= 'a' && c <= 'z';
+		return c >= 'a' && c <= 'z';
 	}
 
 	/**
@@ -204,7 +217,10 @@ public class SourceCode {
 	 */
 	public boolean isCurrentLetter() {
 		if (!isValidIndex()) return false;
-		return lcText[pos] >= 'a' && lcText[pos] <= 'z';
+		char c = lcText[pos];
+        //return (c | 32) >= 'a' && (c | 32) <= 'z';
+		//return c >= 'a' && c <= 'z';
+		return c >= 'a' && c <= 'z';
 	}
 
 	/**
@@ -214,7 +230,16 @@ public class SourceCode {
 	 */
 	public boolean isCurrentNumber() {
 		if (!isValidIndex()) return false;
-		return lcText[pos] >= '0' && lcText[pos] <= '9';
+		char c = lcText[pos];
+		return c >= '0' && c <= '9';
+	}
+	/**
+	 * returns if the current character is a number (0-9)
+	 * 
+	 * @return is a letter
+	 */
+	private static boolean isCurrentNumber(char c) {
+		return c >= '0' && c <= '9';
 	}
 
 	/**
@@ -224,6 +249,14 @@ public class SourceCode {
 	public boolean isCurrentSpecial() {
 		if (!isValidIndex()) return false;
 		return lcText[pos] == '_' || lcText[pos] == '$' || lcText[pos] == SystemUtil.CHAR_EURO || lcText[pos] == SystemUtil.CHAR_POUND;
+	}
+
+	/**
+	 * is the current character (internal pointer) the same as the given
+	 */
+	private static boolean isCurrentFast(char c, char c2) {
+		//if (!isValidIndex()) return false;
+		return c2 == c;
 	}
 
 	/**
