@@ -209,20 +209,20 @@ public class JREDateTimeUtil extends DateTimeUtil {
 		String sb = new String();
 
 		sb = sb + "{ts '";
-		toString(sb, c.get(Calendar.YEAR), 4);
+		sb = toString(sb, c.get(Calendar.YEAR), 4);
 		sb = sb + "-";
-		toString(sb, c.get(Calendar.MONTH) + 1, 2);
+		sb = toString(sb, c.get(Calendar.MONTH) + 1, 2);
 		sb = sb + "-";
-		toString(sb, c.get(Calendar.DATE), 2);
+		sb = toString(sb, c.get(Calendar.DATE), 2);
 		sb = sb + " ";
-		toString(sb, c.get(Calendar.HOUR_OF_DAY), 2);
+		sb = toString(sb, c.get(Calendar.HOUR_OF_DAY), 2);
 		sb = sb + ":";
-		toString(sb, c.get(Calendar.MINUTE), 2);
+		sb = toString(sb, c.get(Calendar.MINUTE), 2);
 		sb = sb + ":";
-		toString(sb, c.get(Calendar.SECOND), 2);
+		sb = toString(sb, c.get(Calendar.SECOND), 2);
 		if (addTimeZoneOffset != Boolean.FALSE) {
 			if (addTimeZoneOffset == null && pc != null) addTimeZoneOffset = ((PageContextImpl) pc).getTimestampWithTSOffset();
-			if (addTimeZoneOffset == Boolean.TRUE) addTimeZoneOffset(c, sb);
+			if (addTimeZoneOffset == Boolean.TRUE) sb = addTimeZoneOffset(c, sb);
 		}
 		sb = sb + "'}";
 
@@ -243,7 +243,7 @@ public class JREDateTimeUtil extends DateTimeUtil {
 	 * print.e(c.getTimeZone().getOffset(c.getTimeInMillis())); }
 	 */
 
-	private void addTimeZoneOffset(Calendar c, String sb) {
+	private String addTimeZoneOffset(Calendar c, String sb) {
 		int min = (c.get(Calendar.ZONE_OFFSET) + c.get(Calendar.DST_OFFSET)) / 60000;
 		char op;
 		if (min < 0) {
@@ -255,9 +255,9 @@ public class JREDateTimeUtil extends DateTimeUtil {
 		int hours = min / 60;
 		min = min - (hours * 60);
 		sb = sb + op;
-		toString(sb, hours, 2);
+		sb = toString(sb, hours, 2);
 		sb = sb + ':';
-		toString(sb, min, 2);
+		return toString(sb, min, 2);
 	}
 
 	public static Calendar newInstance(TimeZone tz, Locale l) {
@@ -335,14 +335,14 @@ public class JREDateTimeUtil extends DateTimeUtil {
 		sb.append(str);
 	}
 
-	private static void toString(String sb, int i, int amount) {
+	private static String toString(String sb, int i, int amount) {
 		String str = Caster.toString(i);
 
 		amount = amount - str.length();
 		while (amount-- > 0) {
 			sb = sb + "0";
 		}
-		sb = sb + str;
+		return sb + str;
 	}
 
 
