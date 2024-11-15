@@ -205,27 +205,28 @@ public class JREDateTimeUtil extends DateTimeUtil {
 		Calendar c = _getThreadCalendar(pc, tz);
 		c.setTimeInMillis(dt.getTime());
 		// "HH:mm:ss"
-		StringBuilder sb = new StringBuilder();
+		//StringBuilder sb = new StringBuilder();
+		String sb = new String();
 
-		sb.append("{ts '");
+		sb = sb + "{ts '";
 		toString(sb, c.get(Calendar.YEAR), 4);
-		sb.append("-");
+		sb = sb + "-";
 		toString(sb, c.get(Calendar.MONTH) + 1, 2);
-		sb.append("-");
+		sb = sb + "-";
 		toString(sb, c.get(Calendar.DATE), 2);
-		sb.append(" ");
+		sb = sb + " ";
 		toString(sb, c.get(Calendar.HOUR_OF_DAY), 2);
-		sb.append(":");
+		sb = sb + ":";
 		toString(sb, c.get(Calendar.MINUTE), 2);
-		sb.append(":");
+		sb = sb + ":";
 		toString(sb, c.get(Calendar.SECOND), 2);
 		if (addTimeZoneOffset != Boolean.FALSE) {
 			if (addTimeZoneOffset == null && pc != null) addTimeZoneOffset = ((PageContextImpl) pc).getTimestampWithTSOffset();
 			if (addTimeZoneOffset == Boolean.TRUE) addTimeZoneOffset(c, sb);
 		}
-		sb.append("'}");
+		sb = sb + "'}";
 
-		return sb.toString();
+		return sb;
 	}
 
 	/*
@@ -242,7 +243,7 @@ public class JREDateTimeUtil extends DateTimeUtil {
 	 * print.e(c.getTimeZone().getOffset(c.getTimeInMillis())); }
 	 */
 
-	private void addTimeZoneOffset(Calendar c, StringBuilder sb) {
+	private void addTimeZoneOffset(Calendar c, String sb) {
 		int min = (c.get(Calendar.ZONE_OFFSET) + c.get(Calendar.DST_OFFSET)) / 60000;
 		char op;
 		if (min < 0) {
@@ -253,9 +254,9 @@ public class JREDateTimeUtil extends DateTimeUtil {
 
 		int hours = min / 60;
 		min = min - (hours * 60);
-		sb.append(op);
+		sb = sb + op;
 		toString(sb, hours, 2);
-		sb.append(':');
+		sb = sb + ':';
 		toString(sb, min, 2);
 	}
 
@@ -333,6 +334,18 @@ public class JREDateTimeUtil extends DateTimeUtil {
 		}
 		sb.append(str);
 	}
+
+	private static void toString(String sb, int i, int amount) {
+		String str = Caster.toString(i);
+
+		amount = amount - str.length();
+		while (amount-- > 0) {
+			sb = sb + "0";
+		}
+		sb = sb + str;
+	}
+
+
 }
 
 class CalendarThreadLocal extends ThreadLocal<Calendar> {
