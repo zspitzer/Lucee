@@ -14,6 +14,8 @@ component {
 		var bundles = [];
 		var testFilter = new _testFilter( argumentCollection = arguments.testConfig );
 
+		configImport( {"inspectTemplate": "never" }, "server", server.SERVERADMINPASSWORD );
+
 		arraySort( srcBundles, "textnocase", "asc" ); // make testDebug output sorted
 		ArrayEach( array=srcBundles, closure=function( el, idx, arr ){
 			if ( listLast( arguments.el, "\/" ) eq "Application.cfc" ) {
@@ -23,6 +25,8 @@ component {
 				arrayAppend(bundles, mapping & "." & mid( clean, 1, len( clean ) - 4 ) ); // strip off .cfc
 			}
 		}, parallel=true );
+
+		configImport( {"inspectTemplate": "once" }, "server", server.SERVERADMINPASSWORD );
 
 		if ( request.testDebugAbort ){
 			throw "testDebugAbort was true, exiting";
