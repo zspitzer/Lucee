@@ -150,22 +150,46 @@ public final class CFMLTransformer {
 
 		Charset charset = config.getTemplateCharset();
 		boolean dotUpper = ((MappingImpl) ps.getMapping()).getDotNotationUpperCase();
+		//sc = new PageSourceCode(ps, charset, writeLog);
+		TagLibTag scriptTag = CFMLTransformer.getTLT(Constants.CFML_SCRIPT_TAG_NAME, config.getIdentification());
+		TagLibTag componentTag = CFMLTransformer.getTLT(Constants.CFML_COMPONENT_TAG_NAME, config.getIdentification());
+
+		String fileExt = ResourceUtil.getExtension(ps.getResource(), "");
+
+		// could it be a component?
+		boolean isCFMLCompExt = Constants.isCFMLComponentExtension(fileExt);
 
 		// parse regular
 		while (true) {
 			try {
-				sc = new PageSourceCode(ps, charset, writeLog);
+				// sc = new PageSourceCode(ps, charset, writeLog);
+				String srcText = "";
+				boolean addCfscript = false;
+				if (Constants.isCFMLScriptExtension(fileExt)) {
+					addCfscript = true;
+					srcText =  PageSourceCode.toString(ps, charset);
+				} else if (isCFMLCompExt) {
+					srcText =  PageSourceCode.toString(ps, charset);
+					String srcTextLower = srcText.toLowerCase();
+					// sniff to see if the cfc is already tag based
+					if (!srcTextLower.contains("<" + scriptTag.getFullName())
+						&& !srcTextLower.contains("<" + componentTag.getFullName())
+						&& !srcTextLower.contains("<cfinterface")) addCfscript = true;
+					//srcTextLower = null;
+					//if (!addCfscript) srcText = null;
+
+				}
 
 				// script files (cfs)
-				if (Constants.isCFMLScriptExtension(ListUtil.last(ps.getRealpath(), '.'))) {
-					TagLibTag scriptTag = CFMLTransformer.getTLT(sc, Constants.CFML_SCRIPT_TAG_NAME, config.getIdentification());
-
-					sc.setPos(0);
-					SourceCode original = sc;
+				if (addCfscript) {
+					// sc.setPos(0);
+					// SourceCode original = sc;
 
 					// try inside a cfscript
-					String text = "<" + scriptTag.getFullName() + ">" + original.getText() + "\n</" + scriptTag.getFullName() + ">";
+					String text = "<" + scriptTag.getFullName() + ">" + srcText + "\n</" + scriptTag.getFullName() + ">";
 					sc = new PageSourceCode(ps, text, charset, writeLog);
+				} else {
+					sc = new PageSourceCode(ps, charset, writeLog);
 				}
 
 				p = transform(factory, config, sc, tlibs, flibs, ps.getResource().lastModified(), dotUpper, returnValue, ignoreScopes);
@@ -178,8 +202,7 @@ public final class CFMLTransformer {
 			}
 		}
 
-		// could it be a component?
-		boolean isCFMLCompExt = Constants.isCFMLComponentExtension(ResourceUtil.getExtension(ps.getResource(), ""));
+		
 
 		boolean possibleUndetectedComponent = false;
 
@@ -191,7 +214,7 @@ public final class CFMLTransformer {
 		if (possibleUndetectedComponent) {
 			Page _p;
 
-			TagLibTag scriptTag = CFMLTransformer.getTLT(sc, Constants.CFML_SCRIPT_TAG_NAME, config.getIdentification());
+			//TagLibTag scriptTag = CFMLTransformer.getTLT(sc, Constants.CFML_SCRIPT_TAG_NAME, config.getIdentification());
 
 			sc.setPos(0);
 			SourceCode original = sc;
@@ -203,8 +226,8 @@ public final class CFMLTransformer {
 			try {
 				while (true) {
 					if (sc == null) {
-						sc = new PageSourceCode(ps, charset, writeLog);
-						text = "<" + scriptTag.getFullName() + ">" + sc.getText() + "\n</" + scriptTag.getFullName() + ">";
+						//sc = new PageSourceCode(ps, charset, writeLog);
+						text = "<" + scriptTag.getFullName() + ">" + PageSourceCode.toString(ps, charset) + "\n</" + scriptTag.getFullName() + ">";
 						sc = new PageSourceCode(ps, text, charset, writeLog);
 					}
 					try {
@@ -244,6 +267,18 @@ public final class CFMLTransformer {
 		}
 		catch (TagLibException e) {
 			throw new TemplateException(cfml, e);
+		}
+	}
+
+	public static TagLibTag getTLT(String name, Identification id) throws TemplateException {
+		TagLib tl;
+		try {
+			// this is already loaded, oherwise we where not here
+			tl = TagLibFactory.loadFromSystem(id);
+			return tl.getTag(name);
+		}
+		catch (TagLibException e) {
+			throw new TemplateException(e.getMessage());
 		}
 	}
 
