@@ -162,6 +162,7 @@
 			primary="physical"
 			trusted="no";
 		
+		s = getTickCount("nano");
 	
 		// create an archive from the mapping
 		admin 
@@ -174,6 +175,8 @@
 			addCFMLFiles="true"
 			addNonCFMLFiles="true"
 			ignoreScopes="false";
+		systemOutput(" compiling took #numberformat((getTickCount('nano')-s)/1000)# ms", true);
+		//throw "zac";
 	} else {
 		systemOutput( DateTimeFormat(now(),'yyyy-mm-dd HH:nn:ss') & " skipped TestBox (fast mode)", true);	
 	}

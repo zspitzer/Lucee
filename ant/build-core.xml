@@ -565,7 +565,8 @@
       <jvmarg value="-Dlucee.cli.printExceptions=true"/>
       <jvmarg value="-Dlucee.ssl.checkserveridentity=false"/>
       <jvmarg value="-Dlucee.compiler.java.version=${javaVersionCoreDefault}"/>
-
+      <jvmarg value="-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5000" if:true="${testDebugger}"/>
+      <jvmarg value="-Xlog:gc"/>
     </java>
     <outputTrimmedString str="${exc}"/>
 </target>
@@ -633,6 +634,8 @@
       <jvmarg value="-XX:+UnlockExperimentalVMOptions" if:true="${UseEpsilonGC}"/>
       <jvmarg value="-XX:+UseEpsilonGC" if:true="${UseEpsilonGC}"/>
       <jvmarg value="-XX:+AlwaysPreTouch" if:true="${UseEpsilonGC}"/>
+      <jvmarg value="-Xms14096m" if:true="${UseEpsilonGC}"/>
+      <jvmarg value="-Xmx14096m" if:true="${UseEpsilonGC}"/>
       <!--
       <jvmarg value="-XX:StartFlightRecording=disk=true,dumponexit=true,filename=${temp}/../lucee-testcases.jfr,maxsize=1024m,maxage=1d,settings=profile,path-to-gc-roots=true"/>
       <jvmarg value="-Dlucee.system.out=file:.../out.txt"/>
@@ -640,7 +643,13 @@
       -->
       <jvmarg value="-Xdebug" if:true="${testDebugger}"/>
       <jvmarg value="-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5000" if:true="${testDebugger}"/>
+      <jvmarg value="-XX:+HeapDumpOnOutOfMemoryError"/>
+      <jvmarg value="-XX:HeapDumpPath=${temp}/.."/>
+      <jvmarg value="-Xlog:gc"/>
+
+
       <!--
+        <jvmarg value="-Xlog:gc"/>
         felix.log.level
         lucee.controller.disabled
     -->
