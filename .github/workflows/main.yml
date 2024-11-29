@@ -303,9 +303,10 @@ jobs:
       if: always()
       with:
         execute: /test-reporter.cfm
-        luceeVersion: 6.1.1.118
+        luceeVersion: zero-6.1.1.118
       env:
         artifact_filter: json-test-results
+        variance_threshold: 10 # threshold in ms to report a difference in test execution
     - name: Trigger Docker Build
       if: ${{ env.DO_DEPLOY == 'true' }}
       env:
