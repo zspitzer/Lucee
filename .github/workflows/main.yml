@@ -283,6 +283,12 @@ jobs:
       with:
         name: Lucee-${{ steps.cleanrefname.outputs.value }}-junit-test-results-${{ github.run_number }}
         path: test/reports/*.xml
+    - name: Upload Artifact (json-test-results)
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: Lucee-${{ steps.cleanrefname.outputs.value }}-json-test-results-${{ github.run_number }}
+        path: test/reports/*.json
     - name: Remove Lucee build artifacts from local maven cache (avoid growing cache)
       run: |
         rm -rfv ~/.m2/repository/org/lucee/lucee/
@@ -292,6 +298,13 @@ jobs:
       with:
         junit_files: test/reports/*.xml
         check_name: "Lucee Test Results"
+    - name: Report Test Variance
+      uses: lucee/script-runner@report-tests
+      with:
+        execute: /test-reporter.cfm
+        luceeVersion: 6.1.1.118
+      env:
+        artifact_filter: json-test-results
     - name: Trigger Docker Build
       if: ${{ env.DO_DEPLOY == 'true' }}
       env:

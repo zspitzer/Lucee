@@ -360,6 +360,15 @@ try {
 	JUnitReportFile = resultPath & "junit-test-results-#server.lucee.version#.xml";
 	FileWrite( JUnitReportFile, jUnitReporter.runReport( results=result, testbox=tb, justReturn=true ) );
 
+	JSONreporter = new testbox.system.reports.JSONReporter();
+	reportFile = resultPath & server.lucee.version & "-" & server.java.version & "-#getTickCount()#-results.json";
+	systemOutput( "Writing testbox stats to #reportFile#", true );
+	report = JSONreporter.runReport( results=result, testbox=new testbox.system.TestBox(), justReturn=true );
+	report = deserializeJSON(report);
+	report["javaVersion"] = server.java.version;
+		
+	fileWrite( reportFile, serializeJson(report) );
+
 	// load errors into an array, so we can dump them out to $GITHUB_STEP_SUMMARY
 	results = [];
 	results_md = ["## Lucee #server.lucee.version#", ""];
