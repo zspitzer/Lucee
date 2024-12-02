@@ -364,10 +364,10 @@ try {
 	reportFile = resultPath & server.lucee.version & "-" & server.java.version & "-#getTickCount()#-results.json";
 	systemOutput( "Writing testbox stats to #reportFile#", true );
 	report = JSONreporter.runReport( results=result, testbox=new testbox.system.TestBox(), justReturn=true );
-	report = deserializeJSON(report);
+	report = deserializeJSON( report );
 	report["javaVersion"] = server.java.version;
 		
-	fileWrite( reportFile, serializeJson(report) );
+	fileWrite( reportFile, serializeJson( report ) );
 
 	// load errors into an array, so we can dump them out to $GITHUB_STEP_SUMMARY
 	results = [];
