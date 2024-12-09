@@ -15,6 +15,14 @@ on:
       - '**' # thus ignoring tagging
   pull_request:
   workflow_dispatch:
+    inputs:
+      LUCEE_TEST_JAVA_VERSION:
+        required: false
+        type: string
+      LUCEE_BUILD_JAVA_VERSION:
+        required: true
+        type: string
+        default: '21'
 
 #concurrency:
 #  group: ${{ github.head_ref }}
