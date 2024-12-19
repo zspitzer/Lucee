@@ -72,7 +72,7 @@ public final class ClassUtil {
 		return loadClass(pc, className);
 	}
 
-	private static Class checkPrimaryTypesBytecodeDef(String className, Class defaultValue) {
+	private static Class checkPrimaryTypesBytecodeDef(String className, Class defaultValue) { // slow
 		if (className.charAt(0) == '[') {
 			if (className.equals("[V")) return void.class;
 			if (className.equals("[Z")) return boolean.class;
