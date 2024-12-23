@@ -603,8 +603,14 @@ public final class PageSourceImpl implements PageSource {
 			synchronized (this) {
 				// synchronized (SystemUtil.createToken("PageSource", getRealpathWithVirtual())) {
 				if (physcalSource == null) {
-					Resource tmp = mapping.getPhysical().getRealResource(relPath);
+					lucee.aprint.o("getPhyscalFile() relPath: " + relPath);
+					Resource phy = mapping.getPhysical();
+					lucee.aprint.o("phy :" + phy.getAbsolutePath());
+					Resource tmp = phy.getRealResource(relPath);
+					lucee.aprint.o("tmp: " + tmp.getAbsolutePath());
+					
 					physcalSource = ResourceUtil.toExactResource(tmp);
+					lucee.aprint.o("physcalSource: " + physcalSource.getAbsolutePath());
 					// fix if the case not match
 					if (!tmp.getAbsolutePath().equals(physcalSource.getAbsolutePath())) {
 						String relpath = extractRealpath(relPath, physcalSource.getAbsolutePath());
