@@ -30,7 +30,6 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.DosFileAttributes;
@@ -41,7 +40,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import lucee.commons.cli.Command;
 import lucee.commons.io.IOUtil;
 import lucee.commons.io.ModeUtil;
 import lucee.commons.io.SystemUtil;
@@ -434,7 +432,7 @@ public final class FileResource extends File implements Resource {
 		if (!exists()) return 0;
 		if (SystemUtil.isUnix()) {
 			try {
-				PosixFileAttributes attrs = Files.readAttributes(Paths.get(getPath()), PosixFileAttributes.class);
+				PosixFileAttributes attrs = Files.readAttributes(toPath(), PosixFileAttributes.class);
 				Set<PosixFilePermission> permissions = attrs.permissions();
 				return ModeUtil.toOctalMode(PosixFilePermissions.toString(permissions));
 			}
@@ -476,7 +474,7 @@ public final class FileResource extends File implements Resource {
 		try {
 			provider.lock(this);
 			// print.ln(ModeUtil.toStringMode(mode));
-			Files.setPosixFilePermissions(Paths.get(getPath()), PosixFilePermissions.fromString(ModeUtil.fromOctalMode(mode)));
+			Files.setPosixFilePermissions(toPath(), PosixFilePermissions.fromString(ModeUtil.fromOctalMode(mode)));
 		} catch (IOException e) {
 			throw new IOException("Interrupted setPosixFilePermissions [" + toString() + "]");
 		}
@@ -543,8 +541,7 @@ public final class FileResource extends File implements Resource {
 
 		try {
 			provider.lock(this);
-			Path path = Paths.get(getPath());
-			Files.setAttribute(path, "dos:readonly", !value);
+			Files.setAttribute(toPath(), "dos:readonly", !value);
 		}
 		catch (IOException ioe) {
 			return false;
