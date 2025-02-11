@@ -72,6 +72,7 @@ public class IKHandlerCache implements IKHandler {
 				}
 			}
 			ScopeContext.info(log, "Store scope for [" + pc.getApplicationContext().getName() + "/" + pc.getCFID() + "] in cache [" + name + "]");
+			lucee.aprint.ds(15);
 		}
 		catch (Exception e) {
 			ScopeContext.error(log, e);
