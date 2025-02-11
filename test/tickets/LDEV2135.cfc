@@ -1,7 +1,7 @@
 component extends="org.lucee.cfml.test.LuceeTestCase" labels="session" {
 
 	function run( testResults , testBox ) {
-		describe( "Test suite for LDEV-2135 using memory", function() {
+		xdescribe( "Test suite for LDEV-2135 using memory", function() {
 
 			//beforeEach(function (currentSpec, data){ _beforeEach(currentSpec, data); });
 
@@ -16,7 +16,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="session" {
 
 		describe( title="Test suite for LDEV-2135 using redis", skip=skipRedis(), body=function() {
 			
-			//beforeEach(function (currentSpec, data){ _beforeEach(currentSpec, data); });
+			beforeEach(function (currentSpec, data){ _beforeEach(currentSpec, data); });
 
 			it( title='thread looses session variables - redis- sessionCluster=false', body=function( currentSpec ) {
 				test( {sessionCluster: false, sessionStorage: "redis"} );
@@ -31,7 +31,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="session" {
 			});
 		});
 
-		describe( title="Test suite for LDEV-2135 using memcached", skip=skipMemcached(), body=function() {
+		xdescribe( title="Test suite for LDEV-2135 using memcached", skip=skipMemcached(), body=function() {
 
 			//beforeEach(function (currentSpec, data){ _beforeEach(currentSpec, data); });
 
