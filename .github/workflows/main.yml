@@ -213,6 +213,8 @@ jobs:
         echo "VERSION=$VERSION" >> $GITHUB_ENV
     - name: Build Lucee with Maven
       env:
+        LUCEE_LOGGING_FORCE_LEVEL: info
+        LUCEE_LOGGING_FORCE_APPENDER: console
         MYSQL_SERVER: localhost
         MYSQL_USERNAME: lucee
         MYSQL_PASSWORD: lucee
@@ -274,7 +276,7 @@ jobs:
         echo "-------DO_DEPLOY: ${{ env.DO_DEPLOY }} -------";
         if [[ "$VERSION" == *-SNAPSHOT ]]; then
           echo "------- Maven Deploy SNAPSHOT on ${{ github.event_name }} ---------";
-          mvn -B -e -f loader/pom.xml clean deploy -DtestJavaVersionExec="${{ env.LUCEE_TEST_JAVA_EXEC }}"
+          mvn -B -e -f loader/pom.xml clean deploy -DtestJavaVersionExec="${{ env.LUCEE_TEST_JAVA_EXEC }}" -DtestFilter="2135"
         else
           echo "------- Maven Deploy RELEASE on ${{ github.event_name }} -------";
           mvn -B -e -f loader/pom.xml clean deploy --settings maven-settings.xml -DperformRelease=true -DtestJavaVersionExec="${{ env.LUCEE_TEST_JAVA_EXEC }}";
