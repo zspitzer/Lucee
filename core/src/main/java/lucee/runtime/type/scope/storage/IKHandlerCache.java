@@ -46,6 +46,7 @@ public class IKHandlerCache implements IKHandler {
 			}
 			else {
 				ScopeContext.info(log, "Create new [" + strType + "] scope for [" + pc.getApplicationContext().getName() + "/" + pc.getCFID() + "] in cache [" + name + "]");
+				lucee.aprint.ds(25);
 			}
 			return null;
 		}
