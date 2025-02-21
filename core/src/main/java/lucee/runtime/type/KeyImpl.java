@@ -25,6 +25,10 @@ import java.io.ObjectOutput;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 import lucee.commons.digest.WangJenkins;
 import lucee.commons.io.SystemUtil;
@@ -47,7 +51,7 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 	private static final long HSTART = 0xBB40E64DA205B064L;
 	private static final long HMULT = 7664345821815920749L;
 
-	private static final int MAX = Caster.toInteger(SystemUtil.getSystemPropOrEnvVar("lucee.cache.variableKeys", null),5000);
+	private static final int MAX = Caster.toInteger(SystemUtil.getSystemPropOrEnvVar("lucee.cache.variableKeys", null),10_000);
 
 	// private boolean intern;
 	private String key;
@@ -56,7 +60,12 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 	private transient int wjh;
 	private transient int sfm = -1;
 	private transient long h64;
-	private static Map<String, Key> keys = new HashMap<String, Key>();
+	//private static Map<String, Key> keys = new HashMap<String, Key>();
+
+	private static Cache<String, Key> keys = Caffeine.newBuilder()
+		//.expireAfterWrite(10, TimeUnit.MINUTES)
+		.maximumSize(MAX)
+		.build();
 
 	public KeyImpl() {
 		// DO NOT USE, JUST FOR UNSERIALIZE
@@ -71,7 +80,7 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 	}
 
 	public static Map<String, Key> getKeys() {
-		return keys;
+		return keys.asMap();
 	}
 
 	private static final long[] createLookupTable() {
@@ -168,7 +177,7 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 	 * used to create the keys for the method initKeys()
 	 */
 	public static Collection.Key initKeys(String key) {
-		Key k = keys.get(key);
+		Key k = keys.getIfPresent(key);
 		if (k == null) {
 			keys.put(key, k = new KeyImpl(key));
 		}
@@ -191,9 +200,9 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 	 */
 	public static Collection.Key source(String key) {
 		if (MAX == 0) return new KeyImpl(key);
-		Key k = keys.get(key);
+		Key k = keys.getIfPresent(key);
 		if (k == null) {
-			if (keys.size() > MAX) return new KeyImpl(key);
+			if (keys.estimatedSize() > MAX) return new KeyImpl(key);
 			keys.put(key, k = new KeyImpl(key));
 		}
 		return k;
