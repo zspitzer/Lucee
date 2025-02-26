@@ -58,6 +58,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="session" {
 			cfid: first.session.cfid,
 			cftoken: first.session.cftoken
 		};
+		sleep(1000);
 		systemOutput("-- before secondRequest.cfm", true); 
 		var second = _InternalRequest(
 			template : "#uri#/cfml-session/secondRequest#template#.cfm",
