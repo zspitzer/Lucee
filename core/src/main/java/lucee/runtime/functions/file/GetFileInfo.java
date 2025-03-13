@@ -41,13 +41,13 @@ public class GetFileInfo {
 
 		Struct sct = new StructImpl();
 
-		sct.set(KeyConstants._canRead, Caster.toBoolean(src.isReadable()));
-		sct.set(KeyConstants._canWrite, Caster.toBoolean(src.isWriteable()));
-		sct.set(KeyConstants._isHidden, Caster.toBoolean(src.getAttribute(Resource.ATTRIBUTE_HIDDEN)));
-		sct.set(KeyConstants._lastmodified, new DateTimeImpl(src.lastModified()));
+		sct.set("canRead", Caster.toBoolean(src.isReadable()));
+		sct.set("canWrite", Caster.toBoolean(src.isWriteable()));
+		sct.set("isHidden", Caster.toBoolean(src.getAttribute(Resource.ATTRIBUTE_HIDDEN)));
+		sct.set("lastmodified", new DateTimeImpl(pc, src.lastModified(), false));
 		try {
 			attr = Files.readAttributes(file.toPath(), BasicFileAttributes.class);
-			sct.set(KeyConstants._fileCreated, new DateTimeImpl(attr.creationTime().toMillis()));
+			sct.set("fileCreated", new DateTimeImpl(pc, attr.creationTime().toMillis(), false));
 		}
 		catch (Exception e) {
 		}
@@ -61,12 +61,12 @@ public class GetFileInfo {
 		else sct.set(KeyConstants._type, "");
 
 		// supported only by lucee
-		sct.set(KeyConstants._isArchive, Caster.toBoolean(src.getAttribute(Resource.ATTRIBUTE_ARCHIVE)));
-		sct.set(KeyConstants._isSystem, Caster.toBoolean(src.getAttribute(Resource.ATTRIBUTE_SYSTEM)));
-		sct.set(KeyConstants._scheme, src.getResourceProvider().getScheme());
-		sct.set(KeyConstants._isCaseSensitive, Caster.toBoolean(src.getResourceProvider().isCaseSensitive()));
-		sct.set(KeyConstants._isAttributesSupported, Caster.toBoolean(src.getResourceProvider().isAttributesSupported()));
-		sct.set(KeyConstants._isModeSupported, Caster.toBoolean(src.getResourceProvider().isModeSupported()));
+		sct.set("isArchive", Caster.toBoolean(src.getAttribute(Resource.ATTRIBUTE_ARCHIVE)));
+		sct.set("isSystem", Caster.toBoolean(src.getAttribute(Resource.ATTRIBUTE_SYSTEM)));
+		sct.set("scheme", src.getResourceProvider().getScheme());
+		sct.set("isCaseSensitive", Caster.toBoolean(src.getResourceProvider().isCaseSensitive()));
+		sct.set("isAttributesSupported", Caster.toBoolean(src.getResourceProvider().isAttributesSupported()));
+		sct.set("isModeSupported", Caster.toBoolean(src.getResourceProvider().isModeSupported()));
 
 		return sct;
 	}

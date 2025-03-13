@@ -232,7 +232,7 @@ public final class FileTag extends BodyTagImpl {
 		else if (strAction.equals("info")) action = ACTION_INFO;
 		else if (strAction.equals("touch")) action = ACTION_TOUCH;
 		else throw new ApplicationException("Invalid value [" + strAction + "] for attribute action",
-		"Supported actions are: [info, move, rename, copy, delete, read, readbinary, write, append, upload, uploadall, touch]");
+				"supported actions are: [info,move,rename,copy,delete,read,readbinary,write,append,upload,uploadall,touch]");
 	}
 
 	/**
@@ -573,7 +573,7 @@ public final class FileTag extends BodyTagImpl {
 		// source
 		if (!source.exists()) throw new ApplicationException("Source file [" + source.toString() + "] doesn't exist");
 		else if (!source.isFile()) throw new ApplicationException("Source file [" + source.toString() + "] is not a file");
-		else if (!source.isReadable()) throw new ApplicationException("Access Denied to source file [" + source.toString() + "]");
+		else if (!source.canRead()) throw new ApplicationException("Access Denied to source file [" + source.toString() + "]");
 
 		// destination
 		if (destination.isDirectory()) destination = destination.getRealResource(source.getName());
@@ -844,17 +844,17 @@ public final class FileTag extends BodyTagImpl {
 		sct.setEL(KeyConstants._name, file.getName());
 		sct.setEL(KeyConstants._size, Long.valueOf(file.length()));
 		sct.setEL(KeyConstants._type, file.isDirectory() ? "Dir" : "File");
-		if (file instanceof File) sct.setEL(KeyConstants._execute, ((File) file).canExecute());
-		sct.setEL(KeyConstants._read, file.isReadable());
-		sct.setEL(KeyConstants._write, file.isWriteable());
+		if (file instanceof File) sct.setEL("execute", ((File) file).canExecute());
+		sct.setEL("read", file.canRead());
+		sct.setEL("write", file.canWrite());
 		try {
 			attr = Files.readAttributes(files.toPath(), BasicFileAttributes.class);
-			sct.setEL(KeyConstants._fileCreated, new DateTimeImpl(attr.creationTime().toMillis()));
+			sct.set("fileCreated", new DateTimeImpl(pc, attr.creationTime().toMillis(), false));
 		}
 		catch (Exception e) {
 		}
-		sct.setEL(KeyConstants._dateLastModified, new DateTimeImpl(file.lastModified()));
-		sct.setEL(KeyConstants._attributes, getFileAttribute(file));
+		sct.setEL("dateLastModified", new DateTimeImpl(pc, file.lastModified(), false));
+		sct.setEL("attributes", getFileAttribute(file));
 		if (SystemUtil.isUnix()) sct.setEL(KeyConstants._mode, new ModeObjectWrap(file));
 
 		try {
@@ -874,7 +874,7 @@ public final class FileTag extends BodyTagImpl {
 	}
 
 	private static String getFileAttribute(Resource file) {
-		return file.exists() && !file.isWriteable() ? "R".concat(file.isHidden() ? "H" : "") : file.isHidden() ? "H" : "";
+		return file.exists() && !file.canWrite() ? "R".concat(file.isHidden() ? "H" : "") : file.isHidden() ? "H" : "";
 	}
 
 	/**
@@ -889,7 +889,7 @@ public final class FileTag extends BodyTagImpl {
 				serverPassword);
 		if (StringUtil.isEmpty(result)) {
 			pageContext.undefinedScope().set(KeyConstants._file, cffile);
-			pageContext.undefinedScope().set(KeyConstants._cffile, cffile);
+			pageContext.undefinedScope().set("cffile", cffile);
 		}
 		else {
 			pageContext.setVariable(result, cffile);
@@ -913,7 +913,7 @@ public final class FileTag extends BodyTagImpl {
 			else sct = new StructImpl();
 
 			pageContext.undefinedScope().set(KeyConstants._file, sct);
-			pageContext.undefinedScope().set(KeyConstants._cffile, sct);
+			pageContext.undefinedScope().set("cffile", sct);
 		}
 		else {
 			pageContext.setVariable(result, arr);
@@ -948,11 +948,11 @@ public final class FileTag extends BodyTagImpl {
 		Struct cffile = new StructImpl();
 
 		long length = formItem.getResource().length();
-		cffile.set(KeyConstants._timecreated, new DateTimeImpl());
-		cffile.set(KeyConstants._timelastmodified, new DateTimeImpl());
-		cffile.set(KeyConstants._datelastaccessed, new DateImpl());
-		cffile.set(KeyConstants._oldfilesize, Long.valueOf(length));
-		cffile.set(KeyConstants._filesize, Long.valueOf(length));
+		cffile.set("timecreated", new DateTimeImpl(pageContext.getConfig()));
+		cffile.set("timelastmodified", new DateTimeImpl(pageContext.getConfig()));
+		cffile.set("datelastaccessed", new DateImpl(pageContext));
+		cffile.set("oldfilesize", Long.valueOf(length));
+		cffile.set("filesize", Long.valueOf(length));
 
 		// client file
 		String strClientFile = formItem.getName();
@@ -963,16 +963,16 @@ public final class FileTag extends BodyTagImpl {
 
 		// content type
 		String contentType = ResourceUtil.getMimeType(formItem.getResource(), clientFile.getName(), formItem.getContentType());
-		cffile.set(KeyConstants._contenttype, ListFirst.call(pageContext, contentType, "/", false, 1));
-		cffile.set(KeyConstants._contentsubtype, ListLast.call(pageContext, contentType, "/", false, 1));
+		cffile.set("contenttype", ListFirst.call(pageContext, contentType, "/", false, 1));
+		cffile.set("contentsubtype", ListLast.call(pageContext, contentType, "/", false, 1));
 
 		// check file type
 		checkContentType(contentType, accept, allowedExtensions, blockedExtensions, clientFile, strict, pageContext.getApplicationContext());
 
-		cffile.set(KeyConstants._clientdirectory, getParent(clientFile));
-		cffile.set(KeyConstants._clientfile, clientFile.getName());
-		cffile.set(KeyConstants._clientfileext, ResourceUtil.getExtension(clientFile, ""));
-		cffile.set(KeyConstants._clientfilename, ResourceUtil.getName(clientFile));
+		cffile.set("clientdirectory", getParent(clientFile));
+		cffile.set("clientfile", clientFile.getName());
+		cffile.set("clientfileext", ResourceUtil.getExtension(clientFile, ""));
+		cffile.set("clientfilename", ResourceUtil.getName(clientFile));
 
 		// check destination
 		if (StringUtil.isEmpty(strDestination)) throw new ApplicationException("Attribute [destination] is required for tag [file], when action is [" + actionValue + "]");
@@ -1001,24 +1001,24 @@ public final class FileTag extends BodyTagImpl {
 				throw Caster.toPageException(e);
 			}
 		}
-		else if (!parentDestination.isWriteable()) throw new ApplicationException("can't write to destination directory [" + parentDestination + "], no access to write");
+		else if (!parentDestination.canWrite()) throw new ApplicationException("can't write to destination directory [" + parentDestination + "], no access to write");
 
 		// set server variables
-		cffile.set(KeyConstants._serverdirectory, getParent(destination));
-		cffile.set(KeyConstants._serverfile, destination.getName());
-		cffile.set(KeyConstants._serverfileext, ResourceUtil.getExtension(destination, null));
-		cffile.set(KeyConstants._serverfilename, ResourceUtil.getName(destination));
-		cffile.set(KeyConstants._attemptedserverfile, destination.getName());
+		cffile.set("serverdirectory", getParent(destination));
+		cffile.set("serverfile", destination.getName());
+		cffile.set("serverfileext", ResourceUtil.getExtension(destination, null));
+		cffile.set("serverfilename", ResourceUtil.getName(destination));
+		cffile.set("attemptedserverfile", destination.getName());
 
 		// check nameconflict
 		if (nameconflict == NAMECONFLICT_FORCEUNIQUE) {
 			destination = forceUnique(destination);
 			fileWasRenamed = true;
 
-			cffile.set(KeyConstants._serverdirectory, getParent(destination));
-			cffile.set(KeyConstants._serverfile, destination.getName());
-			cffile.set(KeyConstants._serverfileext, ResourceUtil.getExtension(destination, ""));
-			cffile.set(KeyConstants._serverfilename, ResourceUtil.getName(destination));
+			cffile.set("serverdirectory", getParent(destination));
+			cffile.set("serverfile", destination.getName());
+			cffile.set("serverfileext", ResourceUtil.getExtension(destination, ""));
+			cffile.set("serverfilename", ResourceUtil.getName(destination));
 		}
 
 		if (destination.exists()) {
@@ -1027,11 +1027,11 @@ public final class FileTag extends BodyTagImpl {
 				throw new ApplicationException("Destination file [" + destination + "] already exists");
 			}
 			else if (nameconflict == NAMECONFLICT_SKIP) {
-				cffile.set(KeyConstants._fileexisted, Caster.toBoolean(fileExisted));
-				cffile.set(KeyConstants._filewasappended, Boolean.FALSE);
-				cffile.set(KeyConstants._filewasoverwritten, Boolean.FALSE);
-				cffile.set(KeyConstants._filewasrenamed, Boolean.FALSE);
-				cffile.set(KeyConstants._filewassaved, Boolean.FALSE);
+				cffile.set("fileexisted", Caster.toBoolean(fileExisted));
+				cffile.set("filewasappended", Boolean.FALSE);
+				cffile.set("filewasoverwritten", Boolean.FALSE);
+				cffile.set("filewasrenamed", Boolean.FALSE);
+				cffile.set("filewassaved", Boolean.FALSE);
 				return cffile;
 			}
 			else if (nameconflict == NAMECONFLICT_MAKEUNIQUE) {
@@ -1039,10 +1039,10 @@ public final class FileTag extends BodyTagImpl {
 				fileWasRenamed = true;
 
 				// if(fileWasRenamed) {
-				cffile.set(KeyConstants._serverdirectory, getParent(destination));
-				cffile.set(KeyConstants._serverfile, destination.getName());
-				cffile.set(KeyConstants._serverfileext, ResourceUtil.getExtension(destination, ""));
-				cffile.set(KeyConstants._serverfilename, ResourceUtil.getName(destination));
+				cffile.set("serverdirectory", getParent(destination));
+				cffile.set("serverfile", destination.getName());
+				cffile.set("serverfileext", ResourceUtil.getExtension(destination, ""));
+				cffile.set("serverfilename", ResourceUtil.getName(destination));
 				// }
 			}
 			else if (nameconflict == NAMECONFLICT_OVERWRITE) {
@@ -1066,11 +1066,11 @@ public final class FileTag extends BodyTagImpl {
 
 		// Set cffile/file struct
 
-		cffile.set(KeyConstants._fileexisted, Caster.toBoolean(fileExisted));
-		cffile.set(KeyConstants._filewasappended, Caster.toBoolean(fileWasAppended));
-		cffile.set(KeyConstants._filewasoverwritten, Caster.toBoolean(fileWasOverwritten));
-		cffile.set(KeyConstants._filewasrenamed, Caster.toBoolean(fileWasRenamed));
-		cffile.set(KeyConstants._filewassaved, Boolean.TRUE);
+		cffile.set("fileexisted", Caster.toBoolean(fileExisted));
+		cffile.set("filewasappended", Caster.toBoolean(fileWasAppended));
+		cffile.set("filewasoverwritten", Caster.toBoolean(fileWasOverwritten));
+		cffile.set("filewasrenamed", Caster.toBoolean(fileWasRenamed));
+		cffile.set("filewassaved", Boolean.TRUE);
 
 		setMode(destination, mode);
 		setAttributes(destination, attributes);
@@ -1099,7 +1099,7 @@ public final class FileTag extends BodyTagImpl {
 						"Upload of files with extension [" + ext
 								+ "] is not permitted. The tag cffile/function fileUpload[All] only allows the following extensions in this context [" + allowedExtensions + "].",
 						DETAIL);
-				extensionAccepted = true;
+				else extensionAccepted = true;
 			}
 
 			// blocked (when explicitly allowed we not have to check if blocked)
@@ -1110,7 +1110,7 @@ public final class FileTag extends BodyTagImpl {
 								+ "] is not permitted. The tag cffile/function fileUpload[All] does not allow the following extensions in this context [" + blockedExtensions
 								+ "].", DETAIL);
 					}
-					extensionAccepted = Boolean.TRUE;
+					else extensionAccepted = Boolean.TRUE;
 				}
 				else {
 					String blocklistedTypes = ((ApplicationContextSupport) appContext).getBlockedExtForFileUpload();
@@ -1152,7 +1152,7 @@ public final class FileTag extends BodyTagImpl {
 		if (strict && ListUtil.listContainsNoCase(StringUtil.emptyIfNull(accept), "." + ext, ",", false, false) != -1)
 			throw new ApplicationException("When the value of the attribute STRICT is TRUE, only MIME types are allowed in the attribute(s): ACCEPT.",
 					" set [" + accept + "] to MIME type.");
-		throw new ApplicationException("The MIME type of the uploaded file [" + contentType + "] was rejected by the server.",
+		else throw new ApplicationException("The MIME type of the uploaded file [" + contentType + "] was rejected by the server.",
 				" Only the following type(s) are allowed, [" + StringUtil.emptyIfNull(accept) + "].  Verify that you are uploading a file of the appropriate type. ");
 	}
 
@@ -1204,7 +1204,7 @@ public final class FileTag extends BodyTagImpl {
 		// print.out("res:"+res);
 		// print.out("parent:"+parent);
 		if (parent == null) return "";
-		return ResourceUtil.getNormalizedPathEL(parent);
+		return ResourceUtil.getCanonicalPathEL(parent);
 	}
 
 	private static boolean checkFile(PageContext pc, SecurityManager sm, Resource file, String serverPassword, boolean createParent, boolean create, boolean canRead,
@@ -1233,8 +1233,8 @@ public final class FileTag extends BodyTagImpl {
 			else throw new ApplicationException("Source file [" + file.toString() + "] doesn't exist");
 		}
 		else if (!file.isFile()) throw new ApplicationException("Source file [" + file.toString() + "] is not a file");
-		else if (canRead && !file.isReadable()) throw new ApplicationException("Read access denied to source file [" + file.toString() + "]");
-		else if (canWrite && !file.isWriteable()) throw new ApplicationException("Write access denied to source file [" + file.toString() + "]");
+		else if (canRead && !file.canRead()) throw new ApplicationException("Read access denied to source file [" + file.toString() + "]");
+		else if (canWrite && !file.canWrite()) throw new ApplicationException("Write access denied to source file [" + file.toString() + "]");
 
 		return created;
 	}
