@@ -50,6 +50,7 @@ public final class LocalImpl extends ScopeSupport implements Scope, Local {
 
 	@Override
 	public void setBind(boolean bind) {
+		if (this.bind) return;
 		if (bind) {
 			makeSynchronized(localInitialCapacity);
 		}

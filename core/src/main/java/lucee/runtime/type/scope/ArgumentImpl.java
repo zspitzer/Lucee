@@ -87,6 +87,7 @@ public final class ArgumentImpl extends ScopeSupport implements Argument, ArrayP
 
 	@Override
 	public void setBind(boolean bind) {
+		if (this.bind) return;
 		if (bind) {
 			makeSynchronized(argumentInitialCapacity);
 		}
