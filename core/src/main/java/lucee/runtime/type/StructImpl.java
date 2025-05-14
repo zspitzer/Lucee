@@ -122,10 +122,10 @@ public class StructImpl extends StructSupport {
 		this.type = type;
 	}
 
-	public boolean makeSynchronized(int initialCapacity) {
+	public boolean makeSynchronized() {
 		// only HashMap is not sync
 		if (map instanceof HashMap) {
-			if (isEmpty()) map = MapFactory.getConcurrentMap(initialCapacity); // was 4
+			if (isEmpty()) map = MapFactory.getConcurrentMap(4); // was 4
 			else map = Collections.synchronizedMap(map);
 			this.type = TYPE_SYNC;
 			return true;
@@ -138,10 +138,11 @@ public class StructImpl extends StructSupport {
 		}
 		return false;
 	}
-	
+	/*
 	public boolean makeSynchronized() {
 		return makeSynchronized(DEFAULT_INITIAL_CAPACITY);	
 	}
+	*/
 
 	@Override
 	public int getType() {
