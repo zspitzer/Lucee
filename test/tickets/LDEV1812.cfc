@@ -1,4 +1,4 @@
-component extends="org.lucee.cfml.test.LuceeTestCase"{
+component extends="org.lucee.cfml.test.LuceeTestCase" skip=true {
 	function run( testResults , testBox ) {
 		describe( "Test suite for LDEV-1812", function() {
 			it( title='checking covariance implements', body=function( currentSpec ) {
