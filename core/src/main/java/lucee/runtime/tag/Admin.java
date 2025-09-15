@@ -3348,7 +3348,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
 			}
 			else {
 				if (bf == null) bf = bd.getBundleFile(false, JavaSettingsImpl.getBundleDirectories(pageContext));
-				sct.set(PATH, bf.getFile());
+							sct.set(PATH, bf.getPath().toString());
 			}
 
 		}
@@ -3435,7 +3435,7 @@ public final class Admin extends TagImpl implements DynamicAttributes {
 				}
 				else {
 					bf = bd.getBundleFile(false, null);
-					qry.setAt(PATH, row, bf.getFile());
+					   qry.setAt(PATH, row, bf.getPath().toString());
 				}
 			}
 			catch (Throwable t) {

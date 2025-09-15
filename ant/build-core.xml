@@ -784,8 +784,103 @@
       <jvmarg value="-Dlucee.cascading.write.to.variables.log=deploy"/>
       <jvmarg value="-Dfelix.log.level=debug"/>
     </java>
-    <echo level="info">${exc4}</echo>
+  <echo level="error">${exc4}</echo>
 </target>
+
+<!--
+  MARK: Test In Memory Deploy
+-->
+
+  <target name="test_in_memory_deploy">
+      <echots message="Testing LUCEE_USE_JIMFS deploy to in memory filesystem"/>
+      <tstamp>
+        <format property="start.mem.millis" pattern="ss.SSS" />
+      </tstamp>
+      <echo>Started at ${start.mem.millis}s</echo>
+      <property name="mem_deploy_dir" value="${temp}/in_memory"/>
+      <mkdir dir="${mem_deploy_dir}"/>
+      <!-- Test Lucee Warmup (Jimfs) -->
+  <java classname="org.apache.tools.ant.launch.Launcher" dir="${mem_deploy_dir}" fork="true" failonerror="false" errorproperty="exc4" outputproperty="out4" jvm="${testJavaVersionExec}">
+        <classpath path="${java.class.path}">
+            <pathelement location="${trgLoader}/lucee-${version}.jar"/>
+            <pathelement path="${runtime_classpath}"/>
+        </classpath>
+
+        <arg value="-f"/>
+        <arg value="${ant}/build-deploy-test.xml"/>
+        <jvmarg value="-Dbasedir=${mem_deploy_dir}"/>
+        <jvmarg value="-Dlucee.base.dir=${mem_deploy_dir}/base"/>
+        <jvmarg value="-Dlucee.web.dir=${mem_deploy_dir}/webroot"/>
+  <jvmarg value="-Dlucee.use.jimfs=true"/>
+        <jvmarg value="-Dlucee.logging.force.appender=console"/>
+  <jvmarg value="-Dlucee.logging.force.level=debug"/>
+      </java>
+      <tstamp>
+        <format property="end.mem.millis" pattern="ss.SSS" />
+      </tstamp>
+      <echo>Finished at: ${end.mem.millis}s</echo>
+
+  <echo level="info">[STDOUT]</echo>
+  <echo level="info">${out4}</echo>
+  <echo level="info">[STDERR]</echo>
+  <echo level="error">${exc4}</echo>
+  <fail message="Error occurred during in-memory deploy: ${exc4}">
+    <condition>
+      <and>
+        <isset property="exc4"/>
+        <not>
+          <equals arg1="${exc4}" arg2=""/>
+        </not>
+      </and>
+    </condition>
+  </fail>
+  </target>
+
+  <target name="test_disk_deploy">
+      <echots message="Testing disk (no Jimfs)"/>
+      <tstamp>
+        <format property="start.disk.millis" pattern="ss.SSS" />
+      </tstamp>
+      <echo>Started at ${start.disk.millis}s</echo>
+
+      <property name="disk_deploy_dir" value="${temp}/on_disk"/>
+      <mkdir dir="${disk_deploy_dir}"/>
+      <!-- Test Lucee Warmup (Disk) -->
+      <java classname="org.apache.tools.ant.launch.Launcher" dir="${disk_deploy_dir}" fork="true" failonerror="false" errorproperty="exc5" outputproperty="out5" jvm="${testJavaVersionExec}">
+        <classpath path="${java.class.path}">
+            <pathelement location="${trgLoader}/lucee-${version}.jar"/>
+            <pathelement path="${runtime_classpath}"/>
+        </classpath>
+
+        <arg value="-f"/>
+        <arg value="${ant}/build-deploy-test.xml"/>
+
+        <jvmarg value="-Dbasedir=${disk_deploy_dir}"/>
+        <jvmarg value="-Dlucee.base.dir=${disk_deploy_dir}/base"/>
+        <jvmarg value="-Dlucee.web.dir=${disk_deploy_dir}/webroot"/>
+        <jvmarg value="-Dlucee.logging.force.appender=console"/>
+        <jvmarg value="-Dlucee.logging.force.level=info"/>
+        <!-- No LUCEE_USE_JIMFS -->
+      </java>
+      <tstamp>
+        <format property="end.disk.millis" pattern="ss.SSS" />
+      </tstamp>
+      <echo>Finished at: ${end.disk.millis}s</echo>
+      <echo level="info">[STDOUT]</echo>
+      <echo level="info">${out5}</echo>
+      <echo level="info">[STDERR]</echo>
+      <echo level="info">${exc5}</echo>
+      <fail message="Error occurred during disk deploy: ${exc5}">
+        <condition>
+          <and>
+            <isset property="exc5"/>
+            <not>
+              <equals arg1="${exc5}" arg2=""/>
+            </not>
+          </and>
+        </condition>
+      </fail>
+  </target>
 
 <!-- MARK:
   Stable Loader
@@ -1009,7 +1104,7 @@
     <echo level="info">after:${goal}</echo>  
   </target>
 
-  <target name="buildLoaderAnt" depends="__build,setAntEnv,addExtensions,addBundles,addFelix,createCore,createLoader,test_warmup,test_stable_loader" description="generate the loader jar" >
+  <target name="buildLoaderAnt" depends="__build,setAntEnv,addExtensions,addBundles,addFelix,createCore,createLoader,test_warmup,test_in_memory_deploy,test_stable_loader" description="generate the loader jar" >
     <!-- version -->
     <currentTime property="ct" />
     <echo file="${temp}/loader/lucee/version" message="${version}:${ct}" encoding="UTF-8"/>
@@ -1018,7 +1113,7 @@
     <echots message="done"/>
   </target>
 
-  <target name="buildLoaderFast" depends="__build,setAntEnv,addExtensions,addBundles,addFelix,createCore,createLoader" 
+  <target name="buildLoaderFast" depends="__build,setAntEnv,addExtensions,addBundles,addFelix,createCore,createLoader,test_disk_deploy,test_in_memory_deploy" 
     description="quick/fast generate the loader jar" >
     <!-- version -->
     <currentTime property="ct" />

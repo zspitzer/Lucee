@@ -17,9 +17,14 @@
  */
 package lucee.runtime.osgi;
 
-import java.io.File;
-import java.io.FileOutputStream;
+import java.nio.file.Paths;
+
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -76,44 +81,44 @@ public class BundleInfo implements Serializable {
 	private Map<String, PackageDefinition> exportPackageAsMap;
 	private static Map<String, BundleInfo> bundles = new HashMap<String, BundleInfo>();
 
-	public static BundleInfo getInstance(Config config, String id, InputStream is, boolean closeStream) throws IOException, BundleException {
+       public static BundleInfo getInstance(Config config, String id, InputStream is, boolean closeStream) throws IOException, BundleException {
+	       // cached ?
+	       BundleInfo bi = bundles.get(id);
+	       if (bi != null) {
+		       return bi;
+	       }
 
-		// cached ?
-		BundleInfo bi = bundles.get(id);
-		if (bi != null) {
-			return bi;
-		}
+	       // load file from bundles dir
+	       try {
+		       Path bundlePath = ConfigUtil.getCFMLEngine(config).getCFMLEngineFactory().getBundleDirectory().toPath().resolve(id);
+		       if (Files.isRegularFile(bundlePath)) {
+			       bundles.put(id, bi = new BundleInfo(bundlePath));
+			       return bi;
+		       }
+	       }
+	       catch (Exception e) {
+	       }
 
-		// load file from bundles dir
-		try {
-			File bundleFile = new File(ConfigUtil.getCFMLEngine(config).getCFMLEngineFactory().getBundleDirectory(), id);
-			if (bundleFile.isFile()) {
-				bundles.put(id, bi = new BundleInfo(bundleFile));
-				return bi;
-			}
-		}
-		catch (Exception e) {
-		}
+	       // create a temp file to read data from it (using the stream directly did not work properly)
+	       Path tmp = Files.createTempFile("temp-extension-" + id + "-", ".lex");
+	       try {
+		       try (OutputStream os = Files.newOutputStream(tmp)) {
+			       IOUtil.copy(is, os, closeStream, true);
+		       }
+		       bundles.put(id, bi = new BundleInfo(tmp));
+		       return bi;
+	       }
+	       finally {
+		       Files.deleteIfExists(tmp);
+	       }
+       }
 
-		// create a temp file to read data from it (using the stream directly did not work properly)
-		File tmp = File.createTempFile("temp-extension-" + id + "-", ".lex");
-		try {
-			FileOutputStream os = new FileOutputStream(tmp);
-			IOUtil.copy(is, os, closeStream, true);
-			bundles.put(id, bi = new BundleInfo(tmp));
-			return bi;
-		}
-		finally {
-			tmp.delete();
-		}
-	}
+       public BundleInfo(Resource file) throws IOException, BundleException {
+	       this(toPathResource(file));
+       }
 
-	public BundleInfo(Resource file) throws IOException, BundleException {
-		this(toFileResource(file));
-	}
-
-	public BundleInfo(File file) throws IOException, BundleException {
-		JarFile jar = new JarFile(file);
+       public BundleInfo(Path path) throws IOException, BundleException {
+	       JarFile jar = new JarFile(path.toFile());
 		try {
 			Manifest manifest = jar.getManifest();
 			if (manifest == null) return;
@@ -155,15 +160,14 @@ public class BundleInfo implements Serializable {
 				// at all
 				else {
 					valid = true;
-					if (containsOnlyClassFiles(jar)) {
-						IOException ioe = new IOException("Invalid OSGi bundle structure in [" + file.getName() + "]: "
-								+ "This bundle contains only Java class files but does not declare any 'Export-Package' entries in its manifest. "
-								+ "According to OSGi specifications, bundles that contain classes intended for use by other bundles must explicitly export their packages. "
-								+ "Please add appropriate 'Export-Package' declarations to the MANIFEST.MF file.");
-						LogUtil.log("bundle", ioe);
-						throw ioe;
-
-					}
+		       if (containsOnlyClassFiles(jar)) {
+			       IOException ioe = new IOException("Invalid OSGi bundle structure in [" + path.getFileName() + "]: "
+					       + "This bundle contains only Java class files but does not declare any 'Export-Package' entries in its manifest. "
+					       + "According to OSGi specifications, bundles that contain classes intended for use by other bundles must explicitly export their packages. "
+					       + "Please add appropriate 'Export-Package' declarations to the MANIFEST.MF file.");
+			       LogUtil.log("bundle", ioe);
+			       throw ioe;
+		       }
 
 				}
 
@@ -397,10 +401,10 @@ public class BundleInfo implements Serializable {
 		return new BundleDefinition(getSymbolicName(), getVersion());
 	}
 
-	protected static File toFileResource(Resource file) throws IOException {
-		if (file instanceof FileResource) return (File) file;
-		throw new IOException("only file resources (local file system) are supported");
-	}
+       protected static Path toPathResource(Resource file) throws IOException {
+	if (file instanceof FileResource) return Paths.get(((FileResource) file).getPath());
+	       throw new IOException("only file resources (local file system) are supported");
+       }
 
 	@Override
 	public String toString() {

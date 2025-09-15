@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project default="run" basedir="." name="LuceeTestDeploy">
+
+<macrodef name="echots">
+    <attribute name="message"/>
+    <sequential>
+      <local name="timestamp" />
+      <tstamp>
+        <format property="timestamp" pattern="yyyy-MM-dd HH:mm:ss" />
+      </tstamp>
+      <echo level="info" message="---------- ${timestamp} - @{message} ----------" />
+    </sequential>
+  </macrodef>
+
+	<target name="run">
+		<echots message="within run of build-deploy-test.xml"/>
+		<script language="CFML">
+		<![CDATA[
+			systemOutput("#server.lucee.version#", true);
+			systemOutput("#expandPath("{lucee-server}")#", true);
+			systemOutput("#dateTimeFormat(now(),'yyyy-mm-dd HH:nn:ss')#", true);
+			systemOutput("LUCEE_USE_JIMFS: #GetSystemPropOrEnvVar('Lucee_Use_JimFS') ?: 'UNSET'#", true);
+			/*
+			systemOutput("----- server------", true);
+			systemOutput(serializeJson(var=directoryList(path=expandPath("{lucee-server}"),listinfo="query", recurse=false),compact=false), true);
+			systemOutput("----- root mapping------", true);
+			systemOutput(serializeJson(var=directoryList(path="/",listinfo="query", recurse=false),compact=false), true);
+			*/
+		]]>
+		</script>  	
+	</target>
+</project>

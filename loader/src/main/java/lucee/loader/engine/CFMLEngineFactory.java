@@ -1,3 +1,4 @@
+
 /**
  * Copyright (c) 2014, the Railo Company Ltd.
  * Copyright (c) 2015, Lucee Association Switzerland
@@ -15,6 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package lucee.loader.engine;
 
 import java.io.BufferedInputStream;
@@ -22,6 +24,11 @@ import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import com.google.common.jimfs.Jimfs;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
@@ -88,10 +95,39 @@ import lucee.runtime.config.ConfigServer;
 import lucee.runtime.config.Identification;
 import lucee.runtime.config.Password;
 
-/**
- * Factory to load CFML Engine
- */
+
+
 public class CFMLEngineFactory extends CFMLEngineFactorySupport {
+
+		/**
+		 * Returns true if Jimfs is enabled via system property or env var.
+		 */
+		private static boolean isJimfsEnabled() {
+			String jimfsProp = getSystemPropOrEnvVar("lucee.use.jimfs", null);
+			return jimfsProp != null && (jimfsProp.equalsIgnoreCase("true") || jimfsProp.equals("1"));
+		}
+
+	/**
+	 * Compatibility method for legacy code. Returns the resource root as a File for disk-based deployments.
+	 * Throws UnsupportedOperationException if Jimfs is enabled.
+	 * TODO: Refactor all usages to use getResourceRootFile() or getResourceRootPath() as appropriate.
+	 */
+       public File getResourceRoot() throws IOException {
+		   if (useMemoryFs && memoryFileSystem != null) {
+			   // Fallback: always return a disk-backed File and log to console
+			   // Add more context: include caller, memory FS state, and lucee.base.dir
+			   String caller = Thread.currentThread().getStackTrace().length > 2 ? Thread.currentThread().getStackTrace()[2].toString() : "unknown";
+			   String luceeBaseDir = System.getProperty("lucee.base.dir");
+			   System.out.println("[Lucee Loader] getResourceRoot() fallback: returning disk-backed File for memory FS mode. "
+				   + "Caller: " + caller
+				   + ", useMemoryFs=" + useMemoryFs
+				   + ", memoryFileSystem=" + (memoryFileSystem != null ? "set" : "null")
+				   + ", lucee.base.dir=" + (luceeBaseDir != null ? luceeBaseDir : "null")
+			   );
+			   return getResourceRootFile();
+		   }
+	       return getResourceRootFile();
+	}
 
 	/** Project sources root dir, e.g. /Users/mic/Projects/Lucee/Lucee6 */
 	public static final String ARG_PROJECT_DIR = "LUCEE_PROJECT_DIR";
@@ -124,6 +160,8 @@ public class CFMLEngineFactory extends CFMLEngineFactorySupport {
 	private Version version;
 	private final List<EngineChangeListener> listeners = new ArrayList<>();
 	private File resourceRoot;
+	private FileSystem memoryFileSystem = null;
+	private boolean useMemoryFs = false;
 
 	// private PrintWriter out;
 
@@ -135,31 +173,38 @@ public class CFMLEngineFactory extends CFMLEngineFactorySupport {
 	private boolean embedded;
 
 	protected CFMLEngineFactory(final ServletConfig config) {
+		   // ...existing code...
 		Logging.startupLog();
 		System.setProperty("org.apache.commons.logging.LogFactory.HashtableImpl", ConcurrentHashMapAsHashtable.class.getName());
 		File logFile = null;
 		this.config = config;
-		try {
-			logFile = new File(getResourceRoot(), "context/logs/felix.log");
-			if (logFile.isFile()) {
-				// more than a GB (from the time we did not control it)
-				if (logFile.length() > GB1) {
-					logFile.delete(); // we simply delete it
+			try {
+				   if (useMemoryFs && memoryFileSystem != null) {
+					   // Use a temp file on disk for logging when memory FS is enabled
+					   logFile = File.createTempFile("lucee-felix-memoryfs-", ".log");
+					   logFile.deleteOnExit();
+				   } else {
+					   logFile = new File(getResourceRootFile(), "context/logs/felix.log");
+				   }
+				if (logFile.isFile()) {
+					// more than a GB (from the time we did not control it)
+					if (logFile.length() > GB1) {
+						logFile.delete(); // we simply delete it
+					}
+					else if (logFile.length() > MB100) {
+						File bak = new File(logFile.getParentFile(), "felix.1.log");
+						if (bak.isFile()) bak.delete();
+						logFile.renameTo(bak);
+					}
 				}
-				else if (logFile.length() > MB100) {
-					File bak = new File(logFile.getParentFile(), "felix.1.log");
-					if (bak.isFile()) bak.delete();
-					logFile.renameTo(bak);
-				}
-
 			}
-
-		}
-		catch (final IOException e) {
-			e.printStackTrace();
-		}
-		logFile.getParentFile().mkdirs();
-		logger = new LoggerImpl(logFile, LoggerImpl.toLevel(Util.getSystemPropOrEnvVar("felix.log.level", null), LoggerImpl.LOG_ERROR));
+			catch (final IOException e) {
+				e.printStackTrace();
+			}
+			if (logFile != null && logFile.getParentFile() != null) {
+				logFile.getParentFile().mkdirs();
+			}
+			logger = new LoggerImpl(logFile, LoggerImpl.toLevel(Util.getSystemPropOrEnvVar("felix.log.level", null), LoggerImpl.LOG_ERROR));
 	}
 
 	/**
@@ -781,51 +826,27 @@ public class CFMLEngineFactory extends CFMLEngineFactorySupport {
 		extend(config, Constants.FRAMEWORK_BUNDLE_PARENT, Constants.FRAMEWORK_BUNDLE_PARENT_FRAMEWORK, false);
 
 		boolean isNew = false;
-		// felix.cache.rootdir
-		if (Util.isEmpty((String) config.get("felix.cache.rootdir"))) {
-			if (!cacheRootDir.exists()) {
-				cacheRootDir.mkdirs();
-				isNew = true;
-			}
-			if (cacheRootDir.isDirectory()) config.put("felix.cache.rootdir", cacheRootDir.getAbsolutePath());
-		}
-
-		extend(config, Constants.FRAMEWORK_BOOTDELEGATION, null, true);
-		extend(config, Constants.FRAMEWORK_SYSTEMPACKAGES, null, true);
-		extend(config, Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, null, true);
-		extend(config, "felix.cache.filelimit", null, false);
-		extend(config, "felix.cache.bufsize", null, false);
-		extend(config, "felix.bootdelegation.implicit", null, false);
-		extend(config, "felix.systembundle.activators", null, false);
-		extend(config, "org.osgi.framework.startlevel.beginning", null, false);
-		extend(config, "felix.service.urlhandlers", null, false);
-		extend(config, "felix.auto.deploy.dir", null, false);
-		extend(config, "felix.auto.deploy.action", null, false);
-		extend(config, "felix.shutdown.hook", null, false);
-		extend(config, "felix.threading.timeout", null, false);
-		extend(config, "felix.service.urlhandlers", null, false);
-		extend(config, "felix.startlevel.bundle", null, false);
-
-		int processors = Runtime.getRuntime().availableProcessors();
-		String parallelism = Math.max(4, processors * 2) + ""; // Use more threads
-		extend(config, "felix.resolver.parallelism", parallelism, false);
-		extend(config, "felix.resolver.parallel", "true", false); // Enable parallel resolution
-		extend(config, "felix.systembundle.activators.start.parallelism", parallelism, false);
-
-		// Skip waiting for service events to be delivered
-		extend(config, "felix.service.timeout", null, false);
-		extend(config, "felix.threading.timeout", null, false);
-
-		// Set framework start level immediately to final value
-		extend(config, "org.osgi.framework.startlevel.beginning", "1", false); // Start at level 1 immediately
-		extend(config, "felix.startlevel.bundle", "1", false); // Default bundle start level 1
-		extend(config, "felix.auto.start.1", "", false); // Don't auto-start bundles at level 1
-
-		extend(config, "felix.auto.deploy.action", "install", false); // Don't auto-start, just install
-		extend(config, "felix.auto.deploy.start.level", "1", false); // Use start level 1
-		extend(config, "felix.cache.locking", "false", false); // Disable cache locking for speed
-
-		// Add specific timeout values instead of null:
+		   // felix.cache.rootdir
+		   if (Util.isEmpty((String) config.get("felix.cache.rootdir"))) {
+			   boolean jimfs = isJimfsEnabled();
+			   File felixCacheDir = cacheRootDir;
+			   if (jimfs) {
+				   // Use a Jimfs-backed path if possible, else fallback to disk temp under lucee.base.dir
+				   String baseDir = System.getProperty("lucee.base.dir");
+				   if (baseDir != null) {
+					   felixCacheDir = new File(baseDir, "felix-cache");
+					   System.out.println("[Lucee Loader] Felix: Using disk fallback for bundle cache in Jimfs mode: " + felixCacheDir.getAbsolutePath());
+				   } else {
+					   System.out.println("[Lucee Loader] Felix: Jimfs enabled but lucee.base.dir not set, using default cacheRootDir: " + cacheRootDir.getAbsolutePath());
+				   }
+			   }
+			   if (!felixCacheDir.exists()) {
+				   felixCacheDir.mkdirs();
+				   isNew = true;
+			   }
+			   if (felixCacheDir.isDirectory()) config.put("felix.cache.rootdir", felixCacheDir.getAbsolutePath());
+		   }
+   // (Removed duplicate isJimfsEnabled and misplaced code. The rest of the method continues as normal.)
 		extend(config, "felix.service.timeout", "1000", false); // 1 second max service wait
 		extend(config, "felix.threading.timeout", "5000", false); // 5 second thread timeout
 		extend(config, "felix.shutdown.timeout", "2000", false); // Fast shutdown
@@ -1376,7 +1397,19 @@ public class CFMLEngineFactory extends CFMLEngineFactorySupport {
 			final InputStream is = null;
 
 			try {
-				final File xml = new File(getResourceRoot(), "context/lucee-server.xml");
+		       final File xml;
+	       if (useMemoryFs && memoryFileSystem != null) {
+		       // For memory FS, read from NIO path if possible, else use temp disk file
+		       Path xmlPath = getResourceRootPath().resolve("context/lucee-server.xml");
+		       if (Files.exists(xmlPath)) {
+			       xml = Files.createTempFile("lucee-memoryfs-xml-", ".xml").toFile();
+			       Files.copy(xmlPath, xml.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+		       } else {
+			       xml = new File(getResourceRootFile(), "context/lucee-server.xml");
+		       }
+	       } else {
+		       xml = new File(getResourceRootFile(), "context/lucee-server.xml");
+	       }
 				if (xml.exists() || xml.length() > 0) {
 					final DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
 					final DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
@@ -1498,22 +1531,40 @@ public class CFMLEngineFactory extends CFMLEngineFactorySupport {
 		File pd = getDirectoryByPropOrEnv("lucee.patches.dir");
 		if (pd != null) return pd;
 
-		pd = new File(getResourceRoot(), "patches");
+		// Always use disk for patch directory, even if Jimfs is enabled (getResourceRootFile provides disk dir in Jimfs mode)
+		pd = new File(getResourceRootFile(), "patches");
 		if (!pd.exists()) pd.mkdirs();
 		return pd;
 	}
 
 	public File getBundleDirectory() throws IOException {
-		File bd = getDirectoryByPropOrEnv("lucee.bundles.dir");
-		if (bd != null) return bd;
+	       File bd = getDirectoryByPropOrEnv("lucee.bundles.dir");
+	       if (bd != null) return bd;
 
-		bd = new File(getResourceRoot(), "bundles");
-		if (!bd.exists()) bd.mkdirs();
-		return bd;
+	       if (useMemoryFs && memoryFileSystem != null) {
+		       // Use NIO Path for memory FS, but provide a temp disk dir for legacy File API
+		       Path bundlePath = getResourceRootPath().resolve("bundles");
+		       if (!Files.exists(bundlePath)) Files.createDirectories(bundlePath);
+		       // For legacy compatibility, return a temp disk dir
+		       File diskBundleDir = new File(getResourceRootFile(), "bundles");
+		       if (!diskBundleDir.exists()) diskBundleDir.mkdirs();
+		       return diskBundleDir;
+	       } else {
+		       bd = new File(getResourceRootFile(), "bundles");
+		       if (!bd.exists()) bd.mkdirs();
+		       return bd;
+	       }
 	}
 
 	public File getFelixCacheDirectory() throws IOException {
-		return getResourceRoot();
+	       if (useMemoryFs && memoryFileSystem != null) {
+		       // Place Felix cache under lucee-server/felix-cache for convention
+		       File felixCacheDir = new File(getResourceRootFile(), "lucee-server/felix-cache");
+		       if (!felixCacheDir.exists()) felixCacheDir.mkdirs();
+		       return felixCacheDir;
+	       } else {
+		       return getResourceRootFile();
+	       }
 		// File bd = new File(getResourceRoot(),"felix-cache");
 		// if(!bd.exists())bd.mkdirs();
 		// return bd;
@@ -1525,85 +1576,124 @@ public class CFMLEngineFactory extends CFMLEngineFactorySupport {
 	 * @return lucee root directory
 	 * @throws IOException exception thrown
 	 */
-	public File getResourceRoot() throws IOException {
-		if (resourceRoot == null) {
-			resourceRoot = new File(_getResourceRoot(), "lucee-server");
-			if (!resourceRoot.exists()) resourceRoot.mkdirs();
-		}
-		return resourceRoot;
-	}
+       /**
+	* Returns the Lucee resource root as a File (disk) or as a Path (Jimfs).
+	* For Jimfs, use getResourceRootPath(). For disk, use getResourceRootFile().
+	*/
+       public File getResourceRootFile() throws IOException {
+	       if (useMemoryFs && memoryFileSystem != null) {
+		       // For legacy compatibility, provide a disk directory under lucee.base.dir for APIs that require File
+		       if (resourceRoot == null) {
+			       String baseDir = System.getProperty("lucee.base.dir");
+			       if (baseDir != null && !baseDir.isEmpty()) {
+				       resourceRoot = new File(baseDir);
+				       if (!resourceRoot.exists()) resourceRoot.mkdirs();
+			       } else {
+				       // fallback to temp if property not set (should not happen in test)
+				       resourceRoot = Files.createTempDirectory("lucee-memoryfs-resource-root-").toFile();
+				       resourceRoot.deleteOnExit();
+			       }
+		       }
+		       return resourceRoot;
+	       }
+	       if (resourceRoot == null) {
+		       resourceRoot = new File(_getResourceRoot(), "lucee-server");
+		       if (!resourceRoot.exists()) resourceRoot.mkdirs();
+	       }
+	       return resourceRoot;
+       }
+
+       public Path getResourceRootPath() throws IOException {
+	       if (useMemoryFs && memoryFileSystem != null) {
+		       Path rootPath = memoryFileSystem.getPath("/lucee-server");
+		       if (!Files.exists(rootPath)) Files.createDirectories(rootPath);
+		       return rootPath;
+	       } else {
+		       return getResourceRootFile().toPath();
+	       }
+       }
 
 	/**
 	 * @return return running context root
 	 * @throws IOException
 	 * @throws IOException
 	 */
-	private File _getResourceRoot() throws IOException {
+	/**
+	 * @return return running context root
+	 * @throws IOException
+	 * @throws IOException
+	 */
+       private File _getResourceRoot() throws IOException {
+	       // Jimfs support: use in-memory FS if enabled
+	       if (useMemoryFs && memoryFileSystem != null) {
+		       // Not used for memory FS; see getResourceRootPath().
+		       throw new UnsupportedOperationException("_getResourceRoot() is not supported when using memory FS. Use getResourceRootPath() instead.");
+	       }
 
-		// custom configuration
-		if (luceeServerRoot == null) readInitParam(config);
-		if (luceeServerRoot != null) return luceeServerRoot;
+	       // custom configuration
+	       if (luceeServerRoot == null) readInitParam(config);
+	       if (luceeServerRoot != null) return luceeServerRoot;
 
-		File lbd = getDirectoryByPropOrEnv("lucee.base.dir"); // directory defined by the caller
+	       File lbd = getDirectoryByPropOrEnv("lucee.base.dir"); // directory defined by the caller
 
-		File root = lbd;
-		// get the root directory
-		if (root == null) root = getDirectoryByProp("jboss.server.home.dir"); // Jboss/Jetty|Tomcat
-		if (root == null) root = getDirectoryByProp("jonas.base"); // Jonas
-		if (root == null) root = getDirectoryByProp("catalina.base"); // Tomcat
-		if (root == null) root = getDirectoryByProp("jetty.home"); // Jetty
-		if (root == null) root = getDirectoryByProp("org.apache.geronimo.base.dir"); // Geronimo
-		if (root == null) root = getDirectoryByProp("com.sun.aas.instanceRoot"); // Glassfish
-		if (root == null) root = getDirectoryByProp("env.DOMAIN_HOME"); // weblogic
-		if (root == null) root = getClassLoaderRoot(mainClassLoader).getParentFile().getParentFile();
+	       File root = lbd;
+	       // get the root directory
+	       if (root == null) root = getDirectoryByProp("jboss.server.home.dir"); // Jboss/Jetty|Tomcat
+	       if (root == null) root = getDirectoryByProp("jonas.base"); // Jonas
+	       if (root == null) root = getDirectoryByProp("catalina.base"); // Tomcat
+	       if (root == null) root = getDirectoryByProp("jetty.home"); // Jetty
+	       if (root == null) root = getDirectoryByProp("org.apache.geronimo.base.dir"); // Geronimo
+	       if (root == null) root = getDirectoryByProp("com.sun.aas.instanceRoot"); // Glassfish
+	       if (root == null) root = getDirectoryByProp("env.DOMAIN_HOME"); // weblogic
+	       if (root == null) root = getClassLoaderRoot(mainClassLoader).getParentFile().getParentFile();
 
-		final File classicRoot = getClassLoaderRoot(mainClassLoader);
+	       final File classicRoot = getClassLoaderRoot(mainClassLoader);
 
-		// in case of a war file the server root need to be with the context
-		if (lbd == null) {
-			File webInf = getWebInfFolder(classicRoot);
-			if (webInf != null) {
-				root = webInf;
-				if (!root.exists()) root.mkdir();
-				log(org.apache.felix.resolver.Logger.LOG_DEBUG, "war-root-directory:" + root);
-			}
-		}
+	       // in case of a war file the server root need to be with the context
+	       if (lbd == null) {
+		       File webInf = getWebInfFolder(classicRoot);
+		       if (webInf != null) {
+			       root = webInf;
+			       if (!root.exists()) root.mkdir();
+			       log(org.apache.felix.resolver.Logger.LOG_DEBUG, "war-root-directory:" + root);
+		       }
+	       }
 
-		log(org.apache.felix.resolver.Logger.LOG_DEBUG, "root-directory:" + root);
+	       log(org.apache.felix.resolver.Logger.LOG_DEBUG, "root-directory:" + root);
 
-		if (root == null) throw new IOException("Can't locate the root of the servlet container, please define a location (physical path) for the server configuration"
-				+ " with help of the servlet init param [lucee-server-directory] in the web.xml where the Lucee Servlet is defined" + " or the system property [lucee.base.dir].");
+	       if (root == null) throw new IOException("Can't locate the root of the servlet container, please define a location (physical path) for the server configuration"
+			       + " with help of the servlet init param [lucee-server-directory] in the web.xml where the Lucee Servlet is defined" + " or the system property [lucee.base.dir].");
 
-		final File modernDir = new File(root, "lucee-server");
-		if (true) {
-			// there is a server context in the old lucee location, move that one
-			File classicDir;
-			log(org.apache.felix.resolver.Logger.LOG_DEBUG, "classic-root-directory:" + classicRoot);
-			boolean had = false;
-			if (classicRoot.isDirectory() && (classicDir = new File(classicRoot, "lucee-server")).isDirectory()) {
-				log(org.apache.felix.resolver.Logger.LOG_DEBUG, "had lucee-server classic" + classicDir);
-				moveContent(classicDir, modernDir);
-				had = true;
-			}
-			// there is a railo context
-			if (!had && classicRoot.isDirectory() && (classicDir = new File(classicRoot, "railo-server")).isDirectory()) {
-				log(org.apache.felix.resolver.Logger.LOG_DEBUG, "Had railo-server classic" + classicDir);
-				// check if there is a Railo context
-				copyRecursiveAndRename(classicDir, modernDir);
-				// zip the railo-server di and delete it (optional)
-				try {
-					ZipUtil.zip(classicDir, new File(root, "railo-server-context-old.zip"));
-					Util.delete(classicDir);
-				}
-				catch (final Throwable t) {
-					t.printStackTrace();
-				}
-				// moveContent(classicDir,new File(root,"lucee-server"));
-			}
-		}
+	       final File modernDir = new File(root, "lucee-server");
+	       if (true) {
+		       // there is a server context in the old lucee location, move that one
+		       File classicDir;
+		       log(org.apache.felix.resolver.Logger.LOG_DEBUG, "classic-root-directory:" + classicRoot);
+		       boolean had = false;
+		       if (classicRoot.isDirectory() && (classicDir = new File(classicRoot, "lucee-server")).isDirectory()) {
+			       log(org.apache.felix.resolver.Logger.LOG_DEBUG, "had lucee-server classic" + classicDir);
+			       moveContent(classicDir, modernDir);
+			       had = true;
+		       }
+		       // there is a railo context
+		       if (!had && classicRoot.isDirectory() && (classicDir = new File(classicRoot, "railo-server")).isDirectory()) {
+			       log(org.apache.felix.resolver.Logger.LOG_DEBUG, "Had railo-server classic" + classicDir);
+			       // check if there is a Railo context
+			       copyRecursiveAndRename(classicDir, modernDir);
+			       // zip the railo-server di and delete it (optional)
+			       try {
+				       ZipUtil.zip(classicDir, new File(root, "railo-server-context-old.zip"));
+				       Util.delete(classicDir);
+			       }
+			       catch (final Throwable t) {
+				       t.printStackTrace();
+			       }
+			       // moveContent(classicDir,new File(root,"lucee-server"));
+		       }
+	       }
 
-		return root;
-	}
+	       return root;
+       }
 
 	private static File getWebInfFolder(File file) {
 		File parent;

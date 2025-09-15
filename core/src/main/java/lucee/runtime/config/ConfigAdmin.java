@@ -19,8 +19,8 @@
 package lucee.runtime.config;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
+import java.nio.file.Path;
+import java.nio.file.Files;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -1338,16 +1338,11 @@ public final class ConfigAdmin {
 		CFMLEngineFactory factory = engine.getCFMLEngineFactory();
 
 		// copy to jar directory
-		File jar = new File(factory.getBundleDirectory(), bf.getSymbolicName() + "-" + bf.getVersion().toString() + (".jar"));
-		InputStream is = bf.getInputStream();
-		OutputStream os = new FileOutputStream(jar);
-		try {
-			IOUtil.copy(is, os, false, false);
-		}
-		finally {
-			IOUtil.close(is, os);
-		}
-		return BundleFile.getInstance(jar);
+		   Path jarPath = factory.getBundleDirectory().toPath().resolve(bf.getSymbolicName() + "-" + bf.getVersion().toString() + ".jar");
+		   try (InputStream is = bf.getInputStream(); OutputStream os = Files.newOutputStream(jarPath)) {
+			   IOUtil.copy(is, os, false, false);
+		   }
+		   return BundleFile.getInstance(jarPath);
 	}
 
 	/**
@@ -3712,30 +3707,31 @@ public final class ConfigAdmin {
 			CFMLEngineFactory factory = cs.getEngine().getCFMLEngineFactory();
 			cleanUp(factory);
 			// do we have the core file?
-			final File patchDir = factory.getPatchDirectory();
-			File localPath = new File(version.toString() + ".lco");
+			final Path patchDir = factory.getPatchDirectory().toPath();
+			Path localPath = patchDir.resolve(version.toString() + ".lco");
 
-			if (!localPath.isFile()) {
-				localPath = null;
-				Version v;
-				final File[] patches = patchDir.listFiles(new ExtensionFilter(new String[] { ".lco" }));
-				for (final File patch: patches) {
-					v = CFMLEngineFactory.toVersion(patch.getName(), null);
-					// not a valid file get deleted
-					if (v == null) {
-						patch.delete();
-					}
-					else {
-						if (v.equals(version)) { // match!
-							localPath = patch;
-						}
-						// delete newer files
-						else if (OSGiUtil.isNewerThan(v, version)) {
-							patch.delete();
-						}
-					}
-				}
-			}
+			   if (!Files.isRegularFile(localPath)) {
+				   localPath = null;
+				   Version v;
+				   try (java.nio.file.DirectoryStream<Path> stream = Files.newDirectoryStream(patchDir, "*.lco")) {
+					   for (Path patch : stream) {
+						   v = CFMLEngineFactory.toVersion(patch.getFileName().toString(), null);
+						   // not a valid file get deleted
+						   if (v == null) {
+							   Files.deleteIfExists(patch);
+						   }
+						   else {
+							   if (v.equals(version)) { // match!
+								   localPath = patch;
+							   }
+							   // delete newer files
+							   else if (OSGiUtil.isNewerThan(v, version)) {
+								   Files.deleteIfExists(patch);
+							   }
+						   }
+					   }
+				   }
+			   }
 
 			// download patch
 			if (localPath == null) {
@@ -3762,30 +3758,31 @@ public final class ConfigAdmin {
 			CFMLEngineFactory factory = cs.getEngine().getCFMLEngineFactory();
 			cleanUp(factory);
 			// do we have the core file?
-			final File patchDir = factory.getPatchDirectory();
-			File localPath = new File(version.toString() + ".lco");
+			final Path patchDir = factory.getPatchDirectory().toPath();
+			Path localPath = patchDir.resolve(version.toString() + ".lco");
 
-			if (!localPath.isFile()) {
-				localPath = null;
-				Version v;
-				final File[] patches = patchDir.listFiles(new ExtensionFilter(new String[] { ".lco" }));
-				for (final File patch: patches) {
-					v = CFMLEngineFactory.toVersion(patch.getName(), null);
-					// not a valid file get deleted
-					if (v == null) {
-						patch.delete();
-					}
-					else {
-						if (v.equals(version)) { // match!
-							localPath = patch;
-						}
-						// delete newer files
-						else if (OSGiUtil.isNewerThan(v, version)) {
-							patch.delete();
-						}
-					}
-				}
-			}
+			   if (!Files.isRegularFile(localPath)) {
+				   localPath = null;
+				   Version v;
+				   try (java.nio.file.DirectoryStream<Path> stream = Files.newDirectoryStream(patchDir, "*.lco")) {
+					   for (Path patch : stream) {
+						   v = CFMLEngineFactory.toVersion(patch.getFileName().toString(), null);
+						   // not a valid file get deleted
+						   if (v == null) {
+							   Files.deleteIfExists(patch);
+						   }
+						   else {
+							   if (v.equals(version)) { // match!
+								   localPath = patch;
+							   }
+							   // delete newer files
+							   else if (OSGiUtil.isNewerThan(v, version)) {
+								   Files.deleteIfExists(patch);
+							   }
+						   }
+					   }
+				   }
+			   }
 
 			// download patch
 			if (localPath == null) {
@@ -3802,25 +3799,26 @@ public final class ConfigAdmin {
 		}
 	}
 
-	private void cleanUp(CFMLEngineFactory factory) throws IOException {
-		final File patchDir = factory.getPatchDirectory();
-		final File[] patches = patchDir.listFiles(new ExtensionFilter(new String[] { ".lco" }));
-		for (final File patch: patches) {
-			if (!IsZipFile.invoke(patch)) patch.delete();
-		}
-	}
+	   private void cleanUp(CFMLEngineFactory factory) throws IOException {
+		   final Path patchDir = factory.getPatchDirectory().toPath();
+		   try (java.nio.file.DirectoryStream<Path> stream = Files.newDirectoryStream(patchDir, "*.lco")) {
+			   for (Path patch : stream) {
+				   if (!IsZipFile.invoke(patch.toFile())) Files.deleteIfExists(patch);
+			   }
+		   }
+	   }
 
-	private File downloadCore(CFMLEngineFactory factory, Version version, Identification id) throws IOException {
-		final URL updateProvider = factory.getUpdateLocation();
+	   private Path downloadCore(CFMLEngineFactory factory, Version version, Identification id) throws IOException {
+	       final URL updateProvider = factory.getUpdateLocation();
 
-		final URL updateUrl = new URL(updateProvider,
-				"/rest/update/provider/download/" + version.toString() + (id != null ? id.toQueryString() : "") + (id == null ? "?" : "&") + "allowRedirect=true");
-		// log.debug("Admin", "download "+version+" from " + updateUrl);
-		// System. out.println(updateUrl);
+	       final URL updateUrl = new URL(updateProvider,
+		       "/rest/update/provider/download/" + version.toString() + (id != null ? id.toQueryString() : "") + (id == null ? "?" : "&") + "allowRedirect=true");
+	       // log.debug("Admin", "download "+version+" from " + updateUrl);
+	       // System. out.println(updateUrl);
 
-		// local resource
-		final File patchDir = factory.getPatchDirectory();
-		final File newLucee = new File(patchDir, version + (".lco"));
+	       // local resource
+	       final Path patchDir = factory.getPatchDirectory().toPath();
+	       final Path newLucee = patchDir.resolve(version + ".lco");
 
 		int code;
 		HttpURLConnection conn;
@@ -3875,52 +3873,48 @@ public final class ConfigAdmin {
 			}
 		}
 
-		// copy it to local directory
-		if (newLucee.createNewFile()) {
-			IOUtil.copy((InputStream) conn.getContent(), new FileOutputStream(newLucee), false, true);
-			conn.disconnect();
+		   // copy it to local directory
+		   if (Files.notExists(newLucee)) {
+			   try (OutputStream os = Files.newOutputStream(newLucee)) {
+				   IOUtil.copy((InputStream) conn.getContent(), os, false, true);
+			   }
+			   conn.disconnect();
 
-			// when it is a loader extract the core from it
-			File tmp = CFMLEngineFactory.extractCoreIfLoader(newLucee);
-			if (tmp != null) {
-				// System .out.println("extract core from loader"); // MUST remove
-				// log.debug("Admin", "extract core from loader");
-
-				newLucee.delete();
-				tmp.renameTo(newLucee);
-				tmp.delete();
-				// System. out.println("exist?" + newLucee.exists()); // MUST remove
-
-			}
-		}
-		else {
-			conn.disconnect();
-			// log.debug("Admin","File for new Version already exists, won't copy new one");
-			return null;
-		}
-		return newLucee;
+			   // when it is a loader extract the core from it
+			   java.io.File tmp = CFMLEngineFactory.extractCoreIfLoader(newLucee.toFile());
+			   if (tmp != null) {
+				   Files.deleteIfExists(newLucee);
+				   tmp.renameTo(newLucee.toFile());
+				   tmp.delete();
+			   }
+		   }
+		   else {
+			   conn.disconnect();
+			   // log.debug("Admin","File for new Version already exists, won't copy new one");
+			   return null;
+		   }
+		   return newLucee;
 	}
 
-	private File mvnDownloadCore(CFMLEngineFactory factory, Version version, Identification id) throws IOException, PageException {
-		// local resource
-		final File patchDir = factory.getPatchDirectory();
-		final File newLucee = new File(patchDir, version + (".lco"));
+	   private Path mvnDownloadCore(CFMLEngineFactory factory, Version version, Identification id) throws IOException, PageException {
+		   // local resource
+		   final Path patchDir = factory.getPatchDirectory().toPath();
+		   final Path newLucee = patchDir.resolve(version + ".lco");
 
-		;
-		try {
-			IOUtil.copy(new MavenUpdateProvider().getCore(version), new FileOutputStream(newLucee), true, true);
-		}
-		catch (PageException e) {
-			throw e;
-		}
-		catch (IOException e) {
-			throw e;
-		}
-		catch (Exception e) {
-			throw Caster.toPageException(e);
-		}
+		   try (OutputStream os = Files.newOutputStream(newLucee)) {
+			   IOUtil.copy(new MavenUpdateProvider().getCore(version), os, true, true);
+		   }
+		   catch (PageException e) {
+			   throw e;
+		   }
+		   catch (IOException e) {
+			   throw e;
+		   }
+		   catch (Exception e) {
+			   throw Caster.toPageException(e);
+		   }
 
-		return newLucee;
+		   return newLucee;
 	}
 
 	/**
@@ -4592,8 +4586,8 @@ public final class ConfigAdmin {
 			Version v;
 			v = CFMLEngineFactory.toVersion(core.getName(), null);
 			Log logger = cs.getLog("deploy");
-			File f = engine.getCFMLEngineFactory().getResourceRoot();
-			Resource res = ResourcesImpl.getFileResourceProvider().getResource(f.getAbsolutePath());
+			   Path f = engine.getCFMLEngineFactory().getResourceRoot().toPath();
+			   Resource res = ResourcesImpl.getFileResourceProvider().getResource(f.toAbsolutePath().toString());
 			Resource pd = res.getRealResource("patches");
 			if (!pd.exists()) pd.mkdirs();
 			Resource pf = pd.getRealResource(core.getName());

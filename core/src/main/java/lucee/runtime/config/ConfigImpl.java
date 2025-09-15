@@ -6269,15 +6269,21 @@ public abstract class ConfigImpl extends ConfigBase implements ConfigPro {
 
 	@Override
 	public Resource getExtensionInstalledDir() {
-		if (extInstalled == null) {
-			synchronized (SystemUtil.createToken("extensions", "installed")) {
-				if (extInstalled == null) {
-					extInstalled = getConfigDir().getRealResource("extensions/installed");
-					if (!extInstalled.exists()) extInstalled.mkdirs();
-				}
-			}
-		}
-		return extInstalled;
+		   if (extInstalled == null) {
+			   synchronized (SystemUtil.createToken("extensions", "installed")) {
+				   if (extInstalled == null) {
+					   // Patch: force Jimfs URI for extensions/installed if lucee.config.dir.uri is set
+					   String jimfsConfigUri = System.getProperty("lucee.config.dir.uri");
+					   if (jimfsConfigUri != null) {
+						   extInstalled = ResourcesImpl.getGlobal().getResource(jimfsConfigUri + "/extensions/installed");
+					   } else {
+						   extInstalled = getConfigDir().getRealResource("extensions/installed");
+					   }
+					   if (!extInstalled.exists()) extInstalled.mkdirs();
+				   }
+			   }
+		   }
+		   return extInstalled;
 	}
 
 	public ConfigImpl resetExtensionInstalledDir() {
@@ -6296,7 +6302,13 @@ public abstract class ConfigImpl extends ConfigBase implements ConfigPro {
 		if (extAvailable == null) {
 			synchronized (SystemUtil.createToken("extensions", "available")) {
 				if (extAvailable == null) {
-					extAvailable = getConfigDir().getRealResource("extensions/available");
+					   // Patch: force Jimfs URI for extensions/available if lucee.config.dir.uri is set
+					   String jimfsConfigUri = System.getProperty("lucee.config.dir.uri");
+					   if (jimfsConfigUri != null) {
+						   extAvailable = ResourcesImpl.getGlobal().getResource(jimfsConfigUri + "/extensions/available");
+					   } else {
+						   extAvailable = getConfigDir().getRealResource("extensions/available");
+					   }
 					if (!extAvailable.exists()) extAvailable.mkdirs();
 				}
 			}

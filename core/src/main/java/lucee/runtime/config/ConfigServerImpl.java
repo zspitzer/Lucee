@@ -1037,9 +1037,16 @@ public final class ConfigServerImpl extends ConfigImpl implements ConfigServer {
 
 	@Override
 	public Resource getLocalExtensionProviderDirectory() {
-		Resource dir = getConfigDir().getRealResource("extensions/available");
-		if (!dir.exists()) dir.mkdirs();
-		return dir;
+		   // Patch: force Jimfs URI for extensions/available if lucee.config.dir.uri is set
+		   String jimfsConfigUri = System.getProperty("lucee.config.dir.uri");
+		   Resource dir;
+		   if (jimfsConfigUri != null) {
+			   dir = ResourcesImpl.getGlobal().getResource(jimfsConfigUri + "/extensions/available");
+		   } else {
+			   dir = getConfigDir().getRealResource("extensions/available");
+		   }
+		   if (!dir.exists()) dir.mkdirs();
+		   return dir;
 	}
 
 	protected void setAMFEngine(ClassDefinition<AMFEngine> cd, Map<String, String> args) {

@@ -42,7 +42,7 @@ public final class JaninoCompiler implements Compiler {
 
 		compiler.setSourcePath(sourcePath);
 
-		List<File> list = OSGiUtil.getClassPathAsListWithJarExtension();
+	List<File> list = OSGiUtil.getClassPathAsListWithJarExtensionCompat();
 		compiler.setClassPath(list.toArray(new File[list.size()]));
 		compiler.setExtensionDirectories(extDirs);
 		if (bootClassPath != null) compiler.setBootClassPath(bootClassPath); //

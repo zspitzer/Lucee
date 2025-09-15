@@ -18,7 +18,7 @@
  */
 package lucee.runtime.config;
 
-import java.io.File;
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
@@ -363,14 +363,13 @@ public final class DeployHandler {
 				}
 				catch (Exception e) {
 					if (log != null) log.error("extension", e);
-					// check if the zip is valid
-					if (res instanceof File) {
-						if (!IsZipFile.invoke((File) res)) {
-							CFMLEngineImpl engine = CFMLEngineImpl.toCFMLEngineImpl(ConfigUtil.getEngine(config));
-							engine.deployBundledExtension(true);
-							if (IsZipFile.invoke((File) res)) {
-								continue; // we start over that part
-							}
+					// check if the zip is valid (provider-agnostic)
+					// res is always a Resource here
+					if (!IsZipFile.invoke(res)) {
+						CFMLEngineImpl engine = CFMLEngineImpl.toCFMLEngineImpl(ConfigUtil.getEngine(config));
+						engine.deployBundledExtension(true);
+						if (IsZipFile.invoke(res)) {
+							continue; // we start over that part
 						}
 					}
 

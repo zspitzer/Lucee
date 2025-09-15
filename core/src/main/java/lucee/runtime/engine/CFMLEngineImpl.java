@@ -21,6 +21,10 @@ package lucee.runtime.engine;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -71,6 +75,7 @@ import lucee.commons.io.log.log4j2.Log4j2Engine;
 import lucee.commons.io.res.Resource;
 import lucee.commons.io.res.ResourceProvider;
 import lucee.commons.io.res.ResourcesImpl;
+import lucee.commons.io.res.type.jimfs.JimfsResourceProvider;
 import lucee.commons.io.res.util.ResourceUtil;
 import lucee.commons.io.res.util.ResourceUtilImpl;
 import lucee.commons.io.retirement.RetireOutputStreamFactory;
@@ -258,6 +263,16 @@ public final class CFMLEngineImpl implements CFMLEngine {
 
 	private CFMLEngineImpl(CFMLEngineFactory factory, BundleCollection bc) {
 
+		// Register JimfsResourceProvider as default if enabled
+		String jimfsFlag = SystemUtil.getSystemPropOrEnvVar("LUCEE_DEPLOY_MEMORY", null);
+		if (jimfsFlag == null) {
+			jimfsFlag = SystemUtil.getSystemPropOrEnvVar("lucee.deploy.memory", null);
+		}
+		if (jimfsFlag != null && jimfsFlag.equalsIgnoreCase("true")) {
+			JimfsResourceProvider jimfsProvider = new JimfsResourceProvider().init("jimfs", null);
+			ResourcesImpl.getGlobal().registerDefaultResourceProvider(jimfsProvider);
+		}
+
 		// Kick some stuff to get it started in parallel because it takes forever to load
 		ThreadUtil.getThread(() -> {
 			try {
@@ -292,73 +307,64 @@ public final class CFMLEngineImpl implements CFMLEngine {
 			}
 		}, true).start();
 
-		/*
-		 * String dumpPath = Caster.toString(SystemUtil.getSystemPropOrEnvVar("lucee.dump.threads", null),
-		 * null); if (!StringUtil.isEmpty(dumpPath, true)) { int interval =
-		 * Caster.toIntValue(SystemUtil.getSystemPropOrEnvVar("lucee.dump.threads.interval", null), 100);
-		 * long start = System.currentTimeMillis(); long max =
-		 * Caster.toIntValue(SystemUtil.getSystemPropOrEnvVar("lucee.dump.threads.max", null), 10000);
-		 * 
-		 * // Create a new thread to run the task Thread thread = new Thread(() -> { while (true) { try { if
-		 * ((start + max) < System.currentTimeMillis()) { break; } // Call the dumpThreadPositions method
-		 * Resource target = ResourcesImpl.getFileResourceProvider().getResource(dumpPath);
-		 * Controler.dumpThreadPositions(target);
-		 * 
-		 * // Pause for the specified interval SystemUtil.sleep(interval); } catch (IOException e) {
-		 * e.printStackTrace(); SystemUtil.sleep(1000); } } });
-		 * 
-		 * // Start the thread thread.start(); }
-		 */
+	// ...existing code...
 
 		FACTORY = this.factory = factory;
 		this.bundleCollection = bc;
 
 		this.allowRequestTimeout = Caster.toBooleanValue(SystemUtil.getSystemPropOrEnvVar("lucee.requesttimeout", null), true);
 		// log the startup process
-		String logDir = SystemUtil.getSystemPropOrEnvVar("startlogdirectory", null);// "/Users/mic/Tmp/");
+		String logDir = SystemUtil.getSystemPropOrEnvVar("startlogdirectory", null);// "/Users/mic/Tmp/"
 		if (logDir != null) {
-			File f = new File(logDir);
-			if (f.isDirectory()) {
+			Path f = java.nio.file.Paths.get(logDir);
+			if (java.nio.file.Files.isDirectory(f) && f.getFileSystem().equals(java.nio.file.FileSystems.getDefault())) {
 				String logName = SystemUtil.getSystemPropOrEnvVar("logName", "stacktrace");
 				int timeRange = Caster.toIntValue(SystemUtil.getSystemPropOrEnvVar("timeRange", "stacktrace"), 1);
-				LogST._do(f, logName, timeRange);
+				LogST._do(f.toFile(), logName, timeRange);
 			}
 		}
 
 		// happen when Lucee is loaded directly
 		if (bundleCollection == null) {
 			try {
-				Properties prop = InfoImpl.getDefaultProperties(null);
 
-				// read the config from default.properties
-				Map<String, Object> config = new HashMap<String, Object>();
-				Iterator<Entry<Object, Object>> it = prop.entrySet().iterator();
-				Entry<Object, Object> e;
-				String k, val, addional;
-				while (it.hasNext()) {
-					e = it.next();
-					k = (String) e.getKey();
-					if (!k.startsWith("org.") && !k.startsWith("felix.")) continue;
+				   Properties prop = InfoImpl.getDefaultProperties(null);
 
-					val = CFMLEngineFactorySupport.removeQuotes((String) e.getValue(), true);
-					addional = Caster.toString(SystemUtil.getSystemPropOrEnvVar(k, null), null);
+				   // read the config from default.properties
+				   Map<String, Object> config = new HashMap<String, Object>();
+				   Iterator<Entry<Object, Object>> it = prop.entrySet().iterator();
+				   Entry<Object, Object> e;
+				   String k, val, addional;
+				   while (it.hasNext()) {
+					   e = it.next();
+					   k = (String) e.getKey();
+					   if (!k.startsWith("org.") && !k.startsWith("felix.")) continue;
 
-					if (!StringUtil.isEmpty(addional, true)) {
-						if ("org.osgi.framework.bootdelegation".equals(k) || "org.osgi.framework.system.packages".equals(k)) {
-							val = addional.trim() + "," + val;
+					   val = CFMLEngineFactorySupport.removeQuotes((String) e.getValue(), true);
+					   addional = Caster.toString(SystemUtil.getSystemPropOrEnvVar(k, null), null);
 
-						}
-						else {
-							val = addional.trim();
-						}
-					}
-					config.put(k, val);
-				}
+					   if (!StringUtil.isEmpty(addional, true)) {
+						   if ("org.osgi.framework.bootdelegation".equals(k) || "org.osgi.framework.system.packages".equals(k)) {
+							   val = addional.trim() + "," + val;
+						   }
+						   else {
+							   val = addional.trim();
+						   }
+					   }
+					   config.put(k, val);
+				   }
 
-				config.put(Constants.FRAMEWORK_BOOTDELEGATION, "lucee.*");
+				   config.put(Constants.FRAMEWORK_BOOTDELEGATION, "lucee.*");
 
-				Felix felix = factory.getFelix(factory.getResourceRoot(), config);
+				   // Set OSGi/Felix bundle cache directory using NIO Path abstraction
+				   Path bundleCachePath = BundleCachePathUtil.resolveBundleCachePath();
+				   if (bundleCachePath != null) {
+					   config.put("org.osgi.framework.storage", bundleCachePath.toAbsolutePath().toString());
+				   }
 
+	 		   Felix felix = factory.getFelix(factory.getResourceRoot(), config);
+
+   
 				bundleCollection = new BundleCollection(felix, felix, null);
 				// bundleContext=bundleCollection.getBundleContext();
 			}
@@ -372,7 +378,21 @@ public final class CFMLEngineImpl implements CFMLEngine {
 		UpdateInfo updateInfo;
 		Resource configDir = null;
 		try {
-			configDir = getSeverContextConfigDirectory(factory);
+			   // Patch: Use JimfsResourceProvider for configDir if in-memory mode is enabled
+			   // Use Jimfs for config root if in-memory mode is enabled
+			   if (jimfsFlag != null && jimfsFlag.equalsIgnoreCase("true")) {
+				   // Always use Jimfs for config root and extension root in memory mode
+				   configDir = ResourcesImpl.getGlobal().getResource("jimfs:/lucee-server/context");
+				  if (!configDir.exists()) configDir.createDirectory(true);
+				   // Set system property so all child resource lookups (e.g. extensions/available) use Jimfs
+				   System.setProperty("lucee.config.dir.uri", "jimfs:/lucee-server/context");
+				   // Also patch extension root to Jimfs
+				   System.setProperty("lucee.extension.dir.uri", "jimfs:/lucee-server/extensions");
+				   Resource extDir = ResourcesImpl.getGlobal().getResource("jimfs:/lucee-server/extensions");
+				   if (!extDir.exists()) extDir.createDirectory(true);
+			   } else {
+				   configDir = getSeverContextConfigDirectory(factory);
+			   }
 			updateInfo = ConfigFactory.getNew(this, configDir, true);
 		}
 		catch (Exception e) {
@@ -817,10 +837,14 @@ public final class CFMLEngineImpl implements CFMLEngine {
 		if (PageSourceImpl.logAccessDirectory == null) {
 			String str = config.getInitParameter("lucee-log-access-directory");
 			if (!StringUtil.isEmpty(str)) {
-				File file = new File(str.trim());
-				file.mkdirs();
-				if (file.isDirectory()) {
-					PageSourceImpl.logAccessDirectory = file;
+				Path file = java.nio.file.Paths.get(str.trim());
+				try {
+					java.nio.file.Files.createDirectories(file);
+				} catch (java.io.IOException e) {
+					e.printStackTrace();
+				}
+				if (java.nio.file.Files.isDirectory(file)) {
+					PageSourceImpl.logAccessDirectory = file.toFile();
 				}
 			}
 		}
@@ -915,6 +939,9 @@ public final class CFMLEngineImpl implements CFMLEngine {
 
 	public static Resource getSeverContextConfigDirectory(CFMLEngineFactory factory) throws IOException {
 		ResourceProvider frp = ResourcesImpl.getFileResourceProvider();
+		// Log fallback with lucee.base.dir system property
+		String baseDir = System.getProperty("lucee.base.dir");
+		LogUtil.log(Log.LEVEL_INFO, LOG_NAME, LOG_TYPE_NAME, "[getResourceRoot fallback] Using resource root path: " + factory.getResourceRoot().getAbsolutePath() + (baseDir != null ? ", lucee.base.dir=" + baseDir : ""));
 		return frp.getResource(factory.getResourceRoot().getAbsolutePath()).getRealResource("context");
 	}
 
@@ -1020,8 +1047,8 @@ public final class CFMLEngineImpl implements CFMLEngine {
 
 	private static void copyRecursiveAndRename(Resource src, Resource trg) throws IOException {
 		if (!src.exists()) return;
-		if (src.isDirectory()) {
-			if (!trg.exists()) trg.mkdirs();
+		   if (src.isDirectory()) {
+			   if (!trg.exists()) trg.createDirectory(true);
 
 			Resource[] files = src.listResources();
 			for (int i = 0; i < files.length; i++) {
@@ -1146,12 +1173,6 @@ public final class CFMLEngineImpl implements CFMLEngine {
 					SystemUtil.wait(Thread.currentThread(), 1000);
 					// done?
 					if (r.isDone()) {
-						// print.e("mas-done:"+System.currentTimeMillis());
-						break;
-					}
-					// reach request timeout
-					else if (ended == -1 && (pc.getStartTime() + pc.getRequestTimeout()) < System.currentTimeMillis()) {
-						// print.e("req-time:"+System.currentTimeMillis());
 						CFMLFactoryImpl.terminate(pc, false);
 						ended = System.currentTimeMillis();
 						// break; we do not break here, we give the thread itself the chance to end we need the exception
@@ -1216,7 +1237,7 @@ public final class CFMLEngineImpl implements CFMLEngine {
 	 * private String getContextList() { return
 	 * List.arrayToList((String[])contextes.keySet().toArray(new String[contextes.size()]),", "); }
 	 */
-
+					Properties prop = InfoImpl.getDefaultProperties(null);
 	@Override
 	public String getVersion() {
 		return info.getVersion().toString();
@@ -1380,12 +1401,11 @@ public final class CFMLEngineImpl implements CFMLEngine {
 	 */
 
 	private void shutdownFelix() {
-		try {
-			getCFMLEngineFactory().shutdownFelix();
-		}
-		catch (Exception e) {
-			LogUtil.log(configServer, LOG_TYPE_NAME, e);
-		}
+		   try {
+			   getCFMLEngineFactory().shutdownFelix();
+		   } catch (Exception e) {
+			   LogUtil.log(configServer, LOG_TYPE_NAME, e);
+		   }
 	}
 
 	public static void releaseCache(Config config) {
@@ -1504,103 +1524,6 @@ public final class CFMLEngineImpl implements CFMLEngine {
 	 * public String getState() { return info.getStateAsString(); }
 	 */
 
-	public void allowRequestTimeout(boolean allowRequestTimeout) {
-		this.allowRequestTimeout = allowRequestTimeout;
-	}
-
-	public boolean allowRequestTimeout() {
-		return allowRequestTimeout;
-	}
-
-	public boolean isRunning() {
-		try {
-			CFMLEngine other = CFMLEngineFactory.getInstance();
-			// FUTURE patch, do better impl when changing loader
-			if (other != this && controlerState.active() && !(other instanceof CFMLEngineWrapper)) {
-				LogUtil.log(configServer, Log.LEVEL_INFO, "startup",
-						"CFMLEngine is still set to true but no longer valid, " + lucee.runtime.config.Constants.NAME + " disable this CFMLEngine.");
-				controlerState.setActive(false);
-				reset();
-				return false;
-			}
-		}
-		catch (Exception e) {
-			LogUtil.log(configServer, LOG_TYPE_NAME, e);
-		}
-		return controlerState.active();
-	}
-
-	public boolean active() {
-		return controlerState.active();
-	}
-
-	public ControllerState getControllerState() {
-		return controlerState;
-	}
-
-	@Override
-	public void cli(Map<String, String> config, ServletConfig servletConfig) throws IOException, PageServletException, PageException {
-		ServletContext servletContext = servletConfig.getServletContext();
-		HTTPServletImpl servlet = new HTTPServletImpl(servletConfig, servletContext, servletConfig.getServletName());
-
-		// webroot
-		String strWebroot = config.get("webroot");
-		if (StringUtil.isEmpty(strWebroot, true)) throw new IOException("Missing webroot configuration");
-		Resource root = ResourcesImpl.getFileResourceProvider().getResource(strWebroot);
-		root.mkdirs();
-
-		// serverName
-		String serverName = config.get("server-name");
-		if (StringUtil.isEmpty(serverName, true)) serverName = "localhost";
-
-		// uri
-		String strUri = config.get("uri");
-		if (StringUtil.isEmpty(strUri, true)) throw new IOException("Missing uri configuration");
-		URI uri;
-		try {
-			uri = lucee.commons.net.HTTPUtil.toURI(strUri);
-		}
-		catch (URISyntaxException e) {
-			throw Caster.toPageException(e);
-		}
-
-		// cookie
-		Cookie[] cookies;
-		String strCookie = config.get("cookie");
-		if (StringUtil.isEmpty(strCookie, true)) cookies = SerializableCookie.COOKIES0;
-		else {
-			Map<String, String> mapCookies = HTTPUtil.parseParameterList(strCookie, false, null);
-			int index = 0;
-			cookies = new Cookie[mapCookies.size()];
-			Entry<String, String> entry;
-			Iterator<Entry<String, String>> it = mapCookies.entrySet().iterator();
-			Cookie c;
-			while (it.hasNext()) {
-				entry = it.next();
-				c = ReqRspUtil.toCookie(entry.getKey(), entry.getValue(), null);
-				if (c != null) cookies[index++] = c;
-				else throw new IOException("Cookie name [" + entry.getKey() + "] is invalid");
-			}
-		}
-
-		// header
-		Pair[] headers = new Pair[0];
-
-		// parameters
-		Pair[] parameters = new Pair[0];
-
-		// attributes
-		StructImpl attributes = new StructImpl();
-		ByteArrayOutputStream os = new ByteArrayOutputStream();
-
-		HttpServletRequestDummy req = new HttpServletRequestDummy(root, serverName, uri.getPath(), uri.getQuery(), cookies, headers, parameters, attributes, null, null);
-		req.setProtocol("CLI/1.0");
-		HttpServletResponse rsp = new HttpServletResponseDummy(os);
-
-		serviceCFML(servlet, req, rsp);
-		String res = os.toString(ReqRspUtil.getCharacterEncoding(null, rsp).name());
-		// System. out.println(res);
-	}
 
 	@Override
 	public ServletConfig[] getServletConfigs() {
@@ -1684,7 +1607,13 @@ public final class CFMLEngineImpl implements CFMLEngine {
 
 	@Override
 	public PageContext createPageContext(File contextRoot, String host, String scriptName, String queryString, Cookie[] cookies, Map<String, Object> headers,
-			Map<String, String> parameters, Map<String, Object> attributes, OutputStream os, long timeout, boolean register) throws PageServletException {
+	    Map<String, String> parameters, Map<String, Object> attributes, OutputStream os, long timeout, boolean register) throws PageServletException {
+	return createPageContext(contextRoot == null ? null : contextRoot.toPath(), host, scriptName, queryString, cookies, headers, parameters, attributes, os, timeout, register);
+    }
+
+	// Internal NIO version
+	public PageContext createPageContext(Path contextRoot, String host, String scriptName, String queryString, Cookie[] cookies, Map<String, Object> headers,
+	    Map<String, String> parameters, Map<String, Object> attributes, OutputStream os, long timeout, boolean register) throws PageServletException {
 
 		// FUTURE remove and replace it's use with getThreadPageContext(boolean)
 		if ("getThreadPageContext:boolean".equals(host)) {
@@ -1695,18 +1624,23 @@ public final class CFMLEngineImpl implements CFMLEngine {
 		}
 
 		// FUTURE add first 2 arguments to interface
-		return PageContextUtil.getPageContext(null, null, contextRoot, StringUtil.isEmpty(host) ? "localhost" : host, StringUtil.isEmpty(scriptName) ? "/" : scriptName,
-				StringUtil.isEmpty(queryString) ? "" : queryString, cookies == null ? SerializableCookie.COOKIES0 : cookies, headers, parameters, attributes,
-				os == null ? DevNullOutputStream.DEV_NULL_OUTPUT_STREAM : os, register, timeout == -1 ? 100000 : timeout, false);
+	return PageContextUtil.getPageContext(null, null, contextRoot == null ? null : contextRoot.toFile(), StringUtil.isEmpty(host) ? "localhost" : host, StringUtil.isEmpty(scriptName) ? "/" : scriptName,
+		StringUtil.isEmpty(queryString) ? "" : queryString, cookies == null ? SerializableCookie.COOKIES0 : cookies, headers, parameters, attributes,
+		os == null ? DevNullOutputStream.DEV_NULL_OUTPUT_STREAM : os, register, timeout == -1 ? 100000 : timeout, false);
 	}
 
 	@Override
 	public ConfigWeb createConfig(File contextRoot, String host, String scriptName) throws PageServletException {
+		return createConfig(contextRoot == null ? null : contextRoot.toPath(), host, scriptName);
+	}
+
+	// Internal NIO version
+	public ConfigWeb createConfig(Path contextRoot, String host, String scriptName) throws PageServletException {
 		// TODO do a mored rect approach
 		PageContext pc = null;
 		try {
 			// FUTURE add first 2 arguments to interface
-			pc = PageContextUtil.getPageContext(null, null, contextRoot, host, scriptName, null, null, null, null, null, null, false, -1, false);
+			pc = PageContextUtil.getPageContext(null, null, contextRoot == null ? null : contextRoot.toFile(), host, scriptName, null, null, null, null, null, null, false, -1, false);
 			return pc.getConfig();
 		}
 		finally {
@@ -1863,12 +1797,12 @@ public final class CFMLEngineImpl implements CFMLEngine {
 					Map<String, Object> attrs = new HashMap<String, Object>();
 					attrs.put("client", "lucee-listener-1-0");
 
-					File root = new File(config.getRootDirectory().getAbsolutePath());
-					CreationImpl cr = (CreationImpl) CreationImpl.getInstance(engine);
-					ServletConfig sc = cr.createServletConfig(root, null, null);
-					pc = PageContextUtil.getPageContext(config, sc, root, "localhost", requestURI, queryString, SerializableCookie.COOKIES0, headers, null, attrs,
-							DevNullOutputStream.DEV_NULL_OUTPUT_STREAM, true, Long.MAX_VALUE,
-							Caster.toBooleanValue(SystemUtil.getSystemPropOrEnvVar("lucee.ignore.scopes", null), false));
+			   Path root = java.nio.file.Paths.get(config.getRootDirectory().getAbsolutePath());
+			   CreationImpl cr = (CreationImpl) CreationImpl.getInstance(engine);
+			   ServletConfig sc = cr.createServletConfig(root.toFile(), null, null);
+			   pc = PageContextUtil.getPageContext(config, sc, root.toFile(), "localhost", requestURI, queryString, SerializableCookie.COOKIES0, headers, null, attrs,
+				   DevNullOutputStream.DEV_NULL_OUTPUT_STREAM, true, Long.MAX_VALUE,
+				   Caster.toBooleanValue(SystemUtil.getSystemPropOrEnvVar("lucee.ignore.scopes", null), false));
 				}
 				((PageContextImpl) pc).setListenerContext(true);
 				pc.executeCFML(requestURI, true, false);
@@ -1922,4 +1856,91 @@ public final class CFMLEngineImpl implements CFMLEngine {
 		if (engine instanceof CFMLEngineImpl) return ((CFMLEngineImpl) engine).quick;
 		return false;
 	}
+	/**
+	 * Resolves the OSGi/Felix bundle cache directory as a NIO Path.
+	 * Uses Jimfs if enabled, otherwise falls back to disk.
+	 * @return Path to use for bundle cache, or null if not set
+	 */
+
+// --- Compatibility methods for legacy usages ---
+    public boolean allowRequestTimeout() {
+        return allowRequestTimeout;
+    }
+
+    public void allowRequestTimeout(boolean allow) {
+        this.allowRequestTimeout = allow;
+    }
+
+    public boolean active() {
+        return controlerState.active();
+    }
+
+    public boolean isRunning() {
+        return controlerState.active();
+    }
+
+    @Override
+    public void cli(Map<String, String> config, ServletConfig servletConfig) throws IOException, jakarta.servlet.jsp.JspException, jakarta.servlet.ServletException {
+        ServletContext servletContext = servletConfig.getServletContext();
+        HTTPServletImpl servlet = new HTTPServletImpl(servletConfig, servletContext, servletConfig.getServletName());
+
+        // webroot
+        String strWebroot = config.get("webroot");
+        if (StringUtil.isEmpty(strWebroot, true)) throw new IOException("Missing webroot configuration");
+        Resource root = ResourcesImpl.getFileResourceProvider().getResource(strWebroot);
+	root.createDirectory(true);
+
+        // serverName
+        String serverName = config.get("server-name");
+        if (StringUtil.isEmpty(serverName, true)) serverName = "localhost";
+
+        // uri
+        String strUri = config.get("uri");
+        if (StringUtil.isEmpty(strUri, true)) throw new IOException("Missing uri configuration");
+        URI uri;
+        try {
+            uri = lucee.commons.net.HTTPUtil.toURI(strUri);
+        }
+        catch (URISyntaxException e) {
+            throw new jakarta.servlet.jsp.JspException(e);
+        }
+
+        // cookie
+        Cookie[] cookies;
+        String strCookie = config.get("cookie");
+        if (StringUtil.isEmpty(strCookie, true)) cookies = SerializableCookie.COOKIES0;
+        else {
+            Map<String, String> mapCookies = HTTPUtil.parseParameterList(strCookie, false, null);
+            int index = 0;
+            cookies = new Cookie[mapCookies.size()];
+            Entry<String, String> entry;
+            Iterator<Entry<String, String>> it = mapCookies.entrySet().iterator();
+            Cookie c;
+            while (it.hasNext()) {
+                entry = it.next();
+                c = ReqRspUtil.toCookie(entry.getKey(), entry.getValue(), null);
+                if (c != null) cookies[index++] = c;
+                else throw new IOException("Cookie name [" + entry.getKey() + "] is invalid");
+            }
+        }
+
+        // header
+        Pair<String, Object>[] headers = new Pair[0];
+
+        // parameters
+        Pair<String, Object>[] parameters = new Pair[0];
+
+        // attributes
+        StructImpl attributes = new StructImpl();
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+
+        HttpServletRequestDummy req = new HttpServletRequestDummy(root, serverName, uri.getPath(), uri.getQuery(), cookies, headers, parameters, attributes, null, null);
+        req.setProtocol("CLI/1.0");
+        HttpServletResponse rsp = new HttpServletResponseDummy(os);
+
+        serviceCFML(servlet, req, rsp);
+        String res = os.toString(ReqRspUtil.getCharacterEncoding(null, rsp).name());
+        // System.out.println(res);
+    }
+
 }

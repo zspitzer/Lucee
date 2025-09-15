@@ -440,7 +440,17 @@ public final class SystemUtil {
 	 * @return temp directory
 	 */
 	public static Resource getTempDirectory() {
-		return ResourcesImpl.getFileResourceProvider().getResource(CFMLEngineFactory.getTempDirectory().getAbsolutePath());
+
+		   // Patch: Use JimfsResourceProvider for temp directory if in-memory mode is enabled
+		   String jimfsFlag = getSystemPropOrEnvVar("LUCEE_DEPLOY_MEMORY", null);
+		   if (jimfsFlag == null) {
+			   jimfsFlag = getSystemPropOrEnvVar("lucee.deploy.memory", null);
+		   }
+		   if (jimfsFlag != null && jimfsFlag.equalsIgnoreCase("true")) {
+			   // Use a Jimfs URI for the temp directory
+			   return ResourcesImpl.getGlobal().getResource("jimfs:/lucee-server/temp");
+		   }
+		   return ResourcesImpl.getFileResourceProvider().getResource(CFMLEngineFactory.getTempDirectory().getAbsolutePath());
 
 		/*
 		 * if(tempFile!=null) return tempFile; ResourceProvider fr =

@@ -17,8 +17,10 @@
  */
 package lucee.runtime.osgi;
 
-import java.io.File;
-import java.io.FileInputStream;
+import java.nio.file.Path;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Files;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.SoftReference;
@@ -34,82 +36,86 @@ import lucee.commons.io.res.Resource;
 public final class BundleFile extends BundleInfo {
 
 	private static final long serialVersionUID = -7094382262249367193L;
-	private File file;
+		private Path path;
+public static BundleFile getInstance(Path path) throws IOException, BundleException {
+	String absPath = path.toAbsolutePath().toString();
+	SoftReference<BundleFile> tmp = files.get(absPath);
+	BundleFile bi = tmp == null ? null : tmp.get();
+	if (bi == null) {
+		 bi = new BundleFile(path);
+		 files.put(absPath, new SoftReference<BundleFile>(bi));
+	}
+	return bi;
+}
+private BundleFile(Path path) throws IOException, BundleException {
+	super(path);
+	this.path = path;
+}
 	private static Map<String, SoftReference<BundleFile>> files = new ConcurrentHashMap<String, SoftReference<BundleFile>>();
 	private Map<String, SoftReference<Boolean>> classes = new ConcurrentHashMap<String, SoftReference<Boolean>>();
 
-	public static BundleFile getInstance(Resource file, boolean onlyValidBundles) throws IOException, BundleException {
-		BundleFile bi = getInstance(toFileResource(file));
-		if (onlyValidBundles && !bi.isBundle()) return null;
-		return bi;
-	}
+	   public static BundleFile getInstance(Resource file, boolean onlyValidBundles) throws IOException, BundleException {
+		   BundleFile bi = getInstance(toPathResource(file));
+		   if (onlyValidBundles && !bi.isBundle()) return null;
+		   return bi;
+	   }
 
-	public static BundleFile getInstance(Resource file, BundleFile defaultValue) {
-		try {
-			return getInstance(toFileResource(file));
-		}
-		catch (Exception e) {
-			return defaultValue;
-		}
-	}
+	   public static BundleFile getInstance(Resource file, BundleFile defaultValue) {
+		   try {
+			   return getInstance(toPathResource(file));
+		   }
+		   catch (Exception e) {
+			   return defaultValue;
+		   }
+	   }
 
-	public static BundleFile getInstance(Resource file) throws IOException, BundleException {
-		return getInstance(toFileResource(file));
-	}
+	   public static BundleFile getInstance(Resource file) throws IOException, BundleException {
+		   return getInstance(toPathResource(file));
+	   }
 
-	public static BundleFile getInstance(File file) throws IOException, BundleException {
-		SoftReference<BundleFile> tmp = files.get(file.getAbsolutePath());
-		BundleFile bi = tmp == null ? null : tmp.get();
-		if (bi == null) {
-			bi = new BundleFile(file);
-			files.put(file.getAbsolutePath(), new SoftReference<BundleFile>(bi));
-		}
-		return bi;
-	}
+	   // File-based getInstance and constructor removed; use Path or Resource instead
 
-	private BundleFile(File file) throws IOException, BundleException {
-		super(file);
-		this.file = file;
-	}
+	   public InputStream getInputStream() throws IOException {
+		   return Files.newInputStream(path);
+	   }
 
-	public InputStream getInputStream() throws IOException {
-		return new FileInputStream(file);
-	}
+	   public boolean hasClass(String className) throws IOException {
+		   className = className.replace('.', '/') + ".class";
+		   SoftReference<Boolean> tmp = classes.get(className);
+		   Boolean b = tmp == null ? null : tmp.get();
+		   if (b != null) return b.booleanValue();
+		   JarFile jar = new JarFile(path.toFile());
+		   try {
+			   b = jar.getEntry(className) != null;
+			   classes.put(className, new SoftReference<Boolean>(b));
+			   return b.booleanValue();
+		   }
+		   finally {
+			   IOUtil.closeEL(jar);
+		   }
+	   }
 
-	public boolean hasClass(String className) throws IOException {
-		className = className.replace('.', '/') + ".class";
-		SoftReference<Boolean> tmp = classes.get(className);
-		Boolean b = tmp == null ? null : tmp.get();
-		if (b != null) return b.booleanValue();
-		JarFile jar = new JarFile(file);
-		try {
-			b = jar.getEntry(className) != null;
-			classes.put(className, new SoftReference<Boolean>(b));
-			return b.booleanValue();
-		}
-		finally {
-			IOUtil.closeEL(jar);
-		}
-	}
+	   @Override
+	   public String toString() {
+		   return path.toString();
+	   }
 
-	@Override
-	public String toString() {
-		return file.toString();
-	}
+	   public String getAbsolutePath() {
+		   return path.toAbsolutePath().toString();
+	   }
 
-	public String getAbsolutePath() {
-		return file.getAbsolutePath();
-	}
+	   public boolean delete() {
+		   try {
+			   return Files.deleteIfExists(path);
+		   } catch (IOException e) {}
+		   return false;
+	   }
 
-	public boolean delete() {
-		return file.delete();
-	}
+	   public void deleteOnExit() {
+		   // Not supported for Path; implement if needed
+	   }
 
-	public void deleteOnExit() {
-		file.deleteOnExit();
-	}
-
-	public File getFile() {
-		return file;
-	}
+	   public Path getPath() {
+		   return path;
+	   }
 }
