@@ -1,0 +1,7 @@
+Manifest-Version: 1.0
+Built-Date: 2025-11-06
+id: 5895B8CB-04CC-4D2B-93D50471D5105D83
+version: 1.0.0
+name: LDEV-5895 Test Extension
+description: Test extension with plugin for LDEV-5895
+start-bundles: false

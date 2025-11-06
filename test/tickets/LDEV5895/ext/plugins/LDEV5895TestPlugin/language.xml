@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<languages action="plugin" position="9">
+	<language key="en">
+		<group>Tools</group>
+		<title>LDEV-5895 Test Plugin</title>
+		<description>Test plugin for LDEV-5895 to verify plugin removal on extension uninstall</description>
+	</language>
+</languages>
