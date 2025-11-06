@@ -17,6 +17,11 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="extension" {
 		}
 		createTestExtension();
 
+		// Override with lcov extension for testing
+		variables.testExtFile = "D:\work\lucee-extensions\extension-lcov\target\lcov-extension-1.0.0.1-SNAPSHOT.lex";
+		variables.testExtensionId = "e99e43a5-c10e-41e9-878bfc82baad1c01";
+		variables.testPluginName = "lcov";
+
 		// Login to admin
 		loginToAdmin();
 	}
@@ -65,44 +70,28 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="extension" {
 				var pluginUrlsAfter = getAdminPluginUrls();
 				systemOutput( "Admin plugin URLs after uninstall: " & arrayToList( pluginUrlsAfter ), true );
 
-				// Check that plugin directories were removed
-				var removedDirs = [];
-				loop array=variables.pluginDirsBefore item="local.dir" {
-					if ( !arrayFindNoCase( pluginDirsAfter, dir ) ) {
-						arrayAppend( removedDirs, dir );
+				// Verify the test extension's plugin directory was removed from filesystem
+				var testPluginDir = variables.pluginDir & variables.testPluginName;
+				expect( directoryExists( testPluginDir ) ).toBeFalse(
+					"Plugin directory [#testPluginDir#] should have been deleted from filesystem"
+				);
+
+				// Verify the test plugin is not in the plugin directory list
+				expect( arrayFindNoCase( pluginDirsAfter, variables.testPluginName ) ).toBe( 0,
+					"Plugin directory #variables.testPluginName# should not be in plugin directory list"
+				);
+
+				// Verify the test plugin is not in admin navigation
+				var found = false;
+				loop array=pluginUrlsAfter item="local.adminUrl" {
+					if ( findNoCase( "plugin=#variables.testPluginName#", adminUrl ) ) {
+						found = true;
+						break;
 					}
 				}
-
-				systemOutput( "Removed plugin directories: " & arrayToList( removedDirs ), true );
-
-				// Verify that at least one plugin directory was removed
-				// (we don't know if this specific extension has plugins, but if it does, they should be removed)
-				if ( arrayLen( variables.pluginDirsBefore ) > arrayLen( pluginDirsAfter ) ) {
-					expect( arrayLen( removedDirs ) ).toBeGT( 0, "Expected at least one plugin directory to be removed" );
-				}
-
-				// Verify none of the removed directories still exist on filesystem
-				loop array=removedDirs item="local.dir" {
-					var dirPath = variables.pluginDir & dir;
-					expect( directoryExists( dirPath ) ).toBeFalse(
-						"Plugin directory [#dirPath#] should have been deleted from filesystem"
-					);
-				}
-
-				// Verify plugins that were removed from filesystem are also removed from admin navigation
-				loop array=removedDirs item="local.dir" {
-					var pluginUrl = "plugin&#chr(38)#plugin=#dir#";
-					var found = false;
-					loop array=pluginUrlsAfter item="local.adminUrl" {
-						if ( findNoCase( pluginUrl, adminUrl ) ) {
-							found = true;
-							break;
-						}
-					}
-					expect( found ).toBeFalse(
-						"Plugin [#dir#] should not appear in admin navigation after uninstall"
-					);
-				}
+				expect( found ).toBeFalse(
+					"Plugin #variables.testPluginName# should not appear in admin navigation after uninstall"
+				);
 			});
 
 		});
@@ -208,6 +197,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="extension" {
 		// Zip the extension files from the ext directory
 		var sourceDir = getDirectoryFromPath( getCurrentTemplatePath() ) & "LDEV5895/ext/";
 		zip action="zip" file="#variables.testExtFile#" source="#sourceDir#" overwrite="true";
+		systemOutput( "Created test extension file at #variables.testExtFile#", true );
 	}
 
 	private function installTestExtension(){
@@ -224,7 +214,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="extension" {
 			action="removeRHExtension"
 			type="server"
 			password="#server.SERVERADMINPASSWORD#"
-			id="5895B8CB-04CC-4D2B-93D50471D5105D83";
+			id="#variables.testExtensionId#";
 	}
 
 }
