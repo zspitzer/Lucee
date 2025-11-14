@@ -52,6 +52,12 @@ public final class PropertyFactory {
 			PropertyFactory.addSet(comp, property);
 		}
 
+		createCollectionPropertyUDFs(comp, property);
+	}
+
+	// LDEV-3335: Separated collection methods so they can be called independently
+	// when getter/setter are already generated as static flyweights in bytecode
+	public static void createCollectionPropertyUDFs(ComponentImpl comp, Property property) throws PageException {
 		String fieldType = Caster.toString(property.getDynamicAttributes().get(PropertyFactory.FIELD_TYPE, null), null);
 
 		// add

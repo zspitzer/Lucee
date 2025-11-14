@@ -1167,6 +1167,17 @@ public abstract class ComponentPageImpl extends ComponentPage {
 	}
 
 	/**
+	 * LDEV-3335: Returns the static flyweight accessor UDF map for this component class.
+	 * Components with accessors will override this to return their static UDF registry.
+	 * Default implementation returns null for components without accessor UDFs.
+	 *
+	 * @return Map of accessor names to UDF instances, or null if no accessor UDFs
+	 */
+	public Map<Key, UDF> getStaticAccessorUDFs() {
+		return null;
+	}
+
+	/**
 	 * Initializes component properties from the static property registry.
 	 * Components with properties will override this method to provide optimized property initialization.
 	 * Default implementation does nothing (no-op for components without properties).

@@ -62,7 +62,9 @@ public abstract class UDFGSProperty extends MemberSupport implements UDFPlus {
 
 	public UDFGSProperty(Component component, String name, FunctionArgument[] arguments, short rtnType) {
 		super(Component.ACCESS_PUBLIC);
-		properties = UDFProperties(null, component.getPageSource(), arguments, name, rtnType);
+		// LDEV-3335: Support null component for stateless flyweight UDFs (bytecode-generated static accessors)
+		// For backwards compatibility with older bytecode, we still support non-null component
+		properties = UDFProperties(null, component != null ? component.getPageSource() : null, arguments, name, rtnType);
 		this.name = name;
 		this.arguments = arguments;
 		this.srcComponent = component;
@@ -99,19 +101,28 @@ public abstract class UDFGSProperty extends MemberSupport implements UDFPlus {
 
 	@Override
 	public String getSource() {
-		PageSource ps = srcComponent.getPageSource();
-		if (ps != null) return ps.getDisplayPath();
+		// LDEV-3335: Handle null srcComponent for stateless flyweight UDFs
+		if (srcComponent != null) {
+			PageSource ps = srcComponent.getPageSource();
+			if (ps != null) return ps.getDisplayPath();
+		}
+		// Fall back to properties PageSource if available
+		if (properties != null && properties.getPageSource() != null) {
+			return properties.getPageSource().getDisplayPath();
+		}
 		return "";
 	}
 
 	@Override
 	public String id() {
 		if (id == null) {
+			// LDEV-3335: Handle null srcComponent for stateless flyweight UDFs
+			String componentId = srcComponent != null ? srcComponent.id() : "static";
 			try {
-				id = Hash.md5(srcComponent.id() + ":" + getFunctionName());
+				id = Hash.md5(componentId + ":" + getFunctionName());
 			}
 			catch (NoSuchAlgorithmException e) {
-				id = srcComponent.id() + ":" + getFunctionName();
+				id = componentId + ":" + getFunctionName();
 			}
 		}
 		return id;
@@ -214,7 +225,8 @@ public abstract class UDFGSProperty extends MemberSupport implements UDFPlus {
 
 	@Override
 	public Struct getMetaData(PageContext pc) throws PageException {
-		return ComponentUtil.getMetaData(pc, properties, null);
+		// LDEV-3335: Pass 'this' UDF instance so ComponentUtil can call getPageSource() with proper fallback
+		return ComponentUtil.getMetaData(pc, this, properties, null);
 	}
 
 	final Object cast(PageContext pc, FunctionArgument arg, Object value, int index) throws PageException {
@@ -327,8 +339,12 @@ public abstract class UDFGSProperty extends MemberSupport implements UDFPlus {
 
 	@Override
 	public PageSource getPageSource() {
-		return srcComponent.getPageSource();
-		// return this.properties.getPageSource();
+		// LDEV-3335: Handle null srcComponent for stateless flyweight UDFs
+		if (srcComponent != null) {
+			return srcComponent.getPageSource();
+		}
+		// Fall back to properties PageSource
+		return this.properties.getPageSource();
 	}
 
 	@Override
