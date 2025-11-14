@@ -2397,6 +2397,23 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 			top.cp.initPropertiesStub(this);
 		}
 
+		// LDEV-3335: Add static flyweight accessor UDFs to _data and scope
+		Map<Key, UDF> staticAccessorUDFs = top.cp != null ? top.cp.getStaticAccessorUDFs() : null;
+		if (staticAccessorUDFs != null && !staticAccessorUDFs.isEmpty()) {
+			Iterator<Map.Entry<Key, UDF>> it = staticAccessorUDFs.entrySet().iterator();
+			while (it.hasNext()) {
+				Map.Entry<Key, UDF> entry = it.next();
+				Key key = entry.getKey();
+				UDF udf = entry.getValue();
+
+				// Only add if not manually overridden
+				if (!_data.containsKey(key)) {
+					_data.put(key, udf);
+					scope.put(key, udf);
+				}
+			}
+		}
+
 		// MappedSuperClass
 		if (isPersistent() && !isBasePeristent() && top.base != null && top.base.properties.properties != null && top.base.properties.meta != null) {
 			boolean msc = Caster.toBooleanValue(top.base.properties.meta.get(KeyConstants._mappedSuperClass, Boolean.FALSE), false);

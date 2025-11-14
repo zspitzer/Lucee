@@ -21,6 +21,7 @@ package lucee.transformer.bytecode;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -138,6 +139,24 @@ public final class PageImpl extends BodyBase implements Page {
 
 	// public static final Type STRUCT_IMPL = Type.getType(StructImpl.class);
 	public static final Method INIT_STRUCT_IMPL = new Method("<init>", Types.VOID, new Type[] {});
+
+	// LDEV-3335: Flyweight UDF Type/Method constants
+	private static final Type TYPE_MAP = Type.getType(Map.class);
+	private static final Type TYPE_LINKED_HASH_MAP = Type.getType(LinkedHashMap.class);
+	private static final Type TYPE_COLLECTION = Type.getType(Collection.class);
+	private static final Type TYPE_ITERATOR = Type.getType(Iterator.class);
+	private static final Type TYPE_UDF_GETTER_PROPERTY = Type.getType("Llucee/runtime/type/UDFGetterProperty;");
+	private static final Type TYPE_UDF_SETTER_PROPERTY = Type.getType("Llucee/runtime/type/UDFSetterProperty;");
+	private static final Method METHOD_MAP_PUT = new Method("put", Types.OBJECT, new Type[] { Types.OBJECT, Types.OBJECT });
+	private static final Method METHOD_MAP_VALUES = new Method("values", TYPE_COLLECTION, new Type[] {});
+	private static final Method METHOD_COLLECTION_ITERATOR = new Method("iterator", TYPE_ITERATOR, new Type[] {});
+	private static final Method METHOD_ITERATOR_HAS_NEXT = new Method("hasNext", Type.BOOLEAN_TYPE, new Type[] {});
+	private static final Method METHOD_ITERATOR_NEXT = new Method("next", Types.OBJECT, new Type[] {});
+	private static final Method METHOD_PROPERTY_GET_GETTER = new Method("getGetter", Type.BOOLEAN_TYPE, new Type[] {});
+	private static final Method METHOD_PROPERTY_GET_SETTER = new Method("getSetter", Type.BOOLEAN_TYPE, new Type[] {});
+	private static final Method METHOD_PROPERTY_GET_GETTER_KEY = new Method("getGetterKey", Types.COLLECTION_KEY, new Type[] {});
+	private static final Method METHOD_PROPERTY_GET_SETTER_KEY = new Method("getSetterKey", Types.COLLECTION_KEY, new Type[] {});
+	private static final Method METHOD_UDF_CONSTRUCTOR = new Method("<init>", Type.VOID_TYPE, new Type[] { Types.COMPONENT, Types.PROPERTY });
 
 	// void call (lucee.runtime.PageContext)
 	private final static Method CALL1 = new Method("call", Types.OBJECT, new Type[] { Types.PAGE_CONTEXT });
@@ -1009,6 +1028,9 @@ public final class PageImpl extends BodyBase implements Page {
 			// Generate per-class static property registry field
 			cw.visitField(Opcodes.ACC_PRIVATE + Opcodes.ACC_STATIC + Opcodes.ACC_FINAL, "__staticProperties", "Ljava/util/Map;",
 				"Ljava/util/Map<Ljava/lang/String;Llucee/runtime/component/PropertyImpl;>;", null).visitEnd();
+			// LDEV-3335: Generate flyweight accessor UDF registry field
+			cw.visitField(Opcodes.ACC_PRIVATE + Opcodes.ACC_STATIC + Opcodes.ACC_FINAL, "__staticAccessorUDFs", "Ljava/util/Map;",
+				"Ljava/util/Map<Llucee/runtime/type/Collection$Key;Llucee/runtime/type/UDF;>;", null).visitEnd();
 		}
 
 		cw.visitField(Opcodes.ACC_PRIVATE + Opcodes.ACC_STATIC + Opcodes.ACC_FINAL, "keys", Types.COLLECTION_KEY_ARRAY.toString(), null, null).visitEnd();
@@ -1027,6 +1049,12 @@ public final class PageImpl extends BodyBase implements Page {
 				ga.dup();
 				ga.invokeConstructor(Type.getType(LinkedHashMap.class), new Method("<init>", Type.VOID_TYPE, new Type[] {}));
 				ga.putStatic(Type.getObjectType(name), "__staticProperties", Type.getType(Map.class));
+
+				// LDEV-3335: Initialize __staticAccessorUDFs = new LinkedHashMap<>()
+				ga.newInstance(TYPE_LINKED_HASH_MAP);
+				ga.dup();
+				ga.invokeConstructor(TYPE_LINKED_HASH_MAP, new Method("<init>", Type.VOID_TYPE, new Type[] {}));
+				ga.putStatic(Type.getObjectType(name), "__staticAccessorUDFs", TYPE_MAP);
 			}
 
 			/////////////////
@@ -1231,6 +1259,74 @@ public final class PageImpl extends BodyBase implements Page {
 				}
 			}
 
+
+		// LDEV-3335: Generate flyweight accessor UDFs from static properties
+		// Iterate over __staticProperties.values() and create getter/setter UDFs
+		if (addStatic && component != null) {
+			// for (Property prop : __staticProperties.values())
+			ga.getStatic(Type.getObjectType(name), "__staticProperties", TYPE_MAP);
+			ga.invokeInterface(TYPE_MAP, METHOD_MAP_VALUES);
+			ga.invokeInterface(TYPE_COLLECTION, METHOD_COLLECTION_ITERATOR);
+			int iteratorLocal = ga.newLocal(TYPE_ITERATOR);
+			ga.storeLocal(iteratorLocal);
+
+			Label loopStart = ga.newLabel();
+			Label loopEnd = ga.newLabel();
+
+			ga.mark(loopStart);
+			ga.loadLocal(iteratorLocal);
+			ga.invokeInterface(TYPE_ITERATOR, METHOD_ITERATOR_HAS_NEXT);
+			ga.visitJumpInsn(Opcodes.IFEQ, loopEnd);
+
+			ga.loadLocal(iteratorLocal);
+			ga.invokeInterface(TYPE_ITERATOR, METHOD_ITERATOR_NEXT);
+			ga.checkCast(Types.PROPERTY_IMPL);
+			int propLocal = ga.newLocal(Types.PROPERTY_IMPL);
+			ga.storeLocal(propLocal);
+
+			// if (prop.getGetter())
+			Label skipGetter = ga.newLabel();
+			ga.loadLocal(propLocal);
+			ga.invokeVirtual(Types.PROPERTY_IMPL, METHOD_PROPERTY_GET_GETTER);
+			ga.visitJumpInsn(Opcodes.IFEQ, skipGetter);
+
+			// __staticAccessorUDFs.put(prop.getGetterKey(), new UDFGetterProperty(null, prop))
+			ga.getStatic(Type.getObjectType(name), "__staticAccessorUDFs", TYPE_MAP);
+			ga.loadLocal(propLocal);
+			ga.invokeVirtual(Types.PROPERTY_IMPL, METHOD_PROPERTY_GET_GETTER_KEY);
+			ga.newInstance(TYPE_UDF_GETTER_PROPERTY);
+			ga.dup();
+			ga.visitInsn(Opcodes.ACONST_NULL); // null component for flyweight
+			ga.loadLocal(propLocal);
+			ga.invokeConstructor(TYPE_UDF_GETTER_PROPERTY, METHOD_UDF_CONSTRUCTOR);
+			ga.invokeInterface(TYPE_MAP, METHOD_MAP_PUT);
+			ga.pop();
+
+			ga.mark(skipGetter);
+
+			// if (prop.getSetter())
+			Label skipSetter = ga.newLabel();
+			ga.loadLocal(propLocal);
+			ga.invokeVirtual(Types.PROPERTY_IMPL, METHOD_PROPERTY_GET_SETTER);
+			ga.visitJumpInsn(Opcodes.IFEQ, skipSetter);
+
+			// __staticAccessorUDFs.put(prop.getSetterKey(), new UDFSetterProperty(null, prop))
+			ga.getStatic(Type.getObjectType(name), "__staticAccessorUDFs", TYPE_MAP);
+			ga.loadLocal(propLocal);
+			ga.invokeVirtual(Types.PROPERTY_IMPL, METHOD_PROPERTY_GET_SETTER_KEY);
+			ga.newInstance(TYPE_UDF_SETTER_PROPERTY);
+			ga.dup();
+			ga.visitInsn(Opcodes.ACONST_NULL); // null component
+			ga.loadLocal(propLocal);
+			ga.invokeConstructor(TYPE_UDF_SETTER_PROPERTY, METHOD_UDF_CONSTRUCTOR);
+			ga.invokeInterface(TYPE_MAP, METHOD_MAP_PUT);
+			ga.pop();
+
+			ga.mark(skipSetter);
+
+			ga.goTo(loopStart);
+			ga.mark(loopEnd);
+		}
 			// Array initialization - MUST be done AFTER property processing so all keys are registered
 			ga.push(keys.size()); // Array size
 			ga.newArray(Types.COLLECTION_KEY);
@@ -1266,6 +1362,16 @@ public final class PageImpl extends BodyBase implements Page {
 			Method getStaticPropsMethod = new Method("getStaticProperties", Type.getType(Map.class), new Type[] {});
 			final GeneratorAdapter ga = new GeneratorAdapter(Opcodes.ACC_PUBLIC + Opcodes.ACC_FINAL, getStaticPropsMethod, null, null, cw);
 			ga.getStatic(Type.getObjectType(name), "__staticProperties", Type.getType(Map.class));
+			ga.returnValue();
+			ga.endMethod();
+		}
+
+		// LDEV-3335: Generate: public Map getStaticAccessorUDFs() { return __staticAccessorUDFs; }
+		// Override ComponentPageImpl.getStaticAccessorUDFs() to return the flyweight UDF map
+		if (addStatic) {
+			Method getStaticAccessorUDFsMethod = new Method("getStaticAccessorUDFs", TYPE_MAP, new Type[] {});
+			final GeneratorAdapter ga = new GeneratorAdapter(Opcodes.ACC_PUBLIC + Opcodes.ACC_FINAL, getStaticAccessorUDFsMethod, null, null, cw);
+			ga.getStatic(Type.getObjectType(name), "__staticAccessorUDFs", TYPE_MAP);
 			ga.returnValue();
 			ga.endMethod();
 		}
