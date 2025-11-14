@@ -160,6 +160,9 @@ public final class Types {
 
 	public static final Type COMPONENT_IMPL = Type.getType(lucee.runtime.ComponentImpl.class);
 	public static final Type INTERFACE_IMPL = Type.getType(lucee.runtime.InterfaceImpl.class);
+	public static final Type PROPERTY_IMPL = Type.getType(lucee.runtime.component.PropertyImpl.class);
+	public static final Type COMPONENT_PROPERTIES = Type.getType(lucee.runtime.ComponentProperties.class);
+	public static final Type PROPERTY = Type.getType(lucee.runtime.component.Property.class);
 
 	public static final Type DATE_TIME = Type.getType(lucee.runtime.type.dt.DateTime.class);
 

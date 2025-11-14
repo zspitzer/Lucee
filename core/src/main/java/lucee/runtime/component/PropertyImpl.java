@@ -29,6 +29,7 @@ import lucee.runtime.exp.PageException;
 import lucee.runtime.exp.PageRuntimeException;
 import lucee.runtime.op.Caster;
 import lucee.runtime.op.Duplicator;
+import lucee.runtime.type.Collection;
 import lucee.runtime.type.Struct;
 import lucee.runtime.type.StructImpl;
 import lucee.runtime.type.util.KeyConstants;
@@ -40,20 +41,23 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 
 	private static final long serialVersionUID = 3206074213415946902L;
 
+	// Reference fields (8 bytes each) - group together to minimize padding
 	private String type = "any";
 	private String name;
-	private boolean required;
-	private boolean setter = true;
-	private boolean getter = true;
-
+	private Collection.Key nameAsKey; // Cached key for property name
+	private Collection.Key getterKey; // Cached key for "getName"
+	private Collection.Key setterKey; // Cached key for "setName"
 	private Object _default;
 	private String displayname = "";
 	private String hint = "";
-	private Struct dynAttrs = new StructImpl();
+	private Struct dynAttrs; // lazy-init to avoid allocating ConcurrentHashMap(32) per property
 	private Struct metadata;
-
 	private String ownerName;
 
+	// Boolean fields (1 byte each) - group at end to minimize padding
+	private boolean required;
+	private boolean setter = true;
+	private boolean getter = true;
 	private boolean axisType;
 
 	public PropertyImpl() {
@@ -135,6 +139,42 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 	 */
 	public void setName(String name) {
 		this.name = name;
+		this.nameAsKey = null; // Clear cached key when name changes
+		this.getterKey = null; // Clear cached getter key
+		this.setterKey = null; // Clear cached setter key
+	}
+
+	public Collection.Key getNameAsKey() {
+		if (nameAsKey == null && name != null) {
+			nameAsKey = lucee.runtime.type.KeyImpl.init(name);
+		}
+		return nameAsKey;
+	}
+
+	public void setNameAsKey(Collection.Key key) {
+		this.nameAsKey = key;
+	}
+
+	public Collection.Key getGetterKey() {
+		if (getterKey == null && name != null) {
+			getterKey = lucee.runtime.type.KeyImpl.init("get" + name);
+		}
+		return getterKey;
+	}
+
+	public void setGetterKey(Collection.Key key) {
+		this.getterKey = key;
+	}
+
+	public Collection.Key getSetterKey() {
+		if (setterKey == null && name != null) {
+			setterKey = lucee.runtime.type.KeyImpl.init("set" + name);
+		}
+		return setterKey;
+	}
+
+	public void setSetterKey(Collection.Key key) {
+		this.setterKey = key;
 	}
 
 	/**
@@ -207,9 +247,20 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 		this.getter = getter;
 	}
 
+	/**
+	 * Lazy-init helper for dynAttrs - creates HashMap with minimal capacity only when needed
+	 */
+	private Struct ensureDynAttrs() {
+		if (dynAttrs == null) {
+			dynAttrs = new StructImpl(StructImpl.TYPE_REGULAR, 8);
+		}
+		return dynAttrs;
+	}
+
 	@Override
 	public Object getMetaData() {
-		Struct sct = new StructImpl();
+		// Typical size: name + hint + displayname + type + default + dynAttrs + metadata = ~16
+		Struct sct = new StructImpl(StructImpl.TYPE_REGULAR, 16);
 
 		// meta
 		if (metadata != null) StructUtil.copy(metadata, sct, true);
@@ -220,8 +271,8 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 		if (!StringUtil.isEmpty(type, true)) sct.setEL(KeyConstants._type, type);
 		if (_default != null) sct.setEL(KeyConstants._default, _default);
 
-		// dyn attributes
-		StructUtil.copy(dynAttrs, sct, true);
+		// dyn attributes (includes 'required' when explicitly set)
+		if (dynAttrs != null) StructUtil.copy(dynAttrs, sct, true);
 
 		return sct;
 	}
@@ -232,7 +283,7 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 
 	@Override
 	public Struct getDynamicAttributes() {
-		return dynAttrs;
+		return ensureDynAttrs();
 	}
 
 	public void setMetaData(Struct metadata) {
@@ -241,7 +292,7 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 
 	@Override
 	public Struct getMeta() {
-		if (metadata == null) metadata = new StructImpl();
+		if (metadata == null) metadata = new StructImpl(StructImpl.TYPE_REGULAR, 8);
 		return metadata;
 	}
 
@@ -252,7 +303,7 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 
 	@Override
 	public boolean isPeristent() {
-		return Caster.toBooleanValue(dynAttrs.get(KeyConstants._persistent, Boolean.TRUE), true);
+		return dynAttrs == null ? true : Caster.toBooleanValue(dynAttrs.get(KeyConstants._persistent, Boolean.TRUE), true);
 	}
 
 	public void setOwnerName(String ownerName) {
@@ -267,10 +318,12 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 	@Override
 	public String toString() {
 		String strDynAttrs = "";
-		try {
-			strDynAttrs = new ScriptConverter().serialize(dynAttrs);
-		}
-		catch (ConverterException ce) {
+		if (dynAttrs != null) {
+			try {
+				strDynAttrs = new ScriptConverter().serialize(dynAttrs);
+			}
+			catch (ConverterException ce) {
+			}
 		}
 
 		return "default:" + this._default + ";displayname:" + this.displayname + ";hint:" + this.hint + ";name:" + this.name + ";type:" + this.type + ";ownerName:" + ownerName
@@ -293,7 +346,7 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 		other.displayname = displayname;
 		other.getter = getter;
 		other.hint = hint;
-		other.dynAttrs = deepCopy ? (Struct) Duplicator.duplicate(dynAttrs, deepCopy) : dynAttrs;
+		other.dynAttrs = dynAttrs == null ? null : (deepCopy ? (Struct) Duplicator.duplicate(dynAttrs, deepCopy) : dynAttrs);
 		other.name = name;
 		other.ownerName = ownerName;
 		other.required = required;

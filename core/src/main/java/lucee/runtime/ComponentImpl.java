@@ -2381,7 +2381,10 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 	public void setProperty(Property property) throws PageException {
 		top.properties.properties.put(StringUtil.toLowerCase(property.getName()), property);
 		// FUTURE getDefaultAsObject was added in Beta pahse of Lucee 7, so we keep the checkcast in place
-		if (((PropertyImpl) property).getDefaultAsObject() != null) scope.setEL(KeyImpl.init(property.getName()), ((PropertyImpl) property).getDefaultAsObject());
+		PropertyImpl propImpl = (PropertyImpl) property;
+		if (propImpl.getDefaultAsObject() != null) {
+			scope.setEL(propImpl.getNameAsKey(), propImpl.getDefaultAsObject());
+		}
 		if (top.properties.persistent || top.properties.accessors) {
 			PropertyFactory.createPropertyUDFs(this, property);
 		}
@@ -2389,6 +2392,10 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 
 	private void initProperties() throws PageException {
 		top.properties.properties = new LinkedHashMap<String, Property>();
+		// Call generated stub to initialize properties from static registry (zero overhead!)
+		if (top.cp != null) {
+			top.cp.initPropertiesStub(this);
+		}
 
 		// MappedSuperClass
 		if (isPersistent() && !isBasePeristent() && top.base != null && top.base.properties.properties != null && top.base.properties.meta != null) {

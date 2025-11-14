@@ -23,6 +23,7 @@ import lucee.runtime.Component;
 import lucee.runtime.ComponentImpl;
 import lucee.runtime.component.Member;
 import lucee.runtime.component.Property;
+import lucee.runtime.component.PropertyImpl;
 import lucee.runtime.exp.ApplicationException;
 import lucee.runtime.exp.PageException;
 import lucee.runtime.op.Caster;
@@ -67,18 +68,22 @@ public final class PropertyFactory {
 	}
 
 	public static void addGet(ComponentImpl comp, Property prop) throws ApplicationException {
-		Member m = comp.getMember(Component.ACCESS_PRIVATE, KeyImpl.init("get" + prop.getName()), true, false);
+		PropertyImpl propImpl = (PropertyImpl) prop;
+		Collection.Key getterKey = propImpl.getGetterKey();
+		Member m = comp.getMember(Component.ACCESS_PRIVATE, getterKey, true, false);
 		if (!(m instanceof UDF)) {
 			UDF udf = new UDFGetterProperty(comp, prop);
-			comp.registerUDF(KeyImpl.init(udf.getFunctionName()), udf);
+			comp.registerUDF(getterKey, udf);
 		}
 	}
 
 	public static void addSet(ComponentImpl comp, Property prop) throws PageException {
-		Member m = comp.getMember(Component.ACCESS_PRIVATE, KeyImpl.init("set" + prop.getName()), true, false);
+		PropertyImpl propImpl = (PropertyImpl) prop;
+		Collection.Key setterKey = propImpl.getSetterKey();
+		Member m = comp.getMember(Component.ACCESS_PRIVATE, setterKey, true, false);
 		if (!(m instanceof UDF)) {
 			UDF udf = new UDFSetterProperty(comp, prop);
-			comp.registerUDF(KeyImpl.init(udf.getFunctionName()), udf);
+			comp.registerUDF(setterKey, udf);
 		}
 	}
 
