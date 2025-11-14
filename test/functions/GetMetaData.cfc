@@ -74,6 +74,38 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				expect( metaB.description ).toBe( "Description does not show up." );
 			}, labels = [ "metadata" ], skip = true );
 
+			it( title = "Checking accessor UDF owner field", body = () => {
+				var obj = new getMetaData.GetMetaDataAccessorComponent();
+
+				// Test auto-generated getter
+				var getterMeta = getMetadata( obj.getMessage );
+				expect( getterMeta ).toBeStruct();
+				expect( getterMeta ).toHaveKey( "owner" );
+				expect( getterMeta.owner ).toInclude( "GetMetaDataAccessorComponent.cfc" );
+
+				// Test auto-generated setter
+				var setterMeta = getMetadata( obj.setMessage );
+				expect( setterMeta ).toBeStruct();
+				expect( setterMeta ).toHaveKey( "owner" );
+				expect( setterMeta.owner ).toInclude( "GetMetaDataAccessorComponent.cfc" );
+			}, labels = [ "metadata", "accessor" ] );
+
+			it( title = "Checking accessor UDF owner field with mixin", body = () => {
+				// Use two DIFFERENT components to prove owner tracking works correctly
+				var comp1 = new getMetaData.GetMetaDataAccessorComponent();
+				var comp2 = new getMetaData.GetMetaDataAccessorComponent2();
+
+				// Inject comp1's getter into comp2 (mixin pattern)
+				comp2.injectedFromComp1 = comp1.getMessage;
+
+				// Owner should point to Component (comp1), NOT Component2 (comp2)
+				var meta = getMetadata( comp2.injectedFromComp1 );
+				expect( meta ).toBeStruct();
+				expect( meta ).toHaveKey( "owner" );
+				expect( meta.owner ).toInclude( "GetMetaDataAccessorComponent.cfc" );
+				expect( meta.owner ).notToInclude( "GetMetaDataAccessorComponent2.cfc" );
+			}, labels = [ "metadata", "accessor", "mixin" ] );
+
 		});
 
 	}
