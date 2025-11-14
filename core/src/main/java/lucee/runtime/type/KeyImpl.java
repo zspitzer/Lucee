@@ -49,13 +49,19 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 
 	private static final int MAX = Caster.toInteger(SystemUtil.getSystemPropOrEnvVar("lucee.cache.variableKeys", null), 5000);
 
-	// private boolean intern;
+	// Reference fields (8 bytes each) - group together to minimize padding
 	private String key;
 	private transient String lcKey;
 	private transient String ucKey;
+
+	// long field (8 bytes)
+	private transient long h64;
+
+	// int fields (4 bytes each) - group together
 	private transient int wjh;
 	private transient int sfm = -1;
-	private transient long h64;
+
+	// static field
 	private static Map<String, Key> keys = new HashMap<String, Key>();
 
 	public KeyImpl() {
