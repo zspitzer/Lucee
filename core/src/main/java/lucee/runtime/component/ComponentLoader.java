@@ -125,7 +125,8 @@ public final class ComponentLoader {
 		Component c = ss.getComponent();
 		while ((bc = (ComponentImpl) c.getBaseComponent()) != null) {
 			ComponentPageImpl bcp = (ComponentPageImpl) ((PageSourceImpl) bc._getPageSource()).loadPage(pc, false, null);
-			if (bcp.getStaticStruct() != null) {
+			// bcp can be null during concurrent class initialization (race condition)
+			if (bcp != null && bcp.getStaticStruct() != null) {
 				long idx = bcp.getStaticStruct().index();
 				if (idx == 0 || idx > index) {
 					reload = true;

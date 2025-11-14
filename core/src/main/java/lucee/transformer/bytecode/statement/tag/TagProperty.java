@@ -17,21 +17,15 @@
  **/
 package lucee.transformer.bytecode.statement.tag;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.GeneratorAdapter;
 import org.objectweb.asm.commons.Method;
 
-import lucee.runtime.op.Caster;
 import lucee.transformer.Factory;
 import lucee.transformer.Position;
 import lucee.transformer.TransformerException;
 import lucee.transformer.bytecode.BytecodeContext;
 import lucee.transformer.bytecode.statement.FlowControlFinal;
-import lucee.transformer.bytecode.util.ASMConstants;
 import lucee.transformer.bytecode.util.Types;
 import lucee.transformer.expression.Expression;
 import lucee.transformer.statement.tag.Attribute;
@@ -42,12 +36,6 @@ import lucee.transformer.statement.tag.Tag;
  * ComponentUtil.registerProperty directly.
  */
 public final class TagProperty extends TagBase {
-
-	private static final Method REGISTER_PROPERTY = new Method("registerProperty", Type.VOID_TYPE, new Type[] { Types.PAGE_CONTEXT, Types.STRING, Types.STRING, Types.OBJECT,
-			Types.STRING, Types.STRING, Types.STRING, Type.BOOLEAN_TYPE, Type.BOOLEAN_TYPE, Type.BOOLEAN_TYPE });
-
-	private static final Method REGISTER_PROPERTY_WITH_DYNAMIC = new Method("registerProperty", Type.VOID_TYPE, new Type[] { Types.PAGE_CONTEXT, Types.STRING, Types.STRING,
-			Types.OBJECT, Types.STRING, Types.STRING, Types.STRING, Type.BOOLEAN_TYPE, Type.BOOLEAN_TYPE, Type.BOOLEAN_TYPE, Types.STRUCT });
 
 	public TagProperty(Factory f, Position start, Position end) {
 		super(f, start, end);
@@ -60,155 +48,65 @@ public final class TagProperty extends TagBase {
 
 	@Override
 	public void _writeOut(BytecodeContext bc) throws TransformerException {
-		final GeneratorAdapter adapter = bc.getAdapter();
+		// Property metadata registration now happens in static initializer (<clinit>)
+		// See PageImpl.writeOutStatic() for static property registration
+		// However, complex default values (arrays, structs, expressions) need per-instance evaluation
 		Tag tag = this;
-
 		bc.visitLine(tag.getStart());
 
-		try {
-			String name = null;
-			String type = null;
-			Attribute defaultValueAttr = null;
-			String access = null;
-			String hint = null;
-			String displayname = null;
-			boolean required = false;
-			boolean setter = true;
-			boolean getter = true;
+		Attribute defaultAttr = tag.getAttribute("default");
+		Attribute nameAttr = tag.getAttribute("name");
 
-			List<Attribute> dynamicAttrs = new ArrayList<>();
-			Iterator<Attribute> it = tag.getAttributes().values().iterator();
-			while (it.hasNext()) {
-				Attribute attr = it.next();
-				String attrName = attr.getName().toLowerCase();
+		// Only handle complex defaults - simple literals are already handled in CLINIT
+		if (defaultAttr != null && nameAttr != null && defaultAttr.getValue() != null) {
+			Expression defaultExpr = defaultAttr.getValue();
+			String propName = getLiteralString(nameAttr);
 
-				if ("name".equals(attrName)) {
-					name = getLiteralString(attr);
-				}
-				else if ("type".equals(attrName)) {
-					type = getLiteralString(attr);
-				}
-				else if ("default".equals(attrName)) {
-					defaultValueAttr = attr;
-				}
-				else if ("access".equals(attrName)) {
-					access = getLiteralString(attr);
-				}
-				else if ("hint".equals(attrName)) {
-					hint = getLiteralString(attr);
-				}
-				else if ("displayname".equals(attrName)) {
-					displayname = getLiteralString(attr);
-				}
-				else if ("required".equals(attrName)) {
-					String val = getLiteralString(attr);
-					required = Caster.toBoolean(val, false);
-				}
-				else if ("setter".equals(attrName)) {
-					String val = getLiteralString(attr);
-					setter = Caster.toBoolean(val, true);
-				}
-				else if ("getter".equals(attrName)) {
-					String val = getLiteralString(attr);
-					getter = Caster.toBoolean(val, true);
-				}
-				else {
-					dynamicAttrs.add(attr);
-				}
+			// Check if it's a complex expression (not a simple literal)
+			boolean isComplex = !isSimpleLiteral(defaultExpr);
+
+			if (isComplex && propName != null) {
+				final GeneratorAdapter adapter = bc.getAdapter();
+
+				// Evaluate the default expression with the current PageContext
+				defaultExpr.writeOut(bc, Expression.MODE_REF);
+				int defaultLocal = adapter.newLocal(Types.OBJECT);
+				adapter.storeLocal(defaultLocal);
+
+				// Get PageContext from arg0 and set the value in variables scope
+				// pc.variablesScope().setEL(KeyImpl.init(propName), defaultValue)
+				adapter.loadArg(0); // Load PageContext pc
+				adapter.invokeVirtual(Types.PAGE_CONTEXT, new Method("variablesScope", Types.VARIABLES, new Type[] {}));
+				adapter.push(propName);
+				adapter.invokeStatic(Type.getType("Llucee/runtime/type/KeyImpl;"), new Method("init", Types.COLLECTION_KEY, new Type[] { Types.STRING }));
+				adapter.loadLocal(defaultLocal);
+				adapter.invokeInterface(Types.SCOPE, new Method("setEL", Types.OBJECT, new Type[] { Types.COLLECTION_KEY, Types.OBJECT }));
+				adapter.pop(); // Pop return value
 			}
-
-			adapter.loadArg(0);
-
-			if (name != null) {
-				adapter.push(name);
-			}
-			else {
-				ASMConstants.NULL(adapter);
-			}
-
-			if (type != null) {
-				adapter.push(type);
-			}
-			else {
-				ASMConstants.NULL(adapter);
-			}
-			if (defaultValueAttr != null) {
-				defaultValueAttr.getValue().writeOut(bc, Expression.MODE_REF);
-			}
-			else {
-				ASMConstants.NULL(adapter);
-			}
-
-			if (access != null) {
-				adapter.push(access);
-			}
-			else {
-				ASMConstants.NULL(adapter);
-			}
-
-			if (hint != null) {
-				adapter.push(hint);
-			}
-			else {
-				ASMConstants.NULL(adapter);
-			}
-
-			if (displayname != null) {
-				adapter.push(displayname);
-			}
-			else {
-				ASMConstants.NULL(adapter);
-			}
-
-			adapter.push(required);
-
-			adapter.push(setter);
-
-			adapter.push(getter);
-
-			boolean hasExplicitRequired = tag.getAttributes().containsKey("required") && tag.getAttribute("required") != null;
-
-			if (!dynamicAttrs.isEmpty() || hasExplicitRequired) {
-				adapter.newInstance(Types.STRUCT_IMPL);
-				adapter.dup();
-				adapter.invokeConstructor(Types.STRUCT_IMPL, new Method("<init>", Type.VOID_TYPE, new Type[] {}));
-
-				for (Attribute dynAttr: dynamicAttrs) {
-					adapter.dup();
-					adapter.push(dynAttr.getName());
-					dynAttr.getValue().writeOut(bc, Expression.MODE_REF);
-					adapter.invokeInterface(Types.STRUCT, new Method("setEL", Types.OBJECT, new Type[] { Types.STRING, Types.OBJECT }));
-					adapter.pop();
-				}
-
-				// Only add required if explicitly set
-				if (hasExplicitRequired) {
-					adapter.dup();
-					adapter.push("required");
-					adapter.push(required ? "yes" : "no");
-					adapter.invokeInterface(Types.STRUCT, new Method("setEL", Types.OBJECT, new Type[] { Types.STRING, Types.OBJECT }));
-					adapter.pop();
-				}
-
-				adapter.invokeStatic(Type.getType("Llucee/runtime/type/util/ComponentUtil;"), REGISTER_PROPERTY_WITH_DYNAMIC);
-			}
-			else {
-				adapter.invokeStatic(Type.getType("Llucee/runtime/type/util/ComponentUtil;"), REGISTER_PROPERTY);
-			}
-
-			bc.visitLine(tag.getEnd());
-
 		}
-		catch (Exception e) {
-			if (e instanceof TransformerException) throw (TransformerException) e;
-			throw new TransformerException(bc, e, tag.getStart());
-		}
+
+		bc.visitLine(tag.getEnd());
+	}
+
+	private boolean isSimpleLiteral(Expression expr) {
+		String className = expr.getClass().getSimpleName();
+		return className.equals("LitStringImpl") || className.equals("LitNumberImpl") ||
+		       className.equals("LitBooleanImpl") || className.equals("LitIntegerImpl") ||
+		       className.equals("LitLongImpl");
 	}
 
 	private String getLiteralString(Attribute attr) {
 		try {
 			if (attr != null && attr.getValue() != null) {
-				return attr.getValue().toString();
+				Expression expr = attr.getValue();
+				// Check if it's a LitStringImpl and extract the string value
+				if (expr.getClass().getSimpleName().equals("LitStringImpl")) {
+					// Use reflection to call getString() since we're using simple name matching
+					java.lang.reflect.Method method = expr.getClass().getMethod("getString");
+					return (String) method.invoke(expr);
+				}
+				// Fall back to toString for other types (may not be accurate)
+				return expr.toString();
 			}
 		}
 		catch (Exception e) {
