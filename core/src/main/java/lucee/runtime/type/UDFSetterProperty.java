@@ -43,7 +43,6 @@ public final class UDFSetterProperty extends UDFGSProperty {
 	private static final long serialVersionUID = 378348754607851563L;
 
 	private static final Collection.Key VALIDATE_PARAMS = KeyConstants._validateParams;
-	private final Property prop;
 	private final Key propName;
 	private String validate;
 	private Struct validateParams;
@@ -149,6 +148,10 @@ public final class UDFSetterProperty extends UDFGSProperty {
 	@Override
 	public Object implementation(PageContext pageContext) throws Throwable {
 		return null;
+	}
+
+	public Property getProperty() {
+		return prop;
 	}
 
 }

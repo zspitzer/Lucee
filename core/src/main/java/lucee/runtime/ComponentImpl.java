@@ -2379,14 +2379,26 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 
 	@Override
 	public void setProperty(Property property) throws PageException {
-		top.properties.properties.put(StringUtil.toLowerCase(property.getName()), property);
-		// FUTURE getDefaultAsObject was added in Beta pahse of Lucee 7, so we keep the checkcast in place
+		// LDEV-3335: If property is inherited (has ownerPageSource set to a different component),
+		// duplicate it so each component has its own PropertyImpl instance
 		PropertyImpl propImpl = (PropertyImpl) property;
+		PageSource propOwnerPS = propImpl.getOwnerPageSource();
+		boolean isInherited = propOwnerPS != null && !propOwnerPS.equals(getPageSource());
+		if (isInherited) {
+			// Property is from a parent component - duplicate it to avoid sharing/mutation
+			propImpl = (PropertyImpl) propImpl.duplicate(false);
+		}
+
+		top.properties.properties.put(StringUtil.toLowerCase(propImpl.getName()), propImpl);
 		if (propImpl.getDefaultAsObject() != null) {
 			scope.setEL(propImpl.getNameAsKey(), propImpl.getDefaultAsObject());
 		}
-		if (top.properties.persistent || top.properties.accessors) {
-			PropertyFactory.createPropertyUDFs(this, property);
+		// Create accessor UDFs if:
+		// 1. Component has accessors enabled, OR
+		// 2. Component is persistent, OR
+		// 3. Property is inherited and has accessors (need to create new UDFs with duplicated property)
+		if (top.properties.persistent || top.properties.accessors || (isInherited && (propImpl.getGetter() || propImpl.getSetter()))) {
+			PropertyFactory.createPropertyUDFs(this, propImpl);
 		}
 	}
 

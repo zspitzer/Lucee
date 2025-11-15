@@ -22,6 +22,7 @@ import org.objectweb.asm.Type;
 
 import lucee.commons.lang.StringUtil;
 import lucee.runtime.Component;
+import lucee.runtime.PageSource;
 import lucee.runtime.converter.ConverterException;
 import lucee.runtime.converter.ScriptConverter;
 import lucee.runtime.engine.ThreadLocalPageContext;
@@ -53,6 +54,7 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 	private Struct dynAttrs; // lazy-init to avoid allocating ConcurrentHashMap(32) per property
 	private Struct metadata;
 	private String ownerName;
+	private PageSource ownerPageSource;
 
 	// Boolean fields (1 byte each) - group at end to minimize padding
 	private boolean required;
@@ -297,7 +299,7 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 	}
 
 	@Override
-	public Class getClazz() {
+	public Class<?> getClazz() {
 		return null;
 	}
 
@@ -310,9 +312,18 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 		this.ownerName = ownerName;
 	}
 
+	public void setOwnerName(String ownerName, PageSource ownerPageSource) {
+		this.ownerName = ownerName;
+		this.ownerPageSource = ownerPageSource;
+	}
+
 	@Override
 	public String getOwnerName() {
 		return ownerName;
+	}
+
+	public PageSource getOwnerPageSource() {
+		return ownerPageSource;
 	}
 
 	@Override
@@ -349,11 +360,10 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 		other.dynAttrs = dynAttrs == null ? null : (deepCopy ? (Struct) Duplicator.duplicate(dynAttrs, deepCopy) : dynAttrs);
 		other.name = name;
 		other.ownerName = ownerName;
+		other.ownerPageSource = ownerPageSource;
 		other.required = required;
 		other.setter = setter;
 		other.type = type;
 
 		return other;
-	}
-
-}
+	}}
