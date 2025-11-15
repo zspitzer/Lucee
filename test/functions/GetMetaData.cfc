@@ -106,6 +106,16 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				expect( meta.owner ).notToInclude( "GetMetaDataAccessorComponent2.cfc" );
 			}, labels = [ "metadata", "accessor", "mixin" ] );
 
+			it( title = "Checking accessor UDF owner field with inheritance", body = () => {
+				var obj = new getMetaData.GetMetaDataAccessorComponentChild();
+
+				// Test auto-generated getter from parent
+				var getterMeta = getMetadata( obj.getMessage );
+				expect( getterMeta ).toBeStruct();
+				expect( getterMeta ).toHaveKey( "owner" );
+				expect( getterMeta.owner ).toInclude( "GetMetaDataAccessorComponent.cfc" );
+			}, labels = [ "metadata", "accessor", "inheritance" ] );
+
 		});
 
 	}
