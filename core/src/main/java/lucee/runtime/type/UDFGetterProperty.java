@@ -32,13 +32,12 @@ public final class UDFGetterProperty extends UDFGSProperty {
 
 	private static final FunctionArgument[] EMPTY = new FunctionArgument[0];
 
-	private final Property prop;
 	// private ComponentScope scope;
 	private final Key propName;
 
 	public UDFGetterProperty(Component component, Property prop) {
 		super(component, "get" + StringUtil.ucFirst(prop.getName()), EMPTY, CFTypes.toShortStrict(prop.getType(), CFTypes.TYPE_ANY));
-		this.prop = prop;
+		this.prop = prop; // Set parent's prop field
 		this.propName = KeyImpl.init(prop.getName());
 	}
 
@@ -70,6 +69,10 @@ public final class UDFGetterProperty extends UDFGSProperty {
 	@Override
 	public Object getDefaultValue(PageContext pc, int index, Object defaultValue) throws PageException {
 		return defaultValue;
+	}
+
+	public Property getProperty() {
+		return prop;
 	}
 
 	@Override
