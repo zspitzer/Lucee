@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import lucee.runtime.PageContext;
+import lucee.runtime.config.RuntimeProfile;
 import lucee.runtime.debug.Debugger;
 import lucee.runtime.exp.FunctionException;
 import lucee.runtime.exp.PageException;
@@ -19,9 +20,10 @@ public final class DebugAdd extends BIF {
 	private static final long serialVersionUID = 3480038887443615199L;
 
 	public static String call(PageContext pc, String category, Struct data) throws PageException {
-		Debugger debugger = pc.getDebugger();
-
-		debugger.addGenericData(category, toMapStrStr(data));
+		if (RuntimeProfile.DEBUGGER) {
+			Debugger debugger = pc.getDebugger();
+			debugger.addGenericData(category, toMapStrStr(data));
+		}
 		return null;
 	}
 

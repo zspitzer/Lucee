@@ -611,11 +611,56 @@
 		"default": null
 	},
 	{
+		"sysprop": "lucee.allow.debugger",
+		"envvar": "LUCEE_ALLOW_DEBUGGER",
+		"desc": "RuntimeProfile gate - when false, JIT dead code elimination removes all debugger functionality. Defaults to true in dev mode, false in production mode. Can be explicitly overridden regardless of production mode setting",
+		"category": "performance",
+		"type": "boolean",
+		"introduced": "7.1",
+		"default": "!PROD (true in dev, false in production)"
+	},
+	{
+		"sysprop": "lucee.allow.execution.log",
+		"envvar": "LUCEE_ALLOW_EXECUTION_LOG",
+		"desc": "RuntimeProfile gate - when false, JIT dead code elimination removes execution logging code. Defaults to true in dev mode, false in production mode. Can be explicitly overridden regardless of production mode setting",
+		"category": "performance",
+		"type": "boolean",
+		"introduced": "7.1",
+		"default": "!PROD (true in dev, false in production)"
+	},
+	{
+		"sysprop": "lucee.allow.fusiondebug",
+		"envvar": "LUCEE_ALLOW_FUSIONDEBUG",
+		"desc": "RuntimeProfile gate - when false, JIT dead code elimination removes FusionDebug exception signaling code. Defaults to true in dev mode, false in production mode. Can be explicitly overridden regardless of production mode setting",
+		"category": "performance",
+		"type": "boolean",
+		"introduced": "7.1",
+		"default": "!PROD (true in dev, false in production)"
+	},
+	{
+		"sysprop": "lucee.allow.monitoring",
+		"envvar": "LUCEE_ALLOW_MONITORING",
+		"desc": "RuntimeProfile gate - when false, JIT dead code elimination removes request monitoring code. Defaults to true in dev mode, false in production mode. Can be explicitly overridden regardless of production mode setting",
+		"category": "performance",
+		"type": "boolean",
+		"introduced": "7.1",
+		"default": "!PROD (true in dev, false in production)"
+	},
+	{
 		"sysprop": "lucee.precise.math",
 		"envvar": "LUCEE_PRECISE_MATH",
 		"desc": "A boolean value. If enabled, this improves the accuracy of floating-point calculations but makes them slightly slower",
 		"category": "performance",
 		"type": "boolean",
+		"default": false
+	},
+	{
+		"sysprop": "lucee.production.mode",
+		"envvar": "LUCEE_PRODUCTION_MODE",
+		"desc": "RuntimeProfile flag - when true, sets default for all dev/debug features to disabled (debugger, execution log, FusionDebug, monitoring). Individual features can still be explicitly enabled via their respective environment variables. This provides maximum performance by enabling JIT dead code elimination for development features when not explicitly overridden",
+		"category": "performance",
+		"type": "boolean",
+		"introduced": "7.1",
 		"default": false
 	},
 	{

@@ -89,6 +89,7 @@ import lucee.runtime.component.ImportDefintion;
 import lucee.runtime.component.ImportDefintionImpl;
 import lucee.runtime.config.ConfigFactoryImpl.Path;
 import lucee.runtime.config.ConfigUtil.CacheElement;
+import lucee.runtime.config.RuntimeProfile;
 import lucee.runtime.config.gateway.GatewayMap;
 import lucee.runtime.customtag.InitFile;
 import lucee.runtime.db.ClassDefinition;
@@ -5376,6 +5377,7 @@ public abstract class ConfigImpl extends ConfigBase implements ConfigPro {
 
 	@Override
 	public boolean hasDebugOptions(int debugOption) {
+		if (!RuntimeProfile.DEBUGGER) return false;
 		return (getDebugOptions() & debugOption) > 0;
 	}
 

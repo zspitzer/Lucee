@@ -35,6 +35,7 @@ import lucee.runtime.PageSource;
 import lucee.runtime.config.ConfigPro;
 import lucee.runtime.config.Constants;
 import lucee.runtime.config.Identification;
+import lucee.runtime.config.RuntimeProfile;
 import lucee.runtime.exp.ApplicationException;
 import lucee.runtime.exp.PageExceptionImpl;
 import lucee.runtime.exp.TemplateException;
@@ -144,7 +145,7 @@ public final class CFMLTransformer {
 		Page p;
 		SourceCode sc;
 
-		boolean writeLog = config.getExecutionLogEnabled();
+		boolean writeLog = RuntimeProfile.EXECUTION_LOG && config.getExecutionLogEnabled();
 
 		Charset charset = config.getTemplateCharset();
 		boolean dotUpper = ((MappingImpl) ps.getMapping()).getDotNotationUpperCase();

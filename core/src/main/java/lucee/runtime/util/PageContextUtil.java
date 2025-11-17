@@ -54,6 +54,7 @@ import lucee.runtime.config.ConfigPro;
 import lucee.runtime.config.ConfigServerImpl;
 import lucee.runtime.config.ConfigWeb;
 import lucee.runtime.config.Constants;
+import lucee.runtime.config.RuntimeProfile;
 import lucee.runtime.engine.CFMLEngineImpl;
 import lucee.runtime.engine.ThreadLocalPageContext;
 import lucee.runtime.exp.ApplicationException;
@@ -280,6 +281,7 @@ public final class PageContextUtil {
 	}
 
 	public static boolean hasDebugOptions(PageContext pc, int option) {
+		if (!RuntimeProfile.DEBUGGER) return false;
 		pc = ThreadLocalPageContext.get(pc);
 		if (pc instanceof PageContextImpl) return ((PageContextImpl) pc).hasDebugOptions(option);
 		Config c = ThreadLocalPageContext.getConfig();
@@ -288,6 +290,7 @@ public final class PageContextUtil {
 	}
 
 	public static boolean debug(PageContext pc) {
+		if (!RuntimeProfile.DEBUGGER) return false;
 		if (pc != null) return ((PageContextImpl) pc).getDebugOptions() > 0;
 		return false;
 	}

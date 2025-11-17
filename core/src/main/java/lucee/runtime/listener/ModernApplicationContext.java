@@ -60,6 +60,7 @@ import lucee.runtime.config.ConfigFactoryImpl;
 import lucee.runtime.config.ConfigPro;
 import lucee.runtime.config.ConfigUtil;
 import lucee.runtime.config.ConfigWeb;
+import lucee.runtime.config.RuntimeProfile;
 import lucee.runtime.db.ClassDefinition;
 import lucee.runtime.db.DataSource;
 import lucee.runtime.engine.ThreadLocalPageContext;
@@ -1302,6 +1303,7 @@ public final class ModernApplicationContext extends ApplicationContextSupport {
 
 	@Override
 	public boolean hasDebugOptions(int option) {
+		if (!RuntimeProfile.DEBUGGER) return false;
 		if (!initMonitor) initMonitor();
 		return (debugging & option) > 0;
 	}

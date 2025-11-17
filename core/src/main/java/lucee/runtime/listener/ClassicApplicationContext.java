@@ -42,6 +42,7 @@ import lucee.runtime.ai.AIEngine;
 import lucee.runtime.cache.CacheConnection;
 import lucee.runtime.config.ConfigPro;
 import lucee.runtime.config.ConfigWeb;
+import lucee.runtime.config.RuntimeProfile;
 import lucee.runtime.db.DataSource;
 import lucee.runtime.exp.ApplicationException;
 import lucee.runtime.exp.DeprecatedException;
@@ -1234,6 +1235,7 @@ public final class ClassicApplicationContext extends ApplicationContextSupport {
 
 	@Override
 	public boolean hasDebugOptions(int option) {
+		if (!RuntimeProfile.DEBUGGER) return false;
 		return (getDebugOptions() & option) > 0;
 	}
 

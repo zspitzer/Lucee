@@ -24,6 +24,7 @@ import java.util.Set;
 import lucee.runtime.PageContext;
 import lucee.runtime.PageContextImpl;
 import lucee.runtime.config.ConfigPro;
+import lucee.runtime.config.RuntimeProfile;
 import lucee.runtime.exp.PageException;
 import lucee.runtime.listener.ApplicationContextSupport;
 import lucee.runtime.type.Query;
@@ -81,6 +82,7 @@ public final class DebuggerUtil {
 	}
 
 	public static boolean hasDebugOptions(PageContext pc) {
+		if (!RuntimeProfile.DEBUGGER) return false;
 		PageContextImpl pci = (PageContextImpl) pc;
 		return pci.hasDebugOptions(ConfigPro.DEBUG_DATABASE) || pci.hasDebugOptions(ConfigPro.DEBUG_DUMP) || pci.hasDebugOptions(ConfigPro.DEBUG_EXCEPTION)
 				|| pci.hasDebugOptions(ConfigPro.DEBUG_IMPLICIT_ACCESS) || pci.hasDebugOptions(ConfigPro.DEBUG_QUERY_USAGE) || pci.hasDebugOptions(ConfigPro.DEBUG_TEMPLATE)

@@ -98,6 +98,7 @@ import lucee.runtime.config.ConfigWeb;
 import lucee.runtime.config.ConfigWebPro;
 import lucee.runtime.config.Constants;
 import lucee.runtime.config.NullSupportHelper;
+import lucee.runtime.config.RuntimeProfile;
 import lucee.runtime.config.Password;
 import lucee.runtime.converter.JSONConverter;
 import lucee.runtime.converter.JSONDateFormat;
@@ -110,6 +111,7 @@ import lucee.runtime.debug.DebugCFMLWriter;
 import lucee.runtime.debug.DebugEntryTemplate;
 import lucee.runtime.debug.Debugger;
 import lucee.runtime.debug.DebuggerImpl;
+import lucee.runtime.debug.NullDebugger;
 import lucee.runtime.dump.DumpUtil;
 import lucee.runtime.dump.DumpWriter;
 import lucee.runtime.engine.ExecutionLog;
@@ -293,7 +295,7 @@ public final class PageContextImpl extends PageContext {
 	private Client client;
 	private Application application;
 
-	private final DebuggerImpl debugger = new DebuggerImpl();
+	private final Debugger debugger = RuntimeProfile.DEBUGGER ? new DebuggerImpl() : NullDebugger.INSTANCE;
 	private long requestTimeout = -1;
 	private short enablecfoutputonly = 0;
 	private int outputState;
@@ -569,8 +571,8 @@ public final class PageContextImpl extends PageContext {
 		else {
 			_psq = null;
 		}
-		fdEnabled = !config.allowRequestTimeout();
-		if (config.getExecutionLogEnabled()) this.execLog = config.getExecutionLogFactory().getInstance(this);
+		fdEnabled = RuntimeProfile.FUSION_DEBUG && !config.allowRequestTimeout();
+		if ( RuntimeProfile.EXECUTION_LOG && config.getExecutionLogEnabled() ) this.execLog = config.getExecutionLogFactory().getInstance(this);
 		if (debugger != null) debugger.init(config);
 		if (clone) {
 			((UndefinedImpl) undefined).initialize(this, tmplPC.getScopeCascadingType(), tmplPC.hasDebugOptions(ConfigPro.DEBUG_IMPLICIT_ACCESS));
@@ -630,18 +632,20 @@ public final class PageContextImpl extends PageContext {
 	public void release() {
 		config.releaseCacheHandlers(this);
 
-		if (config.getExecutionLogEnabled() && execLog != null) {
+		if (RuntimeProfile.EXECUTION_LOG && config.getExecutionLogEnabled() && execLog != null) {
 			execLog.release();
 			execLog = null;
 		}
 
-		if (PageContextUtil.debug(this)) {
-			boolean skipLogThread = isChild;
-			if (skipLogThread && hasDebugOptions(ConfigPro.DEBUG_THREAD)) skipLogThread = false;
-			if (!skipLogThread && !gatewayContext) config.getDebuggerPool().store(this, debugger);
-			debugger.reset();
+		if (RuntimeProfile.DEBUGGER) {
+			if (PageContextUtil.debug(this)) {
+				boolean skipLogThread = isChild;
+				if (skipLogThread && hasDebugOptions(ConfigPro.DEBUG_THREAD)) skipLogThread = false;
+				if (!skipLogThread && !gatewayContext && debugger instanceof DebuggerImpl) config.getDebuggerPool().store(this, (DebuggerImpl) debugger);
+				debugger.reset();
+			}
+			else if (debugger instanceof DebuggerImpl) ((DebuggerImpl) debugger).resetTraces(); // traces can alo be used when debugging is off
 		}
-		else debugger.resetTraces(); // traces can alo be used when debugging is off
 
 		this.serverPassword = null;
 
@@ -2888,6 +2892,7 @@ public final class PageContextImpl extends PageContext {
 	}
 
 	public boolean hasDebugOptions(int option) {
+		if (!RuntimeProfile.DEBUGGER) return false;
 		return applicationContext == null ? config.hasDebugOptions(option) : getApplicationContext().hasDebugOptions(option);
 	}
 
@@ -2896,7 +2901,7 @@ public final class PageContextImpl extends PageContext {
 	}
 
 	private void initallog() {
-		if (!isGatewayContext() && config.isMonitoringEnabled()) {
+		if ( RuntimeProfile.MONITORING && !isGatewayContext() && config.isMonitoringEnabled() ) {
 			RequestMonitor[] monitors = config.getRequestMonitors();
 			if (monitors != null) for (int i = 0; i < monitors.length; i++) {
 				if (monitors[i].isLogEnabled()) {
@@ -2912,7 +2917,7 @@ public final class PageContextImpl extends PageContext {
 	}
 
 	private void log(boolean error) {
-		if (!isGatewayContext() && config.isMonitoringEnabled()) {
+		if ( RuntimeProfile.MONITORING && !isGatewayContext() && config.isMonitoringEnabled() ) {
 			RequestMonitor[] monitors = config.getRequestMonitors();
 			if (monitors != null) for (int i = 0; i < monitors.length; i++) {
 				if (monitors[i].isLogEnabled()) {
