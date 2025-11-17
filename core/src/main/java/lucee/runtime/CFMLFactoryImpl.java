@@ -53,6 +53,7 @@ import lucee.runtime.config.ConfigServerImpl;
 import lucee.runtime.config.ConfigWeb;
 import lucee.runtime.config.ConfigWebPro;
 import lucee.runtime.config.Constants;
+import lucee.runtime.config.RuntimeProfile;
 import lucee.runtime.engine.CFMLEngineImpl;
 import lucee.runtime.engine.JspEngineInfoImpl;
 import lucee.runtime.engine.MonitorState;
@@ -176,7 +177,7 @@ public final class CFMLFactoryImpl extends CFMLFactory {
 			boolean autoflush, boolean register2Thread, boolean isChild, long timeout, boolean register2RunningThreads, boolean ignoreScopes, boolean createNew,
 			PageContextImpl tmplPC) {
 
-		if (!isChild) {
+		if ( RuntimeProfile.IP_THROTTLE && !isChild ) {
 			String ra = req.getRemoteAddr();
 			String tmp;
 			if (ra != null) {
