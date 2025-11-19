@@ -2379,13 +2379,18 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 
 	@Override
 	public void setProperty(Property property) throws PageException {
-		// LDEV-3335: If property is inherited (has ownerPageSource set to a different component),
-		// duplicate it so each component has its own PropertyImpl instance
+		// LDEV-3335: Handle property inheritance and overrides
 		PropertyImpl propImpl = (PropertyImpl) property;
 		PageSource propOwnerPS = propImpl.getOwnerPageSource();
+
+		// Check if this property is overriding an existing property (same name already registered)
+		String propNameLower = StringUtil.toLowerCase(propImpl.getName());
+		PropertyImpl existing = (PropertyImpl) top.properties.properties.get(propNameLower);
+		boolean isOverride = existing != null && propOwnerPS == null;
+
 		boolean isInherited = propOwnerPS != null && !propOwnerPS.equals(getPageSource());
 
-		if (isInherited) {
+		if (isInherited && !isOverride) {
 			// Property is from a parent component - duplicate it to avoid sharing/mutation
 			propImpl = (PropertyImpl) propImpl.duplicate(false);
 		}
@@ -2395,7 +2400,7 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 			propImpl.setOwnerName(getAbsName(), getPageSource());
 		}
 
-		top.properties.properties.put(StringUtil.toLowerCase(propImpl.getName()), propImpl);
+		top.properties.properties.put(propNameLower, propImpl);
 		if (propImpl.getDefaultAsObject() != null) {
 			scope.setEL(propImpl.getNameAsKey(), propImpl.getDefaultAsObject());
 		}
@@ -2403,7 +2408,9 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 		// 1. Component has accessors enabled, OR
 		// 2. Component is persistent, OR
 		// 3. Property is inherited and has accessors (need to create new UDFs with duplicated property)
-		if (top.properties.persistent || top.properties.accessors || (isInherited && (propImpl.getGetter() || propImpl.getSetter()))) {
+		// 4. Property is an override with accessors (child re-declaring parent property)
+		if (top.properties.persistent || top.properties.accessors || (isInherited && (propImpl.getGetter() || propImpl.getSetter()))
+				|| (isOverride && (propImpl.getGetter() || propImpl.getSetter()))) {
 			PropertyFactory.createPropertyUDFs(this, propImpl);
 		}
 	}
@@ -2441,8 +2448,11 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 				while (it.hasNext()) {
 					p = it.next().getValue();
 					if (p.isPeristent()) {
-
-						setProperty(p);
+						// LDEV-87: Don't override properties that child component has already declared
+						String propNameLower = StringUtil.toLowerCase(p.getName());
+						if (!top.properties.properties.containsKey(propNameLower)) {
+							setProperty(p);
+						}
 					}
 				}
 			}
