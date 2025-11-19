@@ -882,7 +882,19 @@ public final class ComponentUtil {
 
 		if (udf instanceof UDFGSProperty) {
 			UDFGSProperty gsProp = (UDFGSProperty) udf;
-			PageSource ps = gsProp.getPageSource();
+			PageSource ps = null;
+
+			// LDEV-3335: For inherited accessors, use the property's original owner
+			Property prop = gsProp.getProperty();
+			if (prop instanceof PropertyImpl) {
+				ps = ((PropertyImpl) prop).getOwnerPageSource();
+			}
+
+			// Fallback to the UDF's PageSource if property owner not available
+			if (ps == null) {
+				ps = gsProp.getPageSource();
+			}
+
 			if (ps != null) {
 				func.set(KeyConstants._owner, ps.getDisplayPath());
 			}
@@ -1160,12 +1172,14 @@ public final class ComponentUtil {
 				StructUtil.copy(dynamicAttributes, property.getDynamicAttributes(), true);
 			}
 
-			comp.setProperty(property);
+			// LDEV-3335: Set owner BEFORE setProperty() so inherited properties have the correct owner
 			// Only set owner for properties defined in this component, not inherited ones
 			// If already set (inherited from parent), don't overwrite
 			if (property.getOwnerPageSource() == null) {
 				property.setOwnerName(comp.getAbsName(), comp.getPageSource());
 			}
+
+			comp.setProperty(property);
 		}
 	}
 

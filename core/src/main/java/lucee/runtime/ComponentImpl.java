@@ -2384,9 +2384,15 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 		PropertyImpl propImpl = (PropertyImpl) property;
 		PageSource propOwnerPS = propImpl.getOwnerPageSource();
 		boolean isInherited = propOwnerPS != null && !propOwnerPS.equals(getPageSource());
+
 		if (isInherited) {
 			// Property is from a parent component - duplicate it to avoid sharing/mutation
 			propImpl = (PropertyImpl) propImpl.duplicate(false);
+		}
+		else if (propOwnerPS == null) {
+			// LDEV-3335: Property doesn't have owner set yet - set it to this component
+			// This happens for properties from __staticProperties that haven't been initialized
+			propImpl.setOwnerName(getAbsName(), getPageSource());
 		}
 
 		top.properties.properties.put(StringUtil.toLowerCase(propImpl.getName()), propImpl);
