@@ -19,10 +19,10 @@
 package lucee.runtime.type;
 
 import lucee.commons.lang.CFTypes;
-import lucee.commons.lang.StringUtil;
 import lucee.runtime.Component;
 import lucee.runtime.PageContext;
 import lucee.runtime.component.Property;
+import lucee.runtime.component.PropertyImpl;
 import lucee.runtime.exp.PageException;
 import lucee.runtime.type.Collection.Key;
 
@@ -36,9 +36,9 @@ public final class UDFGetterProperty extends UDFGSProperty {
 	private final Key propName;
 
 	public UDFGetterProperty(Component component, Property prop) {
-		super(component, "get" + StringUtil.ucFirst(prop.getName()), EMPTY, CFTypes.toShortStrict(prop.getType(), CFTypes.TYPE_ANY));
+		super(component, ((PropertyImpl) prop).getGetterName(), EMPTY, CFTypes.toShortStrict(prop.getType(), CFTypes.TYPE_ANY));
 		this.prop = prop; // Set parent's prop field
-		this.propName = KeyImpl.init(prop.getName());
+		this.propName = ((PropertyImpl) prop).getNameAsKey();
 	}
 
 	@Override

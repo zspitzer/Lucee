@@ -48,37 +48,36 @@ public final class UDFSetterProperty extends UDFGSProperty {
 	private Struct validateParams;
 
 	private UDFSetterProperty(Component component, Property prop, String validate, Struct validateParams) {
-		super(component, "set" + StringUtil.ucFirst(prop.getName()),
-				new FunctionArgument[] { new FuncArgLite(KeyImpl.init(prop.getName()), prop.getType(), CFTypes.toShortStrict(prop.getType(), CFTypes.TYPE_UNKNOW), true) },
+		super(component, ((PropertyImpl) prop).getSetterName(),
+				new FunctionArgument[] { new FuncArgLite(((PropertyImpl) prop).getNameAsKey(), prop.getType(), CFTypes.toShortStrict(prop.getType(), CFTypes.TYPE_UNKNOW), true) },
 				CFTypes.TYPE_VOID);
 		this.prop = prop;
-		this.propName = KeyImpl.init(prop.getName());
+		this.propName = ((PropertyImpl) prop).getNameAsKey();
 		this.validate = validate;
 		this.validateParams = validateParams;
 	}
 
 	public UDFSetterProperty(Component component, Property prop) throws PageException {
-		super(component, "set" + StringUtil.ucFirst(prop.getName()),
-				new FunctionArgument[] { new FuncArgLite(KeyImpl.init(prop.getName()), prop.getType(), CFTypes.toShortStrict(prop.getType(), CFTypes.TYPE_UNKNOW), true) },
+		super(component, ((PropertyImpl) prop).getSetterName(),
+				new FunctionArgument[] { new FuncArgLite(((PropertyImpl) prop).getNameAsKey(), prop.getType(), CFTypes.toShortStrict(prop.getType(), CFTypes.TYPE_UNKNOW), true) },
 				CFTypes.TYPE_VOID);
 
 		this.prop = prop;
-		this.propName = KeyImpl.init(prop.getName());
+		this.propName = ((PropertyImpl) prop).getNameAsKey();
 
-		this.validate = Caster.toString(prop.getDynamicAttributes().get(KeyConstants._validate, null), null);
-		if (!StringUtil.isEmpty(validate, true)) {
-			validate = validate.trim().toLowerCase();
-			Struct da = prop.getDynamicAttributes();
-			if (da != null) {
-				Object o = da.get(VALIDATE_PARAMS, null);
-				if (o != null) {
-					if (Decision.isStruct(o)) validateParams = Caster.toStruct(o);
-					else {
-						String str = Caster.toString(o);
-						if (!StringUtil.isEmpty(str, true)) {
-							validateParams = ORMUtil.convertToSimpleMap(str);
-							if (validateParams == null) throw new ExpressionException("cannot parse string [" + str + "] as struct");
-						}
+		// Cache getDynamicAttributes() call to avoid multiple lookups
+		Struct da = prop.getDynamicAttributes();
+		this.validate = Caster.toString(da.get(KeyConstants._validate, null), null);
+		if (!StringUtil.isEmpty(this.validate, true)) {
+			this.validate = this.validate.trim().toLowerCase();
+			Object o = da.get(VALIDATE_PARAMS, null);
+			if (o != null) {
+				if (Decision.isStruct(o)) validateParams = Caster.toStruct(o);
+				else {
+					String str = Caster.toString(o);
+					if (!StringUtil.isEmpty(str, true)) {
+						validateParams = ORMUtil.convertToSimpleMap(str);
+						if (validateParams == null) throw new ExpressionException("cannot parse string [" + str + "] as struct");
 					}
 				}
 			}

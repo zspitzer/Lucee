@@ -48,6 +48,8 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 	private Collection.Key nameAsKey; // Cached key for property name
 	private Collection.Key getterKey; // Cached key for "getName"
 	private Collection.Key setterKey; // Cached key for "setName"
+	private String getterName; // Cached "getName" string
+	private String setterName; // Cached "setName" string
 	private Object _default;
 	private String displayname = "";
 	private String hint = "";
@@ -149,6 +151,8 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 		this.nameAsKey = null; // Clear cached key when name changes
 		this.getterKey = null; // Clear cached getter key
 		this.setterKey = null; // Clear cached setter key
+		this.getterName = null; // Clear cached getter name
+		this.setterName = null; // Clear cached setter name
 	}
 
 	public Collection.Key getNameAsKey() {
@@ -182,6 +186,20 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 
 	public void setSetterKey(Collection.Key key) {
 		this.setterKey = key;
+	}
+
+	public String getGetterName() {
+		if (getterName == null && name != null) {
+			getterName = "get" + StringUtil.ucFirst(name);
+		}
+		return getterName;
+	}
+
+	public String getSetterName() {
+		if (setterName == null && name != null) {
+			setterName = "set" + StringUtil.ucFirst(name);
+		}
+		return setterName;
 	}
 
 	/**
@@ -349,10 +367,46 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 	@Override
 	public boolean equals(Object obj) {
 		if (this == obj) return true;
-		if (!(obj instanceof Property)) return false;
-		Property other = (Property) obj;
+		if (!(obj instanceof PropertyImpl)) return false;
+		PropertyImpl other = (PropertyImpl) obj;
 
-		return toString().equals(other.toString());
+		// Compare actual fields instead of allocating strings via toString()
+		if (!StringUtil.emptyIfNull(name).equals(StringUtil.emptyIfNull(other.name))) return false;
+		if (!StringUtil.emptyIfNull(type).equals(StringUtil.emptyIfNull(other.type))) return false;
+		if (!StringUtil.emptyIfNull(displayname).equals(StringUtil.emptyIfNull(other.displayname))) return false;
+		if (!StringUtil.emptyIfNull(hint).equals(StringUtil.emptyIfNull(other.hint))) return false;
+		if (!StringUtil.emptyIfNull(ownerName).equals(StringUtil.emptyIfNull(other.ownerName))) return false;
+		if (required != other.required) return false;
+		if (getter != other.getter) return false;
+		if (setter != other.setter) return false;
+
+		// Compare default value
+		if (_default == null) {
+			if (other._default != null) return false;
+		}
+		else if (!_default.equals(other._default)) return false;
+
+		// Compare dynamic attributes
+		if (dynAttrs == null) {
+			if (other.dynAttrs != null && other.dynAttrs.size() > 0) return false;
+		}
+		else if (other.dynAttrs == null) {
+			if (dynAttrs.size() > 0) return false;
+		}
+		else {
+			// Both have dynAttrs - use toString() comparison as fallback for Struct comparison
+			try {
+				String thisDynAttrs = new ScriptConverter().serialize(dynAttrs);
+				String otherDynAttrs = new ScriptConverter().serialize(other.dynAttrs);
+				if (!thisDynAttrs.equals(otherDynAttrs)) return false;
+			}
+			catch (ConverterException ce) {
+				// If serialization fails, fall back to reference equality
+				if (dynAttrs != other.dynAttrs) return false;
+			}
+		}
+
+		return true;
 	}
 
 	@Override
@@ -369,6 +423,12 @@ public final class PropertyImpl extends MemberSupport implements Property, ASMPr
 		other.required = required;
 		other.setter = setter;
 		other.type = type;
+		// Copy cached keys and names to avoid recalculation
+		other.nameAsKey = nameAsKey;
+		other.getterKey = getterKey;
+		other.setterKey = setterKey;
+		other.getterName = getterName;
+		other.setterName = setterName;
 
 		return other;
 	}}
