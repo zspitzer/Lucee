@@ -7997,7 +7997,7 @@ Suport for cookie was removed in Lucee 7
 			<name>functionPaths</name>
 			<required>false</required>
 			<rtexprvalue>true</rtexprvalue>
-			<description>Array or String list of paths where you have your functions.</description>
+			<description>Array or String list of paths where you have your functions in individual `.cfm` files, with the function name matching the filename. For best performance, use lowercase names for the UDF files, for faster matching, the function name can however be in any case.</description>
 		</attribute>
 		<attribute>
 			<type>any</type>

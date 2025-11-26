@@ -855,7 +855,7 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 
 		for (Resource dir : dirs) {
 			for (String ext : exts) {
-				Resource file = ResourceUtil.toExactResource(dir.getRealResource(name + "." + ext));
+				Resource file = ResourceUtil.toExactResourceFile(dir, name + "." + ext);
 				if (file.exists()) {
 					return CFFunction.loadUDF(pc, file, methodName, true, false);
 				}
