@@ -239,7 +239,7 @@ public final class ConfigUtil {
 		if (!StringUtil.isEmpty(strDir, true)) {
 			Resource res, tmp;
 
-			// non default resource
+			// non default resource (has scheme like ftp://, s3://, etc)
 			if (startWithScheme(strDir)) {
 				String scheme = getScheme(strDir, null);
 				if (scheme != null && !scheme.equalsIgnoreCase(config.getDefaultResourceProvider().getScheme())) {
@@ -248,14 +248,21 @@ public final class ConfigUtil {
 				}
 			}
 
+			// absolute path (e.g. /foo/bar on Unix or D:\foo\bar on Windows)
+			tmp = config.getResource(strDir);
+			if (tmp.isAbsolute()) {
+				res = ResourceUtil.createResource(tmp, level, type);
+				if (res != null) return res;
+			}
+
 			// create resource relative to rootDir
 			else if (rootDir != null) {
-				res = ResourceUtil.createResource(rootDir.getRealResource(strDir), level, type);
+				Resource rel = rootDir.getRealResource(strDir);
+				res = ResourceUtil.createResource(rel, level, type);
 				if (res != null) return res;
 			}
 
 			// create resource absolute
-			tmp = config.getResource(strDir);
 			if (ResourceUtil.getExistingAncestorFolder(tmp, configDir) != null) {
 				res = ResourceUtil.createResource(tmp, level, type);
 				if (res != null) return res;
@@ -372,22 +379,25 @@ public final class ConfigUtil {
 		// checkFromWebroot &&
 		if (!StringUtil.isEmpty(strDir, true)) {
 			Resource res, rel = null, abs = null;
-			// looking for a match relative to the webroot, but only if there is no scheme
-			if (sc != null && !startWithScheme(strDir)) {
-				rel = config.getResource(ResourceUtil.merge(ReqRspUtil.getRootPath(sc), strDir));
-				res = _getExistingFile(rel, type);
-				if (res != null) return res;
-			}
 			// check for resource directly
 			try {
 				abs = config.getResource(strDir);
-				res = _getExistingFile(abs, type);
-				if (res != null) return res;
 			}
 			catch (Exception e) {
 				// throws an exception if we have an invalid resource provider
 				return null;
 			}
+
+			// looking for a match relative to the webroot, but only if there is no scheme and not absolute
+			if (sc != null && !startWithScheme(strDir) && !abs.isAbsolute()) {
+				rel = config.getResource(ResourceUtil.merge(ReqRspUtil.getRootPath(sc), strDir));
+				res = _getExistingFile(rel, type);
+				if (res != null) return res;
+			}
+
+			// check for resource directly
+			res = _getExistingFile(abs, type);
+			if (res != null) return res;
 
 			/// now we give no existing folder a chance
 			if (!existing) {
@@ -1273,6 +1283,14 @@ public final class ConfigUtil {
 	public static PageSource getPageSourceExisting(PageContext pc, ConfigPro config, Mapping[] mappings, String realPath, boolean onlyTopLevel, boolean useSpecialMappings,
 			boolean useDefaultMapping, boolean onlyPhysicalExisting) {
 		realPath = realPath.replace('\\', '/');
+
+		// Absolute filesystem paths cannot be resolved through virtual mappings
+		// Windows paths like "D:/foo/bar" or "C:/foo/bar" have a drive letter followed by colon
+		if ( realPath.length() > 2 && realPath.charAt( 1 ) == ':' && Character.isLetter( realPath.charAt( 0 ) ) ) {
+			lucee.aprint.o( "getPageSourceExisting: rejecting absolute Windows path: " + realPath );
+			return null;
+		}
+
 		String lcRealPath = StringUtil.toLowerCase(realPath) + '/';
 		Mapping mapping;
 		PageSource ps;

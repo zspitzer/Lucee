@@ -388,8 +388,12 @@ public final class MappingImpl implements Mapping {
 	 * @return cloned mapping
 	 */
 	public MappingImpl cloneReadOnly(Config config) {
-		return new MappingImpl(config, virtual, strPhysical, strArchive, inspect, inspectTemplateAutoIntervalSlow, inspectTemplateAutoIntervalFast, physicalFirst, hidden, true,
+		MappingImpl clone = new MappingImpl(config, virtual, strPhysical, strArchive, inspect, inspectTemplateAutoIntervalSlow, inspectTemplateAutoIntervalFast, physicalFirst, hidden, true,
 				topLevel, appMapping, ignoreVirtual, appListener, listenerMode, listenerType, checkPhysicalFromWebroot, checkArchiveFromWebroot);
+		// Copy already-resolved resources to avoid re-resolving paths
+		clone.physical = this.physical;
+		clone.archive = this.archive;
+		return clone;
 	}
 
 	@Override
@@ -622,10 +626,6 @@ public final class MappingImpl implements Mapping {
 				.append(";StrArchive:").append(getStrArchive())
 
 				.append(";Virtual:").append(getVirtual())
-
-				.append(";Archive:").append(getArchive())
-
-				.append(";Physical:").append(getPhysical())
 
 				.append(";topLevel:").append(topLevel)
 
