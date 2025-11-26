@@ -2,7 +2,7 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 
 	function beforeAll(){
 		systemOutput( "Waiting for server to be ready..., sleep 10s" );
-		sleep(10000); // wait for server to be ready	
+		sleep(10000); // wait for server to be ready
 		variables.rounds = 10000;
 	}
 
@@ -27,7 +27,11 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				expect( result.filecontent.trim() ).toBe( "func1:ok|func2:ok|func3:ok|func4:ok|func5:ok" );
 			});
 
-			// slow path, some UDF calls use different casing to the filenames
+			/*
+				fast path, some UDF calls use different casing to the filenames,
+				but UDF names are stored in UPPER CASE in bytecode,
+				the udf file exists check defaults to lower case
+			*/
 			it( title="three function paths with five UDFs each (lowercase files, mixed case calls)", body=function( currentSpec ) {
 				var uri = createURI( "LDEV5937/threePathsFiveFuncsEach" );
 				var result = "";
@@ -37,7 +41,11 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				expect( result.filecontent.trim() ).toBe( "dir1func1:ok|dir1func5:ok|dir2func1:ok|dir2func5:ok|dir3func1:ok|dir3func5:ok" );
 			});
 
-			// fast path, test the assumption that UDF calls with use the same casing as the filenames
+			/* 
+				slow path, despite the assumption that UDF calls with use the same casing as the filenames
+				but UDF names are stored in UPPER CASE in bytecode,
+				this causes a mismatch on case sensitive filesystems, requiring a search
+			*/
 			it( title="three function paths with five UDFs each (camelCase files, matching calls)", body=function( currentSpec ) {
 				var uri = createURI( "LDEV5937/threePathsCamelCase" );
 				var result = "";
