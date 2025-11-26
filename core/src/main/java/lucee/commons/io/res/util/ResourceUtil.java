@@ -441,8 +441,8 @@ public final class ResourceUtil {
 			parent = _check(parent);
 			if (op == parent) return file;
 			if ((file = parent.getRealResource(file.getName())).exists()) {
-				LogUtil.log(ThreadLocalPageContext.getConfig(), Log.LEVEL_DEBUG, "application", "resources",
-						"Found a case-insensitive match for directory [" + op + "] with the name [" + parent.getName() + "].");
+				// LogUtil.log(ThreadLocalPageContext.getConfig(), Log.LEVEL_DEBUG, "application", "resources",
+				// 		"Found a case-insensitive match for directory [" + op + "] with the name [" + parent.getName() + "].");
 				return file;
 			}
 		}
@@ -450,8 +450,8 @@ public final class ResourceUtil {
 		String[] names = parent.list(new ExactMatchFilter(file.getName()));
 		if (names == null) return file;
 		for (String name: names) {
-			LogUtil.log(ThreadLocalPageContext.getConfig(), Log.LEVEL_DEBUG, "application", "resources",
-					"Found a case-insensitive match for file [" + file + "] with the name [" + name + "].");
+			// LogUtil.log(ThreadLocalPageContext.getConfig(), Log.LEVEL_DEBUG, "application", "resources",
+			// 		"Found a case-insensitive match for file [" + file + "] with the name [" + name + "].");
 			return parent.getRealResource(name);
 		}
 		return file;

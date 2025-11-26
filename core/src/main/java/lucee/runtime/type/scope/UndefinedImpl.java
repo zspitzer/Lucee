@@ -850,11 +850,12 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 		if (dirs == null || dirs.isEmpty()) return null;
 
 		String[] exts = Constants.getTemplateExtensions();
-		String lowerName = methodName.getLowerString();
+		String name = methodName.getString();
 
 		for (Resource dir : dirs) {
 			for (String ext : exts) {
-				Resource file = ResourceUtil.toExactResource(dir.getRealResource(lowerName + "." + ext));
+				// Use original case - file typically matches function name (e.g. checkFile.cfm for checkFile())
+				Resource file = ResourceUtil.toExactResource(dir.getRealResource(name + "." + ext));
 				if (file.exists()) {
 					return CFFunction.loadUDF(pc, file, methodName, true, false);
 				}
