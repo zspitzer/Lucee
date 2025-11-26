@@ -27,8 +27,19 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				expect( result.filecontent.trim() ).toBe( "func1:ok|func2:ok|func3:ok|func4:ok|func5:ok" );
 			});
 
-			it( title="three function paths with five UDFs each", body=function( currentSpec ) {
+			// slow path, some UDF calls use different casing to the filenames
+			it( title="three function paths with five UDFs each (lowercase files, mixed case calls)", body=function( currentSpec ) {
 				var uri = createURI( "LDEV5937/threePathsFiveFuncsEach" );
+				var result = "";
+				loop times=#variables.rounds# {
+					result = _InternalRequest( template: "#uri#/test.cfm" );
+				}
+				expect( result.filecontent.trim() ).toBe( "dir1func1:ok|dir1func5:ok|dir2func1:ok|dir2func5:ok|dir3func1:ok|dir3func5:ok" );
+			});
+
+			// fast path, test the assumption that UDF calls with use the same casing as the filenames
+			it( title="three function paths with five UDFs each (camelCase files, matching calls)", body=function( currentSpec ) {
+				var uri = createURI( "LDEV5937/threePathsCamelCase" );
 				var result = "";
 				loop times=#variables.rounds# {
 					result = _InternalRequest( template: "#uri#/test.cfm" );
