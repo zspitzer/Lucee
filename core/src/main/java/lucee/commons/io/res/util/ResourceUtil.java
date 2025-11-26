@@ -437,8 +437,8 @@ public final class ResourceUtil {
 		}
 		if (file.exists()) return file;
 
-		// Case-insensitive filename search
-		String[] names = parent.list(new ExactMatchFilter(filename));
+		// Case-insensitive filename search - stops after first match
+		String[] names = parent.list(new ExactFirstMatchFilter(filename));
 		if (names != null && names.length > 0) {
 			return parent.getRealResource(names[0]);
 		}
