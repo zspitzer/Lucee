@@ -377,14 +377,25 @@ public final class AppListenerUtil {
 			else md.physical = path;
 			return;
 		}
-		source = source.getParentResource().getRealResource(path);
-		if (source.exists()) {
+
+		// Check if path is absolute before resolving
+		Resource pathRes = source.getResourceProvider().getResource( path );
+
+		Resource resolved;
+		if (pathRes.isAbsolute()) {
+			resolved = pathRes;
+		}
+		else {
+			resolved = source.getParentResource().getRealResource( path );
+		}
+
+		if (resolved.exists()) {
 			if (isArchive) {
-				md.archive = source.getAbsolutePath();
+				md.archive = resolved.getAbsolutePath();
 				md.archiveMatch = true;
 			}
 			else {
-				md.physical = source.getAbsolutePath();
+				md.physical = resolved.getAbsolutePath();
 				md.physicalMatch = true;
 			}
 			return;
