@@ -269,7 +269,7 @@ component {
 			loop array=bundle.suiteStats item="local.suiteStat" {
 				if ( !isNull( suiteStat.specStats ) ) {
 					loop array=suiteStat.specStats item="local.specStat" {
-						if ( specStat.totalDuration gt 5000 )
+						if ( specStat.totalDuration gt 1000 )
 							systemOutput( TAB & TAB & specStat.name & " took #numberFormat( specStat.totalDuration )#ms", true );
 					}
 				}
