@@ -26,7 +26,7 @@ import lucee.commons.io.SystemUtil;
 import lucee.commons.io.log.Log;
 import lucee.commons.io.log.LogUtil;
 import lucee.commons.io.res.Resource;
-import lucee.commons.io.res.filter.ResourceNameFilter;
+import lucee.commons.io.res.util.ResourceUtil;
 import lucee.commons.lang.ExceptionUtil;
 import lucee.commons.lang.StringUtil;
 import lucee.runtime.ComponentScope;
@@ -814,6 +814,7 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 		if (udf != null) {
 			return udf.call(pc, methodName, args, false);
 		}
+		// rarely used as built-in functions are compiled into bytecode
 		BIF bif = BIF.getInstance(pc, methodName.getLowerString(), null);
 		if (bif != null) {
 			return bif.call(pc, methodName, args, false);
@@ -832,6 +833,7 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 		if (udf != null) {
 			return udf.callWithNamedValues(pc, methodName, args, false);
 		}
+		// rarely used as built-in functions are compiled into bytecode
 		BIF bif = BIF.getInstance(pc, methodName.getLowerString(), null);
 		if (bif != null) {
 			return bif.callWithNamedValues(pc, methodName, args, false);
@@ -839,33 +841,21 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 		throw new ExpressionException("No matching function [" + methodName + "] found");
 	}
 
+	// Searches this.functionPaths directories for a UDF matching methodName
 	private UDF getUDF(PageContext pc, Key methodName) throws PageException {
 		ApplicationContextSupport ac = (ApplicationContextSupport) pc.getApplicationContext();
-		if (ac != null) {
-			List<Resource> dirs = ac.getFunctionDirectories();
-			Resource[] files;
-			if (dirs != null && dirs.size() > 0) {
-				Resource file = null;
-				Iterator<Resource> it = dirs.iterator();
-				Resource dir;
-				while (it.hasNext()) {
-					dir = it.next();
-					files = dir.listResources(new ResourceNameFilter() {
-						@Override
-						public boolean accept(Resource dir, String name) {
-							String[] exts = Constants.getTemplateExtensions();
-							for (String ex: exts) {
-								if (name.equalsIgnoreCase(methodName + "." + ex)) return true;
-							}
-							return false;
-						}
-					});
-					if (files != null && files.length > 0) {
-						file = files[0];
-						break;
-					}
-				}
-				if (file != null) {
+		if (ac == null) return null;
+
+		List<Resource> dirs = ac.getFunctionDirectories();
+		if (dirs == null || dirs.isEmpty()) return null;
+
+		String[] exts = Constants.getTemplateExtensions();
+		String lowerName = methodName.getLowerString();
+
+		for (Resource dir : dirs) {
+			for (String ext : exts) {
+				Resource file = ResourceUtil.toExactResource(dir.getRealResource(lowerName + "." + ext));
+				if (file.exists()) {
 					return CFFunction.loadUDF(pc, file, methodName, true, false);
 				}
 			}
