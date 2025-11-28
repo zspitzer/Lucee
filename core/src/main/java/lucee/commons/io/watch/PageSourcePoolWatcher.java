@@ -75,14 +75,20 @@ public final class PageSourcePoolWatcher {
 					break;
 				}
 
+				long start = System.currentTimeMillis();
+				int total = pageSources.size();
+				int loaded = 0;
+				int released = 0;
 				for (SoftReference<PageSource> ref: pageSources.values()) {
 					try {
 						PageSourceImpl ps = (PageSourceImpl) ref.get();
 						if (ps == null) continue;
 
 						if (ps.isLoad()) {
+							loaded++;
 							boolean res = ps.releaseWhenOutdatted();
 							if (res) {
+								released++;
 								interval = mapping.getInspectTemplateAutoInterval(false);
 							}
 						}
@@ -91,6 +97,8 @@ public final class PageSourcePoolWatcher {
 						LogUtil.log(mapping.getConfig(), "pagesource-pool", e);
 					}
 				}
+				long spent = System.currentTimeMillis() - start;
+				lucee.aprint.o("PageSourcePoolWatcher poll: total=" + total + ", loaded=" + loaded + ", released=" + released + ", took=" + spent + "ms, interval=" + interval + "ms, mapping=" + mapping.getVirtual());
 
 				SystemUtil.sleep(interval);
 				if (interval < mapping.getInspectTemplateAutoInterval(true)) interval += INCREASE_FROM_FAST_TO_LOW;
