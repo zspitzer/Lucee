@@ -98,7 +98,7 @@ public final class PageSourcePoolWatcher {
 					}
 				}
 				long spent = System.currentTimeMillis() - start;
-				lucee.aprint.o("PageSourcePoolWatcher poll: total=" + total + ", loaded=" + loaded + ", released=" + released + ", took=" + spent + "ms, interval=" + interval + "ms, mapping=" + mapping.getVirtual());
+				lucee.aprint.o("PageSourcePoolWatcher poll: total=" + total + ", loaded=" + loaded + ", released=" + released + ", took=" + spent + "ms, interval=" + interval + "ms, mapping=" + mapping.getVirtual() + ", physical=" + mapping.getPhysical() + ", archive=" + mapping.getArchive());
 
 				SystemUtil.sleep(interval);
 				if (interval < mapping.getInspectTemplateAutoInterval(true)) interval += INCREASE_FROM_FAST_TO_LOW;
