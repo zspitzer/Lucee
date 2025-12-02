@@ -4232,6 +4232,20 @@ Lucee uses the number of characters in the file.</description>
 			- ExecutionTime: Execution time for the SQL request. (numeric)</description>
 		</attribute>
 		<attribute>
+			<type>string</type>
+			<name>insertResult</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+			<description>Lightweight alternative to result attribute for INSERT operations.
+			Returns a structure with only essential metadata:
+			- generatedKey: Array of generated key values from auto-increment columns. (array)
+			- RecordCount: Number of rows affected. (numeric)
+			- ExecutionTime: Execution time in milliseconds. (numeric)
+			- ExecutionTimeNano: Execution time in nanoseconds. (numeric)
+			Does not include SQL or SqlParameters, reducing memory usage for bulk inserts.
+			Cannot be used together with the result attribute.</description>
+		</attribute>
+		<attribute>
 			<type>any</type>
 			<name>dataSource</name>
 			<required>false</required>

@@ -204,6 +204,13 @@ public final class Query extends BodyTagTryCatchFinallyImpl {
 	}
 
 	/**
+	 * @param insertResult the insertResult to set - lightweight alternative to result attribute
+	 */
+	public void setInsertresult(String insertResult) {
+		data.insertResult = insertResult;
+	}
+
+	/**
 	 * @param psq set preserver single quote
 	 */
 	public void setPsq(boolean psq) {
@@ -544,6 +551,9 @@ public final class Query extends BodyTagTryCatchFinallyImpl {
 		if (!data.items.isEmpty() && data.params != null)
 			throw new DatabaseException("You cannot use the attribute [params] and sub tags queryparam at the same time", null, null, null);
 
+		if (data.result != null && data.insertResult != null)
+			throw new DatabaseException("You cannot use both [result] and [insertResult] attributes at the same time", null, null, null);
+
 		if (data.async) {
 			PageSource ps = getPageSource();
 			((SpoolerEngineImpl) pageContext.getConfig().getSpoolerEngine()).add(pageContext.getConfig(),
@@ -684,7 +694,7 @@ public final class Query extends BodyTagTryCatchFinallyImpl {
 					Object obj;
 
 					if ("orm".equals(data.dbtype) || "hql".equals(data.dbtype)) obj = executeORM(pageContext, data, sqlQuery, data.returntype, data.ormoptions);
-					else obj = executeDatasoure(pageContext, data, sqlQuery, data.result != null, pageContext.getTimeZone(), tl);
+					else obj = executeDatasoure(pageContext, data, sqlQuery, data.result != null || data.insertResult != null, pageContext.getTimeZone(), tl);
 
 					if (obj instanceof QueryResult) {
 						queryResult = (QueryResult) obj;
@@ -754,7 +764,13 @@ public final class Query extends BodyTagTryCatchFinallyImpl {
 			}
 
 			// Result
-			Struct meta = createMetaData(pageContext, data, queryResult, sqlQuery, setVars, exe);
+			Struct meta;
+			if (data.insertResult != null) {
+				meta = createInsertMetaData(pageContext, data, queryResult, setVars, exe);
+			}
+			else {
+				meta = createMetaData(pageContext, data, queryResult, sqlQuery, setVars, exe);
+			}
 
 			// listener
 			((ConfigWebPro) pageContext.getConfig()).getActionMonitorCollector().log(pageContext, "query", "Query", exe, queryResult);
@@ -774,8 +790,14 @@ public final class Query extends BodyTagTryCatchFinallyImpl {
 				Struct args = createArgStruct(pageContext, data, strSQL, tl);
 				args.set(KeyConstants._exception, pe.getCatchBlock(pageContext.getConfig()));
 				ResMeta rm = writeBackResult(pageContext, data, data.listener.error(pageContext, args), setVars);
-				if (data.result == null || (rm.meta == null && rm.asQueryResult() != null))
-					rm.meta = createMetaData(pageContext, data, rm.asQueryResult(), null, setVars, exe + (System.nanoTime() - addExe));
+				if (data.result == null || (rm.meta == null && rm.asQueryResult() != null)) {
+					if (data.insertResult != null) {
+						rm.meta = createInsertMetaData(pageContext, data, rm.asQueryResult(), setVars, exe + (System.nanoTime() - addExe));
+					}
+					else {
+						rm.meta = createMetaData(pageContext, data, rm.asQueryResult(), null, setVars, exe + (System.nanoTime() - addExe));
+					}
+				}
 				callAfter(pageContext, data, strSQL, tl, true, rm.res, rm.meta, setVars);
 			}
 			else throw pe;
@@ -863,6 +885,41 @@ public final class Query extends BodyTagTryCatchFinallyImpl {
 		else {
 			meta = setExecutionTime(pageContext, exe / 1000000);
 		}
+		return meta;
+	}
+
+	private static Struct createInsertMetaData(PageContext pageContext, QueryBean data, QueryResult queryResult, boolean setVars, long exe) throws PageException {
+		if (data.insertResult == null || queryResult == null) return null;
+
+		Struct meta = new StructImpl();
+
+		int rc = queryResult.getRecordcount();
+		if (rc == 0) rc = queryResult.getUpdateCount();
+		meta.setEL(KeyConstants._RECORDCOUNT, Caster.toDouble(rc));
+		meta.setEL(KeyConstants._executionTime, Caster.toDouble(queryResult.getExecutionTime() / 1000000));
+		meta.setEL(KeyConstants._executionTimeNano, Caster.toDouble(queryResult.getExecutionTime()));
+
+		// GENERATED KEYS - same format as createMetaData (comma-separated string)
+		lucee.runtime.type.Query qi = Caster.toQuery(queryResult, null);
+		if (qi != null) {
+			lucee.runtime.type.Query qryKeys = qi.getGeneratedKeys();
+			if (qryKeys != null) {
+				StringBuilder generatedKey = new StringBuilder();
+				Collection.Key[] columnNames = qryKeys.getColumnNames();
+				QueryColumn column;
+				for (int c = 0; c < columnNames.length; c++) {
+					column = qryKeys.getColumn(columnNames[c]);
+					int size = column.size();
+					for (int row = 1; row <= size; row++) {
+						if (generatedKey.length() > 0) generatedKey.append(',');
+						generatedKey.append(Caster.toString(column.get(row, null)));
+					}
+				}
+				if (generatedKey.length() > 0) meta.setEL(KeyConstants._generatedKey, generatedKey.toString());
+			}
+		}
+
+		if (setVars) pageContext.setVariable(data.insertResult, meta);
 		return meta;
 	}
 

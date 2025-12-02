@@ -69,6 +69,7 @@ public final class QueryBean implements Serializable {
 	public String name;
 
 	public String result = null;
+	public String insertResult = null;
 
 	public Collection.Key indexName = null;
 
@@ -112,6 +113,7 @@ public final class QueryBean implements Serializable {
 		username = null;
 		name = "";
 		result = null;
+		insertResult = null;
 
 		unique = false;
 
