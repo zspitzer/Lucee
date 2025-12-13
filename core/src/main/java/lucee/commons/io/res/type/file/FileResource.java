@@ -645,6 +645,7 @@ public final class FileResource extends File implements Resource {
 			provider.read(this);
 		}
 		catch (IOException e) {
+			return false;
 		}
 		return super.exists();
 	}
