@@ -28,12 +28,18 @@ import lucee.transformer.bytecode.BytecodeContext;
 import lucee.transformer.bytecode.statement.FlowControlFinal;
 import lucee.transformer.bytecode.util.Types;
 import lucee.transformer.expression.Expression;
+import lucee.transformer.expression.literal.Literal;
+import lucee.transformer.expression.literal.LitBoolean;
+import lucee.transformer.expression.literal.LitInteger;
+import lucee.transformer.expression.literal.LitLong;
+import lucee.transformer.expression.literal.LitNumber;
+import lucee.transformer.expression.literal.LitString;
 import lucee.transformer.statement.tag.Attribute;
 import lucee.transformer.statement.tag.Tag;
 
 /**
- * Optimized bytecode generation for cfproperty tags. Bypasses tag lifecycle overhead by calling
- * ComponentUtil.registerProperty directly.
+ * Optimized bytecode generation for cfproperty tags. Property metadata registration happens in
+ * static initializer, complex default values are evaluated at runtime.
  */
 public final class TagProperty extends TagBase {
 
@@ -89,28 +95,17 @@ public final class TagProperty extends TagBase {
 	}
 
 	private boolean isSimpleLiteral(Expression expr) {
-		String className = expr.getClass().getSimpleName();
-		return className.equals("LitStringImpl") || className.equals("LitNumberImpl") ||
-		       className.equals("LitBooleanImpl") || className.equals("LitIntegerImpl") ||
-		       className.equals("LitLongImpl");
+		return expr instanceof LitString || expr instanceof LitNumber ||
+		       expr instanceof LitBoolean || expr instanceof LitInteger ||
+		       expr instanceof LitLong;
 	}
 
 	private String getLiteralString(Attribute attr) {
-		try {
-			if (attr != null && attr.getValue() != null) {
-				Expression expr = attr.getValue();
-				// Check if it's a LitStringImpl and extract the string value
-				if (expr.getClass().getSimpleName().equals("LitStringImpl")) {
-					// Use reflection to call getString() since we're using simple name matching
-					java.lang.reflect.Method method = expr.getClass().getMethod("getString");
-					return (String) method.invoke(expr);
-				}
-				// Fall back to toString for other types (may not be accurate)
-				return expr.toString();
+		if (attr != null && attr.getValue() != null) {
+			Expression expr = attr.getValue();
+			if (expr instanceof Literal) {
+				return ((Literal) expr).getString();
 			}
-		}
-		catch (Exception e) {
-			// Fall back to null if we can't get literal value
 		}
 		return null;
 	}

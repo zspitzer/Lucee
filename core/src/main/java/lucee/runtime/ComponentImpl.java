@@ -2435,12 +2435,21 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 	private void initProperties() throws PageException {
 		top.properties.properties = new LinkedHashMap<String, Property>();
 		// Call generated stub to initialize properties from static registry (zero overhead!)
-		if (top.cp != null) {
-			top.cp.initPropertiesStub(this);
+		if (top.cpRef != null) {
+			ComponentPageImpl cp = top.cpRef.get(null, null);
+			if (cp != null) {
+				cp.initPropertiesStub(this);
+			}
 		}
 
 		// LDEV-3335: Add static flyweight accessor UDFs to _data and scope
-		Map<Key, UDF> staticAccessorUDFs = top.cp != null ? top.cp.getStaticAccessorUDFs() : null;
+		Map<Key, UDF> staticAccessorUDFs = null;
+		if (top.cpRef != null) {
+			ComponentPageImpl cp = top.cpRef.get(null, null);
+			if (cp != null) {
+				staticAccessorUDFs = cp.getStaticAccessorUDFs();
+			}
+		}
 		if (staticAccessorUDFs != null && !staticAccessorUDFs.isEmpty()) {
 			Iterator<Map.Entry<Key, UDF>> it = staticAccessorUDFs.entrySet().iterator();
 			while (it.hasNext()) {
