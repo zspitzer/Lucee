@@ -1090,72 +1090,72 @@ public final class PageImpl extends BodyBase implements Page {
 								// prop.setName("propName");
 								ga.loadLocal(propLocal);
 								ga.push(propName);
-								ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setName", Type.VOID_TYPE, new Type[] {Types.STRING}));
+								ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setName", Type.VOID_TYPE, new Type[] { Types.STRING }));
 
 								// prop.setNameAsKey(KeyImpl.init(propName)) - cache the key at class-load time
 								ga.loadLocal(propLocal);
 								ga.push(propName);
-								ga.invokeStatic(Type.getType("Llucee/runtime/type/KeyImpl;"), new Method("init", Types.COLLECTION_KEY, new Type[] {Types.STRING}));
-								ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setNameAsKey", Type.VOID_TYPE, new Type[] {Types.COLLECTION_KEY}));
+								ga.invokeStatic(Type.getType("Llucee/runtime/type/KeyImpl;"), new Method("init", Types.COLLECTION_KEY, new Type[] { Types.STRING }));
+								ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setNameAsKey", Type.VOID_TYPE, new Type[] { Types.COLLECTION_KEY }));
 
 								// prop.setGetterKey(KeyImpl.init("get" + propName)) - cache getter key
 								ga.loadLocal(propLocal);
 								ga.push("get" + propName);
-								ga.invokeStatic(Type.getType("Llucee/runtime/type/KeyImpl;"), new Method("init", Types.COLLECTION_KEY, new Type[] {Types.STRING}));
-								ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setGetterKey", Type.VOID_TYPE, new Type[] {Types.COLLECTION_KEY}));
+								ga.invokeStatic(Type.getType("Llucee/runtime/type/KeyImpl;"), new Method("init", Types.COLLECTION_KEY, new Type[] { Types.STRING }));
+								ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setGetterKey", Type.VOID_TYPE, new Type[] { Types.COLLECTION_KEY }));
 
 								// prop.setSetterKey(KeyImpl.init("set" + propName)) - cache setter key
 								ga.loadLocal(propLocal);
 								ga.push("set" + propName);
-								ga.invokeStatic(Type.getType("Llucee/runtime/type/KeyImpl;"), new Method("init", Types.COLLECTION_KEY, new Type[] {Types.STRING}));
-								ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setSetterKey", Type.VOID_TYPE, new Type[] {Types.COLLECTION_KEY}));
+								ga.invokeStatic(Type.getType("Llucee/runtime/type/KeyImpl;"), new Method("init", Types.COLLECTION_KEY, new Type[] { Types.STRING }));
+								ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setSetterKey", Type.VOID_TYPE, new Type[] { Types.COLLECTION_KEY }));
 
 								// prop.setType("type") if provided
 								if (propType != null) {
 									ga.loadLocal(propLocal);
 									ga.push(propType);
-									ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setType", Type.VOID_TYPE, new Type[] {Types.STRING}));
+									ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setType", Type.VOID_TYPE, new Type[] { Types.STRING }));
 								}
 								
 								// prop.setAccess("access") if provided
 								if (propAccess != null) {
 									ga.loadLocal(propLocal);
 									ga.push(propAccess);
-									ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setAccess", Type.VOID_TYPE, new Type[] {Types.STRING}));
+									ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setAccess", Type.VOID_TYPE, new Type[] { Types.STRING }));
 								}
 								
 								// prop.setHint("hint") if provided
 								if (propHint != null) {
 									ga.loadLocal(propLocal);
 									ga.push(propHint);
-									ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setHint", Type.VOID_TYPE, new Type[] {Types.STRING}));
+									ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setHint", Type.VOID_TYPE, new Type[] { Types.STRING }));
 								}
 								
 								// prop.setDisplayname("displayname") if provided
 								if (propDisplayname != null) {
 									ga.loadLocal(propLocal);
 									ga.push(propDisplayname);
-									ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setDisplayname", Type.VOID_TYPE, new Type[] {Types.STRING}));
+									ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setDisplayname", Type.VOID_TYPE, new Type[] { Types.STRING }));
 								}
 								
 								// prop.setRequired(boolean) only if explicitly provided
 								if (propRequired != null) {
 									ga.loadLocal(propLocal);
 									ga.push("true".equalsIgnoreCase(propRequired) || "yes".equalsIgnoreCase(propRequired));
-									ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setRequired", Type.VOID_TYPE, new Type[] {Type.BOOLEAN_TYPE}));
+									ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setRequired", Type.VOID_TYPE, new Type[] { Type.BOOLEAN_TYPE }));
 								}
 								
 								// prop.setSetter(boolean)
 								boolean setter = propSetter == null || "true".equalsIgnoreCase(propSetter) || "yes".equalsIgnoreCase(propSetter);
 								ga.loadLocal(propLocal);
 								ga.push(setter);
-								ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setSetter", Type.VOID_TYPE, new Type[] {Type.BOOLEAN_TYPE}));
+								ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setSetter", Type.VOID_TYPE, new Type[] { Type.BOOLEAN_TYPE }));
 								
 								// prop.setGetter(boolean)
 								boolean getter = propGetter == null || "true".equalsIgnoreCase(propGetter) || "yes".equalsIgnoreCase(propGetter);
 								ga.loadLocal(propLocal);
 								ga.push(getter);
-								ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setGetter", Type.VOID_TYPE, new Type[] {Type.BOOLEAN_TYPE}));
+								ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setGetter", Type.VOID_TYPE, new Type[] { Type.BOOLEAN_TYPE }));
 
 								// prop.setDefault(value) if it's a simple literal
 								// Only handle simple literals (Literal interface) - complex expressions like now()
@@ -1168,21 +1168,21 @@ public final class PageImpl extends BodyBase implements Page {
 										String value = ((LitStringImpl) defaultExpr).getString();
 										ga.loadLocal(propLocal);
 										ga.push(value);
-										ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setDefault", Type.VOID_TYPE, new Type[] {Types.OBJECT}));
+										ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setDefault", Type.VOID_TYPE, new Type[] { Types.OBJECT }));
 									}
 									else if (defaultExpr instanceof LitNumberImpl) {
 										Number value = ((LitNumberImpl) defaultExpr).getNumber();
 										ga.loadLocal(propLocal);
 										ga.push(value.doubleValue());
 										ga.box(Type.DOUBLE_TYPE);
-										ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setDefault", Type.VOID_TYPE, new Type[] {Types.OBJECT}));
+										ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setDefault", Type.VOID_TYPE, new Type[] { Types.OBJECT }));
 									}
 									else if (defaultExpr instanceof LitBooleanImpl) {
 										Boolean value = ((LitBooleanImpl) defaultExpr).getBoolean();
 										ga.loadLocal(propLocal);
 										ga.push(value.booleanValue());
 										ga.box(Type.BOOLEAN_TYPE);
-										ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setDefault", Type.VOID_TYPE, new Type[] {Types.OBJECT}));
+										ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setDefault", Type.VOID_TYPE, new Type[] { Types.OBJECT }));
 									}
 									// else: complex expression - will be handled at runtime in TagProperty
 								}
@@ -1208,7 +1208,7 @@ public final class PageImpl extends BodyBase implements Page {
 									ga.dup();
 									ga.getStatic(Types.STRUCT_IMPL, "TYPE_REGULAR", Type.INT_TYPE);
 									ga.push(dynAttrCount);
-									ga.invokeConstructor(Types.STRUCT_IMPL, new Method("<init>", Type.VOID_TYPE, new Type[] {Type.INT_TYPE, Type.INT_TYPE}));
+									ga.invokeConstructor(Types.STRUCT_IMPL, new Method("<init>", Type.VOID_TYPE, new Type[] { Type.INT_TYPE, Type.INT_TYPE }));
 									int dynAttrsLocal = ga.newLocal(Types.STRUCT);
 									ga.storeLocal(dynAttrsLocal);
 
@@ -1220,7 +1220,7 @@ public final class PageImpl extends BodyBase implements Page {
 
 											// Create key at class-load time
 											ga.push(dynAttr.getName());
-											ga.invokeStatic(Type.getType("Llucee/runtime/type/KeyImpl;"), new Method("init", Types.COLLECTION_KEY, new Type[] {Types.STRING}));
+											ga.invokeStatic(Type.getType("Llucee/runtime/type/KeyImpl;"), new Method("init", Types.COLLECTION_KEY, new Type[] { Types.STRING }));
 
 											ga.push(dynAttrValue);
 											ga.invokeInterface(Types.STRUCT, SET_EL);
@@ -1234,7 +1234,7 @@ public final class PageImpl extends BodyBase implements Page {
 
 										// Create "required" key at class-load time
 										ga.push("required");
-										ga.invokeStatic(Type.getType("Llucee/runtime/type/KeyImpl;"), new Method("init", Types.COLLECTION_KEY, new Type[] {Types.STRING}));
+										ga.invokeStatic(Type.getType("Llucee/runtime/type/KeyImpl;"), new Method("init", Types.COLLECTION_KEY, new Type[] { Types.STRING }));
 
 										ga.push("true".equalsIgnoreCase(propRequired) || "yes".equalsIgnoreCase(propRequired) ? "yes" : "no");
 										ga.invokeInterface(Types.STRUCT, SET_EL);
@@ -1244,14 +1244,14 @@ public final class PageImpl extends BodyBase implements Page {
 									// prop.setDynamicAttributes(dynAttrs);
 									ga.loadLocal(propLocal);
 									ga.loadLocal(dynAttrsLocal);
-									ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setDynamicAttributes", Type.VOID_TYPE, new Type[] {Types.STRUCT}));
+									ga.invokeVirtual(Types.PROPERTY_IMPL, new Method("setDynamicAttributes", Type.VOID_TYPE, new Type[] { Types.STRUCT }));
 								}
 
 								// __staticProperties.put(propName.toLowerCase(), prop);
 								ga.getStatic(Type.getObjectType(name), "__staticProperties", Type.getType(Map.class));
 								ga.push(propName.toLowerCase());
 								ga.loadLocal(propLocal);
-								ga.invokeInterface(Type.getType(Map.class), new Method("put", Type.getType(Object.class), new Type[] {Type.getType(Object.class), Type.getType(Object.class)}));
+								ga.invokeInterface(Type.getType(Map.class), new Method("put", Type.getType(Object.class), new Type[] { Type.getType(Object.class), Type.getType(Object.class) }));
 								ga.pop(); // Pop return value from map.put()
 							}
 						}
