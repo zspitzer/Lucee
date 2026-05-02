@@ -64,30 +64,27 @@ public final class UDFAddProperty extends UDFGSProperty {
 	}
 
 	@Override
-	public Object _call(PageContext pageContext, Object[] args, boolean doIncludePath) throws PageException {
-		Component c = getComponent(pageContext);
+	public Object _call(PageContext pageContext, Component comp, Object[] args) throws PageException {
 		// struct
 		if (this.arguments.length == 2) {
 			if (args.length < 2) throw new ExpressionException(
 					"The function [" + getFunctionName() + "] needs 2 arguments, only " + args.length + " argument" + (args.length == 1 ? " is" : "s are") + " passed in.");
-			return _call(pageContext, c, args[0], args[1]);
+			return _call(pageContext, comp, args[0], args[1]);
 		}
 		// array
 		else if (this.arguments.length == 1) {
 			if (args.length < 1)
 				throw new ExpressionException("The parameter [" + this.arguments[0].getName() + "] to function [" + getFunctionName() + "] is required but was not passed in.");
-			return _call(pageContext, c, null, args[0]);
+			return _call(pageContext, comp, null, args[0]);
 		}
 
 		// never reached
-		return c;
-
+		return comp;
 	}
 
 	@Override
-	public Object _callWithNamedValues(PageContext pageContext, Struct values, boolean doIncludePath) throws PageException {
+	public Object _callWithNamedValues(PageContext pageContext, Component comp, Struct values) throws PageException {
 		UDFUtil.argumentCollection(values, getFunctionArguments());
-		Component c = getComponent(pageContext);
 
 		// struct
 		if (this.arguments.length == 2) {
@@ -98,7 +95,7 @@ public final class UDFAddProperty extends UDFGSProperty {
 			if (key == null) throw new ExpressionException("The parameter [" + keyName + "] to function [" + getFunctionName() + "] is required but was not passed in.");
 			if (value == null) throw new ExpressionException("The parameter [" + valueName + "] to function [" + getFunctionName() + "] is required but was not passed in.");
 
-			return _call(pageContext, c, key, value);
+			return _call(pageContext, comp, key, value);
 		}
 		// array
 		else if (this.arguments.length == 1) {
@@ -111,50 +108,55 @@ public final class UDFAddProperty extends UDFGSProperty {
 				}
 				else throw new ExpressionException("The parameter [" + valueName + "] to function [" + getFunctionName() + "] is required but was not passed in.");
 			}
-			return _call(pageContext, c, null, value);
+			return _call(pageContext, comp, null, value);
 		}
 
 		// never reached
-		return getComponent(pageContext);
+		return comp;
 	}
 
 	private Object _call(PageContext pageContext, Component c, Object key, Object value) throws PageException {
-
+		// LDEV-6298 v2: shared flyweight makes addX races visible across threads. Two windows:
+		// 1) lazy-init `propValue == null` — DCL on the component, only contends on first call.
+		// 2) HashMap.put / ArrayImpl.appendEL — sync on the collection, narrowly scoped.
 		Object propValue = c.getComponentScope().get(propName, null);
+		if (propValue == null) {
+			synchronized (c) {
+				propValue = c.getComponentScope().get(propName, null);
+				if (propValue == null) {
+					/*
+					 * jira2049 PageContext pc = ThreadLocalPageContext.get(); ORMSession sess = ORMUtil.getSession(pc);
+					 * SessionImpl s=(SessionImpl) sess.getRawSession(); propValue=new PersistentList(s);
+					 * component.getComponentScope().setEL(propName,propValue);
+					 */
+					propValue = (this.arguments.length == 2) ? new HashMap() : new ArrayImpl();
+					c.getComponentScope().setEL(propName, propValue);
+				}
+			}
+		}
 
 		// struct
 		if (this.arguments.length == 2) {
 			key = cast(pageContext, arguments[0], key, 1);
 			value = cast(pageContext, arguments[1], value, 2);
-			if (propValue == null) {
-				HashMap map = new HashMap();
-				c.getComponentScope().setEL(propName, map);
-				propValue = map;
-			}
-			if (propValue instanceof Struct) {
-				((Struct) propValue).set(KeyImpl.toKey(key), value);
-			}
-			else if (propValue instanceof Map) {
-				((Map) propValue).put(key, value);
+			synchronized (propValue) {
+				if (propValue instanceof Struct) {
+					((Struct) propValue).set(KeyImpl.toKey(key), value);
+				}
+				else if (propValue instanceof Map) {
+					((Map) propValue).put(key, value);
+				}
 			}
 		}
 		else {
 			value = cast(pageContext, arguments[0], value, 1);
-			if (propValue == null) {
-				/*
-				 * jira2049 PageContext pc = ThreadLocalPageContext.get(); ORMSession sess = ORMUtil.getSession(pc);
-				 * SessionImpl s=(SessionImpl) sess.getRawSession(); propValue=new PersistentList(s);
-				 * component.getComponentScope().setEL(propName,propValue);
-				 */
-				Array arr = new ArrayImpl();
-				c.getComponentScope().setEL(propName, arr);
-				propValue = arr;
-			}
-			if (propValue instanceof Array) {
-				((Array) propValue).appendEL(value);
-			}
-			else if (propValue instanceof java.util.List) {
-				((java.util.List) propValue).add(value);
+			synchronized (propValue) {
+				if (propValue instanceof Array) {
+					((Array) propValue).appendEL(value);
+				}
+				else if (propValue instanceof java.util.List) {
+					((java.util.List) propValue).add(value);
+				}
 			}
 		}
 		return c;
