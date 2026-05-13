@@ -1420,6 +1420,10 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 		return cp;
 	}
 
+	public Map<Key, Member> _getData() {
+		return _data;
+	}
+
 	public ImportDefintion[] _getImportDefintions() {
 		return importDefintions;
 	}

@@ -1,7 +1,9 @@
 package lucee.runtime.component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.Supplier;
 
 import lucee.runtime.ComponentImpl;
@@ -9,6 +11,7 @@ import lucee.runtime.ComponentPageImpl;
 import lucee.runtime.ComponentProperties;
 import lucee.runtime.PageContext;
 import lucee.runtime.exp.PageException;
+import lucee.runtime.op.Duplicator;
 import lucee.runtime.type.Collection.Key;
 import lucee.runtime.type.UDF;
 
@@ -47,22 +50,55 @@ public final class ComponentFactory {
 	}
 
 	/**
-	 * Build a factory from a seed instance produced by the standard init path. Captures class-level
-	 * derivable state and freezes a per-instance reconstruction recipe. The Evaluator partition and
-	 * per-instance state capture land in later iterations; for now only the {@code cp} reference is
-	 * stored so the cache contract holds.
+	 * Build a factory from a seed instance produced by the standard init path. Captures the seed's
+	 * class-level references and freezes a per-instance reconstruction recipe for property defaults.
+	 * The full per-instance state capture (udfsTemplate, staticHead, isRestEnabled, base sharing)
+	 * lands in a later iteration once mint(PageContext, boolean) is wired.
 	 */
 	public static ComponentFactory fromSeed(ComponentImpl seed) {
 		ComponentPageImpl cp = seed._getComponentPageImpl();
+		List<DefaultEntry> defaults = partitionDefaults(seed);
 		return new ComponentFactory(
 				/* properties */ null,
 				/* base */ null,
 				/* cp */ cp,
 				/* staticHead */ null,
 				/* udfsTemplate */ java.util.Collections.<Key, UDF>emptyMap(),
-				/* defaultsInOrder */ java.util.Collections.<DefaultEntry>emptyList(),
+				/* defaultsInOrder */ defaults,
 				/* isRestEnabled */ false,
 				/* udfsMapClass */ java.util.HashMap.class);
+	}
+
+	/**
+	 * Walk the seed's {@code _data} and classify each entry's value into an Evaluator. Order is
+	 * preserved from the underlying map's iteration order (typically a concurrent map populated in
+	 * declaration order via {@code PropertyFactory.createGetter}, so chained defaults seed in the
+	 * same order they do today).
+	 */
+	private static List<DefaultEntry> partitionDefaults(ComponentImpl seed) {
+		Map<Key, Member> data = seed._getData();
+		List<DefaultEntry> entries = new ArrayList<>(data.size());
+		for (Entry<Key, Member> e: data.entrySet()) {
+			Object value = e.getValue() == null ? null : e.getValue().getValue();
+			entries.add(new DefaultEntry(e.getKey(), classify(value)));
+		}
+		return entries;
+	}
+
+	/**
+	 * Pick an Evaluator kind for a resolved default value. Primitive boxed types, String, and null
+	 * are immutable and safe to share by reference. Everything else gets a per-mint deep-duplicate
+	 * to guarantee the LDEV-6303 mutable-default-isolation contract — even seemingly-immutable
+	 * types (Date, custom Java objects) are bias-classed as mutable to avoid silent leaks.
+	 */
+	private static Evaluator classify(Object value) {
+		if (value == null) return new LiteralRef(null);
+		if (value instanceof String) return new LiteralRef(value);
+		if (value instanceof Number) return new LiteralRef(value);
+		if (value instanceof Boolean) return new LiteralRef(value);
+		if (value instanceof Character) return new LiteralRef(value);
+		final Object captured = value;
+		return new LiteralBuilder(() -> Duplicator.duplicate(captured, true));
 	}
 
 	/**
