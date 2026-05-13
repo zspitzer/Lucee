@@ -31,10 +31,6 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="java,component" {
 					expect( hasBody( new pseudoBody.PropsOnly() ) ).toBeFalse();
 				});
 
-				it( "cfproperty with expression-form default classifies as declarative", function(){
-					expect( hasBody( new pseudoBody.PropExprDefault() ) ).toBeFalse();
-				});
-
 				it( "cfimport + functions only (imports are class-level)", function(){
 					expect( hasBody( new pseudoBody.ImportsOnly() ) ).toBeFalse();
 				});
@@ -42,6 +38,10 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="java,component" {
 			});
 
 			describe( "True bucket — body has imperative content (factory-incompatible)", function(){
+
+				it( "cfproperty with expression-form default — fresh evaluation per instance can't be reconstructed from class-level state", function(){
+					expect( hasBody( new pseudoBody.PropExprDefault() ) ).toBeTrue();
+				});
 
 				it( "single cfset in body", function(){
 					expect( hasBody( new pseudoBody.BodyWithCfset() ) ).toBeTrue();

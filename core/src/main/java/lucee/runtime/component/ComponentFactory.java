@@ -127,21 +127,9 @@ public final class ComponentFactory {
 		}
 	}
 
-	/**
-	 * Expression-form default ({@link ExpressionDefault}). Source is re-evaluated against the
-	 * current PageContext on every mint so non-deterministic expressions ({@code now()}, {@code createUUID()})
-	 * produce fresh values per instance.
-	 */
-	static final class Expression implements Evaluator {
-		private final ExpressionDefault expression;
-
-		Expression(ExpressionDefault expression) {
-			this.expression = expression;
-		}
-
-		@Override
-		public Object eval(PageContext pc) throws PageException {
-			throw new UnsupportedOperationException("Expression.eval not yet implemented");
-		}
-	}
+	// Expression-form property defaults (e.g. default="#now()#") are not currently handled here.
+	// The walker in ASMUtil.hasPseudoConstructorBodyStatements classifies any CFC with an
+	// expression-default cfproperty as factory-ineligible (True bucket), so they route through the
+	// standard init path. A future iteration emits a per-class helper method that the factory can
+	// call cheaply for fresh per-instance evaluation.
 }

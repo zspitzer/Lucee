@@ -1391,8 +1391,11 @@ public final class ASMUtil {
 	 * work. Skipped because they're class-level:
 	 * <ul>
 	 *   <li>{@link IFunction} — function declarations are registered once per class.</li>
-	 *   <li>{@link TagProperty} — cfproperty metadata is registered in the static initializer;
-	 *       per-instance default evaluation is handled by class-level scope seeding.</li>
+	 *   <li>{@link TagProperty} with no default or a simple-literal default — cfproperty metadata
+	 *       is registered in the static initializer; values land in scope via class-level seeding.
+	 *       A cfproperty with an expression-form default (e.g. {@code default="#now()#"}) still
+	 *       counts because each instance needs a fresh evaluation that the factory mint path
+	 *       can't currently reconstruct from class-level state.</li>
 	 *   <li>{@link TagImport} — cfimport paths are resolved at compile time and the resulting
 	 *       ImportDefintion[] is class-level.</li>
 	 * </ul>
@@ -1403,8 +1406,11 @@ public final class ASMUtil {
 		if (ASMUtil.isEmpty(body)) return false;
 		for (Statement stat: body.getStatements()) {
 			if (stat instanceof IFunction) continue;
-			if (stat instanceof TagProperty) continue;
 			if (stat instanceof TagImport) continue;
+			if (stat instanceof TagProperty) {
+				if (((TagProperty) stat).hasExpressionDefault()) return true;
+				continue;
+			}
 			return true;
 		}
 		return false;

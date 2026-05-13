@@ -99,6 +99,17 @@ public final class TagProperty extends TagBase {
 		       expr instanceof LitLong;
 	}
 
+	/**
+	 * True when this cfproperty has a default attribute that isn't a simple literal — i.e. the
+	 * default is an expression that needs per-instance evaluation (e.g. {@code default="#now()#"}).
+	 * Properties with no default, or with simple-literal defaults, return false.
+	 */
+	public boolean hasExpressionDefault() {
+		Attribute defaultAttr = getAttribute("default");
+		if (defaultAttr == null || defaultAttr.getValue() == null) return false;
+		return !isSimpleLiteral(defaultAttr.getValue());
+	}
+
 	private String getLiteralString(Attribute attr) {
 		if (attr != null && attr.getValue() != null) {
 			Expression expr = attr.getValue();
