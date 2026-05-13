@@ -188,6 +188,7 @@ public final class PageImpl extends BodyBase implements Page {
 	// long getSourceLastModified()
 	private final static Method LAST_MOD = new Method("getSourceLastModified", Types.LONG_VALUE, new Type[] {});
 	private final static Method HAS_INIT = new Method("hasInit", Types.SHORT_VALUE, new Type[] {});
+	private final static Method HAS_PSEUDO_CONSTRUCTOR_BODY = new Method("hasPseudoConstructorBody", Types.BOOLEAN_VALUE, new Type[] {});
 
 	private final static Method COMPILE_TIME = new Method("getCompileTime", Types.LONG_VALUE, new Type[] {});
 
@@ -548,6 +549,15 @@ public final class PageImpl extends BodyBase implements Page {
 
 		adapter = new GeneratorAdapter(Opcodes.ACC_PUBLIC + Opcodes.ACC_FINAL, HAS_INIT, null, null, cw);
 		adapter.push(hasInit ? ComponentUtil.HAS_INIT_TRUE : ComponentUtil.HAS_INIT_FALSE);
+		adapter.returnValue();
+		adapter.endMethod();
+
+		// Expose whether the body has any per-instance pseudo-constructor work. Stricter than the
+		// local hasStatements above — also skips cfproperty and cfimport since their data is
+		// class-level and not redone per instance.
+		boolean hasPseudoBody = isComponent(comp) && ASMUtil.hasPseudoConstructorBodyStatements(comp.getBody());
+		adapter = new GeneratorAdapter(Opcodes.ACC_PUBLIC + Opcodes.ACC_FINAL, HAS_PSEUDO_CONSTRUCTOR_BODY, null, null, cw);
+		adapter.push(hasPseudoBody);
 		adapter.returnValue();
 		adapter.endMethod();
 

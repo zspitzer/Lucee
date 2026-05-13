@@ -87,6 +87,8 @@ import lucee.transformer.bytecode.statement.PrintOut;
 import lucee.transformer.bytecode.statement.Switch;
 import lucee.transformer.bytecode.statement.TryCatchFinally;
 import lucee.transformer.bytecode.statement.tag.TagComponent;
+import lucee.transformer.bytecode.statement.tag.TagImport;
+import lucee.transformer.bytecode.statement.tag.TagProperty;
 import lucee.transformer.bytecode.statement.tag.TagScript;
 import lucee.transformer.bytecode.statement.tag.TagTry;
 import lucee.transformer.bytecode.util.SourceNameClassVisitor.SourceInfo;
@@ -1382,5 +1384,29 @@ public final class ASMUtil {
 			}
 		}
 		return count;
+	}
+
+	/**
+	 * True when the component body contains any statement that does per-instance pseudo-constructor
+	 * work. Skipped because they're class-level:
+	 * <ul>
+	 *   <li>{@link IFunction} — function declarations are registered once per class.</li>
+	 *   <li>{@link TagProperty} — cfproperty metadata is registered in the static initializer;
+	 *       per-instance default evaluation is handled by class-level scope seeding.</li>
+	 *   <li>{@link TagImport} — cfimport paths are resolved at compile time and the resulting
+	 *       ImportDefintion[] is class-level.</li>
+	 * </ul>
+	 * Early-exits on the first imperative statement. No recursion needed — any wrapper statement
+	 * (cfsilent, cfif, etc.) itself does per-instance work and counts at the top level.
+	 */
+	public static boolean hasPseudoConstructorBodyStatements(Body body) {
+		if (ASMUtil.isEmpty(body)) return false;
+		for (Statement stat: body.getStatements()) {
+			if (stat instanceof IFunction) continue;
+			if (stat instanceof TagProperty) continue;
+			if (stat instanceof TagImport) continue;
+			return true;
+		}
+		return false;
 	}
 }

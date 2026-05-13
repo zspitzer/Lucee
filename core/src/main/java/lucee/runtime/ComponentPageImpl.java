@@ -1231,6 +1231,19 @@ public abstract class ComponentPageImpl extends ComponentPage {
 	public short hasInit() {
 		return ComponentUtil.HAS_INIT_UNDEFINED;
 	}
+
+	/**
+	 * True when the compiled component's pseudo-constructor body holds any statement that does
+	 * per-instance work (cfset, cfinclude, cfif, throw, wrappers like cfsilent, etc). Declarative
+	 * shapes — function decls, cfproperty, cfimport — are class-level and don't count.
+	 *
+	 * Generated component classes override to expose the compile-time-determined value. The
+	 * default is true so non-component pages and classes without the override route through the
+	 * full init path.
+	 */
+	public boolean hasPseudoConstructorBody() {
+		return true;
+	}
 }
 
 class Props {
