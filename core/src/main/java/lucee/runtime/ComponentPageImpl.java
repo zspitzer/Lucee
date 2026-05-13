@@ -42,6 +42,7 @@ import lucee.commons.lang.ExceptionUtil;
 import lucee.commons.lang.StringUtil;
 import lucee.commons.lang.mimetype.MimeType;
 import lucee.commons.net.HTTPUtil;
+import lucee.runtime.component.ComponentFactory;
 import lucee.runtime.component.StaticStruct;
 import lucee.runtime.config.ConfigWebPro;
 import lucee.runtime.converter.BinaryConverter;
@@ -114,6 +115,8 @@ public abstract class ComponentPageImpl extends ComponentPage {
 	private StaticScope staticScope;
 
 	private long index;
+
+	private transient volatile ComponentFactory factory;
 
 	private boolean initJS = false;
 	private JavaSettings js;
@@ -1243,6 +1246,31 @@ public abstract class ComponentPageImpl extends ComponentPage {
 	 */
 	public boolean hasPseudoConstructorBody() {
 		return true;
+	}
+
+	/**
+	 * Returns a cached {@link ComponentFactory} for this component class, building it on first call
+	 * via the standard init path. Eligible only when {@link #hasPseudoConstructorBody()} returns
+	 * false; callers must gate on that first. Class reloads produce a fresh ComponentPageImpl
+	 * instance, so the cache is implicitly invalidated.
+	 */
+	public ComponentFactory getFactory(PageContext pc) throws PageException {
+		ComponentFactory f = factory;
+		if (f != null) return f;
+		synchronized (this) {
+			f = factory;
+			if (f != null) return f;
+			f = buildFactory(pc);
+			factory = f;
+			return f;
+		}
+	}
+
+	private ComponentFactory buildFactory(PageContext pc) throws PageException {
+		// executeConstr=false skips the user's init() but still runs property defaults and function
+		// registration — exactly the shape we want frozen as the recipe.
+		ComponentImpl seed = newInstance(pc, getComponentName(), false, false, false);
+		return ComponentFactory.fromSeed(seed);
 	}
 }
 
