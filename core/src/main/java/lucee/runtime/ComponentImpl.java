@@ -485,6 +485,10 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 	 * @throws PageException
 	 */
 	public void init(PageContext pageContext, ComponentPageImpl componentPage, boolean executeConstr) throws PageException {
+		if (!componentPage.hasPseudoConstructorBody() && !Boolean.TRUE.equals(ComponentPageImpl.BUILDING_FACTORY.get())) {
+			_initFromFactory(componentPage.getFactory(pageContext), pageContext, executeConstr);
+			return;
+		}
 		this.pageSource = componentPage.getPageSource();
 
 		// extends
