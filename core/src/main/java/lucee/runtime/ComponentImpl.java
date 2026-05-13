@@ -54,6 +54,7 @@ import lucee.commons.lang.types.RefBoolean;
 import lucee.commons.lang.types.RefBooleanImpl;
 import lucee.runtime.component.AbstractFinal;
 import lucee.runtime.component.AbstractFinal.UDFB;
+import lucee.runtime.component.ComponentFactory;
 import lucee.runtime.component.ComponentLoader;
 import lucee.runtime.component.ComponentPageRef;
 import lucee.runtime.component.DataMember;
@@ -569,6 +570,56 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 						map.remove(id);
 					}
 				}
+			}
+		}
+	}
+
+	/**
+	 * Spike implementation of the LDEV-6300 phase-5 factory variant mint path. Wires this fresh
+	 * instance from a cached ComponentFactory, mirroring init's wiring step-by-step but skipping
+	 * the work the factory already did (no extends resolution, no static-constructor invocation,
+	 * no initProperties walk — defaults seeded from the factory's pre-classified Evaluators).
+	 */
+	public void _initFromFactory(ComponentFactory f, PageContext pageContext, boolean executeConstr) throws PageException {
+		this.properties = f.getProperties();
+		this.cp = f.getCp();
+		this.base = f.getBase();
+		this.pageSource = f.getCp().getPageSource();
+		this.isRestEnabled = f.isRestEnabled() ? Boolean.TRUE : Boolean.FALSE;
+
+		if (base != null) {
+			this.dataMemberDefaultAccess = base.dataMemberDefaultAccess;
+			this._static = new StaticScope(base._static, this, new ComponentPageRef(cp), dataMemberDefaultAccess);
+			this.absFin = base.absFin;
+			this._data = base._data;
+			this._udfs = f.isRestEnabled() ? new LinkedHashMap<Key, UDF>(f.getUdfsTemplate()) : new HashMap<Key, UDF>(f.getUdfsTemplate());
+			setTop(this, base);
+		}
+		else {
+			this.dataMemberDefaultAccess = pageContext.getConfig().getComponentDataMemberDefaultAccess();
+			this._static = new StaticScope(null, this, new ComponentPageRef(cp), dataMemberDefaultAccess);
+			this._udfs = f.isRestEnabled() ? new LinkedHashMap<Key, UDF>(f.getUdfsTemplate()) : new HashMap<Key, UDF>(f.getUdfsTemplate());
+			this._data = MapFactory.getConcurrentMap();
+		}
+
+		this.hasInit = cp.hasInit();
+		if (base != null && this.hasInit != ComponentUtil.HAS_INIT_TRUE) {
+			this.hasInit = base.hasInit();
+		}
+
+		this.scope = new ComponentScopeThis(this);
+
+		for (ComponentFactory.DefaultEntry entry: f.getDefaultsInOrder()) {
+			Object value = entry.getEvaluator().eval(pageContext);
+			this._data.put(entry.getKey(), new DataMember(Component.ACCESS_PUBLIC, Component.MODIFIER_NONE, value));
+		}
+
+		this.isInit = true;
+
+		if (executeConstr) {
+			Object initFunc = this.get(KeyConstants._init, null);
+			if (initFunc instanceof UDF) {
+				this.call(pageContext, KeyConstants._init, new Object[0]);
 			}
 		}
 	}
@@ -1422,6 +1473,26 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 
 	public Map<Key, Member> _getData() {
 		return _data;
+	}
+
+	public Map<Key, UDF> _getUdfs() {
+		return _udfs;
+	}
+
+	public boolean _isRestEnabled() {
+		return Boolean.TRUE.equals(isRestEnabled);
+	}
+
+	public StaticScope _getStaticScope() {
+		return _static;
+	}
+
+	public ComponentProperties _getProperties() {
+		return properties;
+	}
+
+	public ComponentImpl _getBase() {
+		return base;
 	}
 
 	public ImportDefintion[] _getImportDefintions() {

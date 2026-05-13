@@ -1,6 +1,8 @@
 package lucee.runtime.component;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -10,6 +12,7 @@ import lucee.runtime.ComponentImpl;
 import lucee.runtime.ComponentPageImpl;
 import lucee.runtime.ComponentProperties;
 import lucee.runtime.PageContext;
+import lucee.runtime.StaticScope;
 import lucee.runtime.exp.PageException;
 import lucee.runtime.op.Duplicator;
 import lucee.runtime.type.Collection.Key;
@@ -25,48 +28,46 @@ import lucee.runtime.type.UDF;
 public final class ComponentFactory {
 
 	// Class-level shared refs. All immutable after build.
-	final ComponentProperties properties;
-	final ComponentImpl base;
-	final ComponentPageImpl cp;
-	final StaticStruct staticHead;
+	private final ComponentProperties properties;
+	private final ComponentImpl base;
+	private final ComponentPageImpl cp;
 
-	// Class-level cached data. udfsTemplate is read-only after build (defensive copy at mint time
-	// via the constructed udfsMapClass instance).
-	final Map<Key, UDF> udfsTemplate;
-	final List<DefaultEntry> defaultsInOrder;
-	final boolean isRestEnabled;
-	final Class<? extends Map> udfsMapClass;
+	// Class-level cached data. udfsTemplate is read-only after build (defensive copy at mint time).
+	private final Map<Key, UDF> udfsTemplate;
+	private final List<DefaultEntry> defaultsInOrder;
+	private final boolean isRestEnabled;
 
-	private ComponentFactory(ComponentProperties properties, ComponentImpl base, ComponentPageImpl cp, StaticStruct staticHead, Map<Key, UDF> udfsTemplate,
-			List<DefaultEntry> defaultsInOrder, boolean isRestEnabled, Class<? extends Map> udfsMapClass) {
+	private ComponentFactory(ComponentProperties properties, ComponentImpl base, ComponentPageImpl cp, Map<Key, UDF> udfsTemplate, List<DefaultEntry> defaultsInOrder,
+			boolean isRestEnabled) {
 		this.properties = properties;
 		this.base = base;
 		this.cp = cp;
-		this.staticHead = staticHead;
 		this.udfsTemplate = udfsTemplate;
 		this.defaultsInOrder = defaultsInOrder;
 		this.isRestEnabled = isRestEnabled;
-		this.udfsMapClass = udfsMapClass;
 	}
+
+	public ComponentProperties getProperties()       { return properties; }
+	public ComponentImpl getBase()                   { return base; }
+	public ComponentPageImpl getCp()                 { return cp; }
+	public Map<Key, UDF> getUdfsTemplate()           { return udfsTemplate; }
+	public List<DefaultEntry> getDefaultsInOrder()   { return defaultsInOrder; }
+	public boolean isRestEnabled()                   { return isRestEnabled; }
 
 	/**
 	 * Build a factory from a seed instance produced by the standard init path. Captures the seed's
 	 * class-level references and freezes a per-instance reconstruction recipe for property defaults.
-	 * The full per-instance state capture (udfsTemplate, staticHead, isRestEnabled, base sharing)
-	 * lands in a later iteration once mint(PageContext, boolean) is wired.
 	 */
 	public static ComponentFactory fromSeed(ComponentImpl seed) {
-		ComponentPageImpl cp = seed._getComponentPageImpl();
 		List<DefaultEntry> defaults = partitionDefaults(seed);
+		Map<Key, UDF> udfsTemplate = new HashMap<>(seed._getUdfs());
 		return new ComponentFactory(
-				/* properties */ null,
-				/* base */ null,
-				/* cp */ cp,
-				/* staticHead */ null,
-				/* udfsTemplate */ java.util.Collections.<Key, UDF>emptyMap(),
+				/* properties */ seed._getProperties(),
+				/* base */ seed._getBase(),
+				/* cp */ seed._getComponentPageImpl(),
+				/* udfsTemplate */ udfsTemplate,
 				/* defaultsInOrder */ defaults,
-				/* isRestEnabled */ false,
-				/* udfsMapClass */ java.util.HashMap.class);
+				/* isRestEnabled */ seed._isRestEnabled());
 	}
 
 	/**
@@ -106,7 +107,9 @@ public final class ComponentFactory {
 	 * per-instance state, optionally dispatches the user's init() method.
 	 */
 	public ComponentImpl mint(PageContext pc, boolean executeConstr) throws PageException {
-		throw new UnsupportedOperationException("ComponentFactory.mint not yet implemented");
+		ComponentImpl fresh = new ComponentImpl();
+		fresh._initFromFactory(this, pc, executeConstr);
+		return fresh;
 	}
 
 	/**
@@ -114,18 +117,21 @@ public final class ComponentFactory {
 	 * across entries matches declaration order in the source so chained defaults
 	 * (e.g. {@code propB default="#variables.propA & 'y'#"}) seed in the same order they do today.
 	 */
-	static final class DefaultEntry {
-		final Key key;
-		final Evaluator evaluator;
+	public static final class DefaultEntry {
+		private final Key key;
+		private final Evaluator evaluator;
 
 		DefaultEntry(Key key, Evaluator evaluator) {
 			this.key = key;
 			this.evaluator = evaluator;
 		}
+
+		public Key getKey() { return key; }
+		public Evaluator getEvaluator() { return evaluator; }
 	}
 
 	/** Produces a value for a property default each time {@link #eval(PageContext)} is called. */
-	interface Evaluator {
+	public interface Evaluator {
 		Object eval(PageContext pc) throws PageException;
 	}
 
