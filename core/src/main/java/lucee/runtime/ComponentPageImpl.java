@@ -1266,11 +1266,23 @@ public abstract class ComponentPageImpl extends ComponentPage {
 		}
 	}
 
+	// Re-entry guard for the seed build. The seed instance is constructed via newInstance which
+	// re-enters ComponentImpl.init; without this flag the factory branch would recurse into
+	// getFactory before the cache is populated.
+	public static final ThreadLocal<Boolean> BUILDING_FACTORY = new ThreadLocal<>();
+
 	private ComponentFactory buildFactory(PageContext pc) throws PageException {
-		// executeConstr=false skips the user's init() but still runs property defaults and function
-		// registration — exactly the shape we want frozen as the recipe.
-		ComponentImpl seed = newInstance(pc, getComponentName(), false, false, false);
-		return ComponentFactory.fromSeed(seed);
+		// executeConstr=true is required for the compiled body to run — that's what registers UDFs
+		// and seeds property defaults. The user's init() is dispatched by the caller of newInstance,
+		// not by initComponent itself, so this build won't fire user constructor code.
+		BUILDING_FACTORY.set(Boolean.TRUE);
+		try {
+			ComponentImpl seed = newInstance(pc, getComponentName(), false, false, true);
+			return ComponentFactory.fromSeed(seed);
+		}
+		finally {
+			BUILDING_FACTORY.remove();
+		}
 	}
 }
 

@@ -581,10 +581,15 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 	 * no initProperties walk — defaults seeded from the factory's pre-classified Evaluators).
 	 */
 	public void _initFromFactory(ComponentFactory f, PageContext pageContext, boolean executeConstr) throws PageException {
-		this.properties = f.getProperties();
-		this.cp = f.getCp();
-		this.base = f.getBase();
-		this.pageSource = f.getCp().getPageSource();
+		// pageSource, cp, properties are already set by the 15-arg constructor — don't overwrite.
+		// base must be resolved fresh per mint — sharing across mints leaks per-instance base state
+		// (slice 5 captured base on the factory; bedrock was too narrow to catch this until BDDRunner).
+		if (!StringUtil.isEmpty(properties.extend)) {
+			this.base = ComponentLoader.searchComponent(pageContext, cp.getPageSource(), properties.extend, Boolean.TRUE, null, true, executeConstr);
+		}
+		else {
+			this.base = ((ConfigWebPro) pageContext.getConfig()).getBaseComponentInstance(pageContext, cp, executeConstr);
+		}
 		this.isRestEnabled = f.isRestEnabled() ? Boolean.TRUE : Boolean.FALSE;
 
 		if (base != null) {
@@ -607,7 +612,23 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 			this.hasInit = base.hasInit();
 		}
 
-		this.scope = new ComponentScopeThis(this);
+		// implements
+		if (!StringUtil.isEmpty(properties.implement)) {
+			if (absFin == null) absFin = new AbstractFinal();
+			absFin.add(InterfaceImpl.loadInterfaces(pageContext, getPageSource(), properties.implement));
+		}
+
+		// scope — mirror today's init's useShadow path
+		useShadow = base == null ? (pageContext.getConfig().useComponentShadow()) : base.useShadow;
+		if (useShadow) {
+			if (base == null) scope = new ComponentScopeShadow(this, MapFactory.getConcurrentMap());
+			else scope = new ComponentScopeShadow(this, (ComponentScopeShadow) base.scope, false);
+		}
+		else {
+			scope = new ComponentScopeThis(this);
+		}
+
+		initProperties();
 
 		for (ComponentFactory.DefaultEntry entry: f.getDefaultsInOrder()) {
 			Object value = entry.getEvaluator().eval(pageContext);
@@ -615,13 +636,6 @@ public final class ComponentImpl extends StructSupport implements Externalizable
 		}
 
 		this.isInit = true;
-
-		if (executeConstr) {
-			Object initFunc = this.get(KeyConstants._init, null);
-			if (initFunc instanceof UDF) {
-				this.call(pageContext, KeyConstants._init, new Object[0]);
-			}
-		}
 	}
 
 	private static void checkJavax(CIPage page, NoSuchMethodError nsme) throws ApplicationException {

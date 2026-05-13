@@ -80,8 +80,9 @@ public final class ComponentFactory {
 		Map<Key, Member> data = seed._getData();
 		List<DefaultEntry> entries = new ArrayList<>(data.size());
 		for (Entry<Key, Member> e: data.entrySet()) {
-			Object value = e.getValue() == null ? null : e.getValue().getValue();
-			entries.add(new DefaultEntry(e.getKey(), classify(value)));
+			Member m = e.getValue();
+			if (m == null || m instanceof lucee.runtime.type.UDF) continue;
+			entries.add(new DefaultEntry(e.getKey(), classify(m.getValue())));
 		}
 		return entries;
 	}
