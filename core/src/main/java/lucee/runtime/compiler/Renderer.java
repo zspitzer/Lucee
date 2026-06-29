@@ -58,6 +58,7 @@ public final class Renderer {
 		if (clazz != null) return clazz;
 
 		SourceCode sc = new SourceCode(null, cfml, false);
+		sc.initRegions();
 
 		// compile
 		lucee.runtime.compiler.CFMLCompilerImpl.Result result = compiler.compile(config, sc, config.getTLDs(), config.getFLDs(), null, className, true, ignoreScopes);
@@ -92,7 +93,32 @@ public final class Renderer {
 	public static Result script(PageContext pc, String cfml, boolean catchOutput, boolean ignoreScopes) throws PageException {
 		String prefix = ((ConfigPro) pc.getConfig()).getCoreTagLib().getNameSpaceAndSeparator();
 		String name = prefix + Constants.CFML_SCRIPT_TAG_NAME;
-		return tag(pc, "<" + name + ">" + cfml + "</" + name + ">", catchOutput, ignoreScopes);
+		// insert <cfscript> after any leading CFML comments so <!--- stays in TAG_MODE
+		int insert = skipLeadingCfmlComments(cfml);
+		String wrapped = cfml.substring(0, insert) + "<" + name + ">" + cfml.substring(insert) + "</" + name + ">";
+		return tag(pc, wrapped, catchOutput, ignoreScopes);
+	}
+
+	private static int skipLeadingCfmlComments(String s) {
+		int i = 0, len = s.length();
+		outer:
+		while (i < len) {
+			// skip whitespace
+			while (i < len && s.charAt(i) <= ' ') i++;
+			// skip <!--- ... ---> (nested)
+			if (i + 4 < len && s.charAt(i) == '<' && s.charAt(i+1) == '!' && s.charAt(i+2) == '-' && s.charAt(i+3) == '-' && s.charAt(i+4) == '-') {
+				i += 5;
+				int depth = 1;
+				while (i < len && depth > 0) {
+					if (i + 4 < len && s.charAt(i) == '<' && s.charAt(i+1) == '!' && s.charAt(i+2) == '-' && s.charAt(i+3) == '-' && s.charAt(i+4) == '-') { depth++; i += 5; }
+					else if (i + 3 < len && s.charAt(i) == '-' && s.charAt(i+1) == '-' && s.charAt(i+2) == '-' && s.charAt(i+3) == '>') { depth--; i += 4; }
+					else i++;
+				}
+				continue outer;
+			}
+			break;
+		}
+		return i;
 	}
 
 	public static Result tag(PageContext pc, String cfml, boolean catchOutput, boolean ignoreScopes) throws PageException {

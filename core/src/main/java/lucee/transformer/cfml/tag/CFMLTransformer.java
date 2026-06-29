@@ -443,7 +443,6 @@ public final class CFMLTransformer {
 
 	public static boolean comment(SourceCode cfml) throws TemplateException {
 		if (!cfml.forwardIfCurrent("<!---")) return false;
-
 		int start = cfml.getPos();
 		short counter = 1;
 		while (true) {

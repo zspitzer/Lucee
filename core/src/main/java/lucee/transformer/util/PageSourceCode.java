@@ -35,19 +35,21 @@ public final class PageSourceCode extends SourceCode {
 		super(null, toString(ps, charset), writeLog, 0);
 		this.charset = charset;
 		this.ps = ps;
-		// this.source=ps.getPhyscalFile().getAbsolutePath();
+		initRegions();
 	}
 
 	public PageSourceCode(PageSource ps, String text, Charset charset, boolean writeLog) {
 		super(null, text, writeLog, 0);
 		this.charset = charset;
 		this.ps = ps;
+		initRegions();
 	}
 
 	public PageSourceCode(PageSource ps, String text, Charset charset, boolean writeLog, int sourceOffset) {
 		super(null, text, writeLog, sourceOffset);
 		this.charset = charset;
 		this.ps = ps;
+		initRegions();
 	}
 
 	public static String toString(PageSource ps, Charset charset) throws IOException {
@@ -86,6 +88,7 @@ public final class PageSourceCode extends SourceCode {
 
 	@Override
 	public SourceCode subCFMLString( int start, int count ) {
-		return new PageSourceCode( ps, String.valueOf( text, start, count ), charset, getWriteLog(), getSourceOffset() + start );
+		// Return base SourceCode (no region map) — sub-sources are contextual fragments; region lookup on the root PageSourceCode handles them
+		return new SourceCode( this, String.valueOf( text, start, count ), getWriteLog(), getSourceOffset() + start );
 	}
 }

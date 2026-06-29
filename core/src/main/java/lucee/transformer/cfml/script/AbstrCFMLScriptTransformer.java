@@ -723,7 +723,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 			return new For(data.factory, left, cont, update, body, line, data.srcCode.getPosition(), id);
 		}
 		// middle foreach
-		else if (data.srcCode.forwardIfCurrent("in")) {
+		else if (data.srcCode.forwardIfCurrentKeyword("in")) {
 			// condition
 			comments(data);
 			Expression value = expression(data);

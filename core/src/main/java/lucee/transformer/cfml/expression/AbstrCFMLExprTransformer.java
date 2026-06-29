@@ -57,6 +57,7 @@ import lucee.transformer.bytecode.util.ASMUtil;
 import lucee.transformer.cfml.Data;
 import lucee.transformer.cfml.script.DocCommentTransformer;
 import lucee.transformer.cfml.tag.CFMLTransformer;
+import lucee.transformer.util.SourceCode;
 import lucee.transformer.expression.ExprBoolean;
 import lucee.transformer.expression.ExprNumber;
 import lucee.transformer.expression.ExprString;
@@ -75,7 +76,6 @@ import lucee.transformer.library.function.FunctionLibFunction;
 import lucee.transformer.library.function.FunctionLibFunctionArg;
 import lucee.transformer.library.tag.TagLibTagAttr;
 import lucee.transformer.library.tag.TagLibTagScript;
-import lucee.transformer.util.SourceCode;
 
 /**
  * 
@@ -2111,33 +2111,30 @@ public abstract class AbstrCFMLExprTransformer {
 	 * @throws TemplateException
 	 */
 	protected void comments(Data data) throws TemplateException {
-		data.srcCode.removeSpace();
-		while (comment(data)) {
-			data.srcCode.removeSpace();
+		while (true) {
+			int savedPos = data.srcCode.getPos();
+			if (!data.srcCode.removeSpace()) {
+				if (!commentFallback(data)) break;
+				continue;
+			}
+			if (!data.insideFunction) handleDocComment(savedPos, data);
 		}
 	}
 
-	/**
-	 * Liest einen Einzeiligen Kommentar ein. <br />
-	 * EBNF:<br />
-	 * <code>{?-"\n"} "\n";</code>
-	 * 
-	 * @return bool Wurde ein Kommentar entfernt?
-	 * @throws TemplateException
-	 */
-	private boolean comment(Data data) throws TemplateException {
-		if (singleLineComment(data.srcCode) || multiLineComment(data) || CFMLTransformer.comment(data.srcCode)) return true;
-		return false;
+	private void handleDocComment(int savedPos, Data data) {
+		String doc = data.srcCode.tryExtractDocComment(savedPos);
+		if (doc != null) data.docComment = docCommentTransformer.transform(data.factory, doc);
 	}
 
-	/**
-	 * Liest einen Mehrzeiligen Kommentar ein. <br />
-	 * EBNF:<br />
-	 * <code>?-"*<!-- -->/";</code>
-	 * 
-	 * @return bool Wurde ein Kommentar entfernt?
-	 * @throws TemplateException
-	 */
+	private boolean commentFallback(Data data) throws TemplateException {
+		return singleLineComment(data.srcCode) || multiLineComment(data) || CFMLTransformer.comment(data.srcCode);
+	}
+
+	private boolean singleLineComment(SourceCode cfml) {
+		if (!cfml.forwardIfCurrent("//")) return false;
+		return cfml.nextLine();
+	}
+
 	private boolean multiLineComment(Data data) throws TemplateException {
 		SourceCode cfml = data.srcCode;
 		if (!cfml.forwardIfCurrent("/*")) return false;
@@ -2156,18 +2153,6 @@ public abstract class AbstrCFMLExprTransformer {
 			data.docComment = docCommentTransformer.transform(data.factory, comment);
 		}
 		return true;
-	}
-
-	/**
-	 * Liest einen Einzeiligen Kommentar ein. <br />
-	 * EBNF:<br />
-	 * <code>{?-"\n"} "\n";</code>
-	 * 
-	 * @return bool Wurde ein Kommentar entfernt?
-	 */
-	private boolean singleLineComment(SourceCode cfml) {
-		if (!cfml.forwardIfCurrent("//")) return false;
-		return cfml.nextLine();
 	}
 
 }

@@ -22,6 +22,8 @@ import java.util.Arrays;
 import lucee.commons.digest.HashUtil;
 import lucee.commons.io.SystemUtil;
 import lucee.transformer.Position;
+import lucee.transformer.util.SourceCodeSplitter.Region;
+import lucee.transformer.util.SourceCodeSplitter.RegionKind;
 
 /**
  * this class is a Parser String optimized for the transfomer (CFML Parser)
@@ -34,8 +36,14 @@ public class SourceCode {
 	protected int pos = 0;
 	protected int currentLine = 1; // Track current line number (1-based)
 
+	private static final short CC_LETTER  = 1;
+	private static final short CC_DIGIT   = 2;
+	private static final short CC_SPECIAL = 4; // _, $, €, £
+
 	protected final char[] text;
 	protected final char[] lcText;
+	protected final short[] charClass;
+	// negative charClass[i] = -(distance to next non-space); used by removeSpace()
 	protected final int[] lines;
 	private final boolean writeLog;
 	private int hash;
@@ -45,6 +53,7 @@ public class SourceCode {
 	// Position cache - reduces allocations during parsing
 	private Position cachedPosition;
 	private int cachedPos = -1;
+
 
 	public SourceCode(SourceCode parent, String strText, boolean writeLog) {
 		this(parent, strText, writeLog, 0);
@@ -63,6 +72,7 @@ public class SourceCode {
 		this.hash = strText.hashCode();
 		this.sourceOffset = sourceOffset;
 		lcText = new char[text.length];
+		charClass = new short[text.length];
 
 		int[] arr = new int[32];
 		int count = 0;
@@ -96,6 +106,8 @@ public class SourceCode {
 		arr[count++] = text.length;
 		lines = Arrays.copyOf(arr, count);
 
+		buildCharClass( 0, lcText.length );
+
 		this.writeLog = writeLog;
 	}
 
@@ -105,6 +117,62 @@ public class SourceCode {
 
 	public boolean hasPrevious() {
 		return pos > 0;
+	}
+
+	private void buildCharClass( int start, int end ) {
+		int nextNonSpace = end;
+		int nextNonVar   = end;
+		for ( int i = end - 1; i >= start; i-- ) {
+			char lc = lcText[ i ];
+			if ( lc == ' ' ) {
+				int dist = nextNonSpace - i;
+				charClass[ i ] = (short)( dist > 32767 ? -32767 : -dist );
+				nextNonVar = i;
+			}
+			else {
+				nextNonSpace = i;
+				short kind;
+				if      ( lc >= 'a' && lc <= 'z' )                                                          kind = CC_LETTER;
+				else if ( lc >= '0' && lc <= '9' )                                                          kind = CC_DIGIT;
+				else if ( lc == '_' || lc == '$' || lc == SystemUtil.CHAR_EURO || lc == SystemUtil.CHAR_POUND ) kind = CC_SPECIAL;
+				else    kind = 0;
+				if ( kind != 0 ) {
+					int enc = ( ( nextNonVar - i ) << 3 ) | kind;
+					charClass[ i ] = (short)( enc > Short.MAX_VALUE ? Short.MAX_VALUE : enc );
+				}
+				else {
+					charClass[ i ] = 0;
+					nextNonVar = i;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Run splitter and encode comment regions into charClass so removeSpace() skips them.
+	 * Called from PageSourceCode constructors only.
+	 */
+	public void initRegions() {
+		for ( Region r : new SourceCodeSplitter( this ).detect( false ) ) {
+			RegionKind k = r.kind;
+			if ( k == RegionKind.COMMENT_LINE || k == RegionKind.COMMENT_BLOCK || k == RegionKind.COMMENT_CFML ) {
+				for ( int i = r.start; i < r.end; i++ ) {
+					int dist = r.end - i;
+					charClass[ i ] = (short)( dist > 32767 ? -32767 : -dist );
+				}
+			}
+		}
+	}
+
+	/**
+	 * If the text at savedPos starts a doc comment (/**), returns the comment text up to the
+	 * current pos (where removeSpace() landed after jumping over it); otherwise returns null.
+	 * text[] is immutable so we can read it at any saved position.
+	 */
+	public String tryExtractDocComment( int savedPos ) {
+		if ( savedPos + 2 >= text.length ) return null;
+		if ( text[ savedPos ] != '/' || text[ savedPos + 1 ] != '*' || text[ savedPos + 2 ] != '*' ) return null;
+		return substring( savedPos, pos - savedPos );
 	}
 
 	/**
@@ -205,36 +273,32 @@ public class SourceCode {
 	 * @param right upper value.
 	 */
 	public boolean isCurrentBetween(char left, char right) {
-		if (!isValidIndex()) return false;
-		return lcText[pos] >= left && lcText[pos] <= right;
+		return pos < lcText.length && lcText[pos] >= left && lcText[pos] <= right;
 	}
 
 	/**
 	 * returns if the character at the current position (internal pointer) is a valid variable character
 	 */
 	public boolean isCurrentVariableCharacter() {
-		if (!isValidIndex()) return false;
-		return isCurrentLetter() || isCurrentNumber() || isCurrent('$') || isCurrent('_');
+		return pos < charClass.length && charClass[pos] > 0;
 	}
 
 	/**
 	 * returns if the current character is a letter (a-z,A-Z)
-	 * 
+	 *
 	 * @return is a letter
 	 */
 	public boolean isCurrentLetter() {
-		if (!isValidIndex()) return false;
-		return lcText[pos] >= 'a' && lcText[pos] <= 'z';
+		return pos < charClass.length && charClass[pos] > 0 && (charClass[pos] & 7) == CC_LETTER;
 	}
 
 	/**
 	 * returns if the current character is a number (0-9)
-	 * 
+	 *
 	 * @return is a letter
 	 */
 	public boolean isCurrentNumber() {
-		if (!isValidIndex()) return false;
-		return lcText[pos] >= '0' && lcText[pos] <= '9';
+		return pos < charClass.length && charClass[pos] > 0 && (charClass[pos] & 7) == CC_DIGIT;
 	}
 
 	/**
@@ -242,8 +306,7 @@ public class SourceCode {
 	 * Euro Symbol)
 	 */
 	public boolean isCurrentSpecial() {
-		if (!isValidIndex()) return false;
-		return lcText[pos] == '_' || lcText[pos] == '$' || lcText[pos] == SystemUtil.CHAR_EURO || lcText[pos] == SystemUtil.CHAR_POUND;
+		return pos < charClass.length && charClass[pos] > 0 && (charClass[pos] & 7) == CC_SPECIAL;
 	}
 
 	/**
@@ -288,6 +351,27 @@ public class SourceCode {
 	}
 
 	/**
+	 * keyword-aware match: pre-rejects via word-length sniff before char comparison.
+	 * Only valid for all-var-char keyword strings — do NOT use for operator strings like "!=" or "==".
+	 * charClass[pos] >> 3 encodes the var-char run length from pos; if it doesn't match str.length()
+	 * the keyword can't match without loading any lcText chars.
+	 */
+	public boolean isCurrentKeyword(String str) {
+		int len = str.length();
+		if (pos >= charClass.length || (charClass[pos] >> 3) != len) return false;
+		for (int i = len - 1; i >= 0; i--) {
+			if (str.charAt(i) != lcText[pos + i]) return false;
+		}
+		return true;
+	}
+
+	public boolean forwardIfCurrentKeyword(String str) {
+		if (!isCurrentKeyword(str)) return false;
+		pos += str.length();
+		return true;
+	}
+
+	/**
 	 * @param str string to check against current position
 	 * @param startWithSpace if true there must be whitespace at the current position
 	 * @return does the criteria match?
@@ -317,7 +401,7 @@ public class SourceCode {
 		int start = pos;
 		if (startWithSpace && !removeSpace()) return false;
 
-		if (!forwardIfCurrent(str)) {
+		if (!forwardIfCurrentKeyword(str)) {
 			pos = start;
 			return false;
 		}
@@ -334,7 +418,7 @@ public class SourceCode {
 	 */
 	public boolean forwardIfCurrentAndNoWordAfter(String str) {
 		int c = pos;
-		if (forwardIfCurrent(str)) {
+		if (forwardIfCurrentKeyword(str)) {
 			if (!isCurrentBetween('a', 'z') && !isCurrent('_')) return true;
 		}
 		pos = c;
@@ -347,7 +431,7 @@ public class SourceCode {
 	 */
 	public boolean forwardIfCurrentAndNoVarExt(String str) {
 		int c = pos;
-		if (forwardIfCurrent(str)) {
+		if (forwardIfCurrentKeyword(str)) {
 			if (!isCurrentBetween('a', 'z') && !isCurrentBetween('0', '9') && !isCurrent('_')) return true;
 		}
 		pos = c;
@@ -398,7 +482,7 @@ public class SourceCode {
 	 */
 	public boolean forwardIfCurrent(String first, char second) {
 		int start = pos;
-		if (!forwardIfCurrent(first)) return false;
+		if (!forwardIfCurrentKeyword(first)) return false;
 		removeSpace();
 		boolean rtn = forwardIfCurrent(second);
 		if (!rtn) pos = start;
@@ -622,11 +706,10 @@ public class SourceCode {
 	 * @return Gibt zurueck ob der Zeiger innerhalb von Leerzeichen war oder nicht.
 	 */
 	public boolean removeSpace() {
-		int start = pos;
-		while (pos < lcText.length && lcText[pos] == ' ') {
-			pos++;
-		}
-		return (start < pos);
+		short v = charClass[pos];
+		if (v >= 0) return false;
+		pos -= v;
+		return true;
 	}
 
 	public void revertRemoveSpace() {
@@ -776,17 +859,9 @@ public class SourceCode {
 					currentLine++;
 				}
 			}
-			// Moving backward - need to rescan (rare case)
+			// Moving backward - binary search
 			else {
-				// Could optimize this with backward scan, but backward movement is rare
-				// Just recalculate from start
-				currentLine = 1;
-				for (int i = 0; i < lines.length; i++) {
-					if (pos <= lines[i]) {
-						currentLine = i + 1;
-						break;
-					}
-				}
+				currentLine = getLine(pos);
 			}
 		}
 		this.pos = pos;
