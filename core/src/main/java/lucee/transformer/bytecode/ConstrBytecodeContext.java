@@ -61,10 +61,10 @@ public final class ConstrBytecodeContext extends BytecodeContext {
 	 * Called during compilation so all lines end up in the constructor context.
 	 */
 	public void trackExecutableLine(int line) {
-		// Uses the executableLines Set inherited from BytecodeContext
+		// Uses the executableLines BitSet inherited from BytecodeContext
 		// We don't call visitLineNumber as that would emit bytecode
-		if (super.executableLines == null) super.executableLines = new java.util.TreeSet<>();
-		super.executableLines.add(line);
+		if (super.executableLines == null) super.executableLines = new java.util.BitSet();
+		super.executableLines.set(line);
 	}
 
 	/*
