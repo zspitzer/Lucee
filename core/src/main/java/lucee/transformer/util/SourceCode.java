@@ -47,7 +47,11 @@ public class SourceCode {
 	protected int currentLine = 1; // Track current line number (1-based)
 
 	protected final char[] text;
-	protected final char[] lcText;
+	/** Lowercased Latin-1 projection of text[0..len). Storing as byte[] halves memory vs char[].
+	 *  Reads must widen via {@code lcText[pos] & 0xFF} so chars 128-255 come back as 0-255 (not sign-extended).
+	 *  Source chars > 255 (e.g. €) get truncated on write; safe because the parser only compares lcText
+	 *  against ASCII chars, and identifier bodies are extracted from text[] (never lcText[]). */
+	protected final byte[] lcText;
 	/** valid length across text/lcText/charClass. May be less than text.length when the
 	 *  buffer was decoded directly from an oversized IO read. */
 	protected final int len;
@@ -105,7 +109,7 @@ public class SourceCode {
 		this.len = this.text.length;
 		this.hash = strText.hashCode();
 		this.sourceOffset = sourceOffset;
-		lcText = new char[len];
+		lcText = new byte[len];
 		charClass = new short[len];
 		this.lines = buildLcTextAndCharClass();
 		this.writeLog = writeLog;
@@ -123,7 +127,7 @@ public class SourceCode {
 		this.len = validLen;
 		this.hash = hashCharArray(this.text, validLen);
 		this.sourceOffset = sourceOffset;
-		lcText = new char[validLen];
+		lcText = new byte[validLen];
 		charClass = new short[validLen];
 		this.lines = buildLcTextAndCharClass();
 		this.writeLog = writeLog;
@@ -169,7 +173,7 @@ public class SourceCode {
 			else {
 				lc = raw;
 			}
-			lcText[i] = lc;
+			lcText[i] = (byte) lc;
 
 			if (lc == ' ') {
 				int dist = nextNonSpace - i;
@@ -248,7 +252,7 @@ public class SourceCode {
 	 * returns the lower case representation of the character of the current position
 	 */
 	public char getCurrentLower() {
-		return lcText[pos];
+		return (char)(lcText[pos] & 0xFF);
 	}
 
 	/**
@@ -262,12 +266,12 @@ public class SourceCode {
 	 * returns the character at the given position as lower case representation
 	 */
 	public char charAtLower(int pos) {
-		return lcText[pos];
+		return (char)(lcText[pos] & 0xFF);
 	}
 
 	public boolean isPrevious(char c) {
 		if (!hasPrevious()) return false;
-		return lcText[pos - 1] == c;
+		return (lcText[pos - 1] & 0xFF) == c;
 	}
 
 	public boolean isPreviousIgnoreSpace(char c) {
@@ -289,12 +293,12 @@ public class SourceCode {
 	 */
 	public boolean isNext(char c) {
 		if (!hasNext()) return false;
-		return lcText[pos + 1] == c;
+		return (lcText[pos + 1] & 0xFF) == c;
 	}
 
 	public boolean isNext(char a, char b) {
 		if (!hasNextNext()) return false;
-		return lcText[pos + 1] == a && lcText[pos + 2] == b;
+		return (lcText[pos + 1] & 0xFF) == a && (lcText[pos + 2] & 0xFF) == b;
 	}
 
 	/**
@@ -305,7 +309,9 @@ public class SourceCode {
 	 * @param right upper value.
 	 */
 	public boolean isCurrentBetween(char left, char right) {
-		return pos < len && lcText[pos] >= left && lcText[pos] <= right;
+		if (pos >= len) return false;
+		int c = lcText[pos] & 0xFF;
+		return c >= left && c <= right;
 	}
 
 	/**
@@ -346,7 +352,7 @@ public class SourceCode {
 	}
 
 	public boolean isCurrentHash() {
-		return pos < len && lcText[pos] == '#';
+		return pos < len && (lcText[pos] & 0xFF) == '#';
 	}
 
 	public boolean isCurrentOperatorChar() {
@@ -380,7 +386,7 @@ public class SourceCode {
 	 */
 	public boolean isCurrent(char c) {
 		if (!isValidIndex()) return false;
-		return lcText[pos] == c;
+		return (lcText[pos] & 0xFF) == c;
 	}
 
 	/**
@@ -401,7 +407,7 @@ public class SourceCode {
 	public boolean isCurrent(String str) {
 		if (pos + str.length() > len) return false;
 		for (int i = str.length() - 1; i >= 0; i--) {
-			if (str.charAt(i) != lcText[pos + i]) return false;
+			if (str.charAt(i) != (lcText[pos + i] & 0xFF)) return false;
 		}
 		return true;
 	}
@@ -751,7 +757,7 @@ public class SourceCode {
 	 * @return Gibt zurueck ob sich vor dem aktuellen Zeichen Leerzeichen befinden.
 	 */
 	public boolean hasSpaceBefore() {
-		return pos > 0 && lcText[pos - 1] == ' ';
+		return pos > 0 && (lcText[pos - 1] & 0xFF) == ' ';
 	}
 
 	public boolean hasNLBefore() {
@@ -759,7 +765,7 @@ public class SourceCode {
 		while (pos - (++index) >= 0) {
 			if (text[pos - index] == '\n') return true;
 			if (text[pos - index] == '\r') return true;
-			if (lcText[pos - index] != ' ') return false;
+			if ((lcText[pos - index] & 0xFF) != ' ') return false;
 		}
 		return false;
 	}
@@ -798,7 +804,7 @@ public class SourceCode {
 
 	public String removeAndGetSpace() {
 		int start = pos;
-		while (pos < len && lcText[pos] == ' ') {
+		while (pos < len && (lcText[pos] & 0xFF) == ' ') {
 			pos++;
 		}
 		return substring(start, pos - start);
@@ -876,7 +882,9 @@ public class SourceCode {
 	 * @return Untermenge als Zeichenkette in Kleinbuchstaben.
 	 */
 	public String substringLower(int start, int count) {
-		return String.valueOf(lcText, start, count);
+		// ISO_8859_1 maps bytes 0-255 1:1 to chars 0-255 — the exact widening lcText needs.
+		// Source chars > 255 (rare) were truncated on write; substringLower is not on the compile hot path.
+		return new String(lcText, start, count, java.nio.charset.StandardCharsets.ISO_8859_1);
 	}
 
 	/**
@@ -902,7 +910,7 @@ public class SourceCode {
 				pos += v >> CC_RUN_SHIFT;
 			}
 			else {
-				char c = lcText[pos];
+				int c = lcText[pos] & 0xFF;
 				if (c == '#' || c == quoter) break;
 				pos++;
 			}
@@ -1135,7 +1143,7 @@ public class SourceCode {
 	 */
 	public int indexOfNext(char c) {
 		for (int i = pos; i < len; i++) {
-			if (lcText[i] == c) return i;
+			if ((lcText[i] & 0xFF) == c) return i;
 		}
 		return -1;
 	}
@@ -1143,11 +1151,11 @@ public class SourceCode {
 	public int indexOfNext(String str) {
 		char[] carr = str.toCharArray();
 		outer: for (int i = pos; i < len; i++) {
-			if (lcText[i] == carr[0]) {
+			if ((lcText[i] & 0xFF) == carr[0]) {
 				// print.e("- "+lcText[i]);
 				for (int y = 1; y < carr.length; y++) {
 					// print.e("-- "+y);
-					if (len <= i + y || lcText[i + y] != carr[y]) {
+					if (len <= i + y || (lcText[i + y] & 0xFF) != carr[y]) {
 						// print.e("ggg");
 						continue outer;
 					}
@@ -1166,10 +1174,10 @@ public class SourceCode {
 	 */
 	public String lastWord() {
 		int size = 1;
-		while (pos - size > 0 && lcText[pos - size] == ' ') {
+		while (pos - size > 0 && (lcText[pos - size] & 0xFF) == ' ') {
 			size++;
 		}
-		while (pos - size > 0 && lcText[pos - size] != ' ' && lcText[pos - size] != ';') {
+		while (pos - size > 0 && (lcText[pos - size] & 0xFF) != ' ' && (lcText[pos - size] & 0xFF) != ';') {
 			size++;
 		}
 		return this.substring((pos - size + 1), (pos - 1));
