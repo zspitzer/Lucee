@@ -1810,7 +1810,7 @@ public abstract class AbstrCFMLExprTransformer {
 	 */
 	protected Identifier identifier(Data data, boolean firstCanBeNumber, boolean upper) {
 		Position start = data.srcCode.getPosition();
-		if (!data.srcCode.isCurrentLetter() && !data.srcCode.isCurrentSpecial()) {
+		if (!data.srcCode.isCurrentLetter()) {
 			if (!firstCanBeNumber) return null;
 			else if (!data.srcCode.isCurrentNumber()) return null;
 		}
@@ -1821,7 +1821,7 @@ public abstract class AbstrCFMLExprTransformer {
 
 	protected String identifier(Data data, boolean firstCanBeNumber) {
 		int start = data.srcCode.getPos();
-		if (!data.srcCode.isCurrentLetter() && !data.srcCode.isCurrentSpecial()) {
+		if (!data.srcCode.isCurrentLetter()) {
 			if (!firstCanBeNumber) return null;
 			else if (!data.srcCode.isCurrentNumber()) return null;
 		}
@@ -2098,10 +2098,7 @@ public abstract class AbstrCFMLExprTransformer {
 	 * @throws TemplateException
 	 */
 	protected void comments(Data data) throws TemplateException {
-		data.srcCode.removeSpace();
-		while (comment(data)) {
-			data.srcCode.removeSpace();
-		}
+		while (data.srcCode.removeSpace() || comment(data));
 	}
 
 	/**
@@ -2127,12 +2124,13 @@ public abstract class AbstrCFMLExprTransformer {
 	 */
 	private boolean multiLineComment(Data data) throws TemplateException {
 		SourceCode cfml = data.srcCode;
+		int commentStart = cfml.getPos();
 		if (!cfml.forwardIfCurrent("/*")) return false;
 		int pos = cfml.getPos();
 		boolean isDocComment = cfml.isCurrent('*');
 		while (cfml.isValidIndex()) {
 			if (cfml.isCurrent("*/")) break;
-			cfml.next();
+			cfml.forwardVarCharRunOrNext();
 		}
 		if (!cfml.forwardIfCurrent("*/")) {
 			cfml.setPos(pos);
@@ -2142,6 +2140,7 @@ public abstract class AbstrCFMLExprTransformer {
 			String comment = cfml.substring(pos - 2, cfml.getPos() - pos);
 			data.docComment = docCommentTransformer.transform(data.factory, comment);
 		}
+		cfml.annotateComment(commentStart, cfml.getPos());
 		return true;
 	}
 
@@ -2153,8 +2152,11 @@ public abstract class AbstrCFMLExprTransformer {
 	 * @return bool Wurde ein Kommentar entfernt?
 	 */
 	private boolean singleLineComment(SourceCode cfml) {
+		int start = cfml.getPos();
 		if (!cfml.forwardIfCurrent("//")) return false;
-		return cfml.nextLine();
+		cfml.nextLine();
+		cfml.annotateComment(start, cfml.getPos());
+		return true;
 	}
 
 }
