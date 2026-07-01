@@ -442,6 +442,7 @@ public final class CFMLTransformer {
 	}
 
 	public static boolean comment(SourceCode cfml) throws TemplateException {
+		int commentStart = cfml.getPos();
 		if (!cfml.forwardIfCurrent("<!---")) return false;
 
 		int start = cfml.getPos();
@@ -457,11 +458,12 @@ public final class CFMLTransformer {
 			else if (cfml.forwardIfCurrent("--->")) {
 				if (--counter == 0) {
 					comment(cfml);
+					cfml.annotateComment(commentStart, cfml.getPos());
 					return true;
 				}
 			}
 			else {
-				cfml.next();
+				cfml.forwardVarCharRunOrNext();
 			}
 		}
 	}

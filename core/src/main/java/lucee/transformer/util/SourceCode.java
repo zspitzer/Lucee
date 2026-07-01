@@ -31,10 +31,17 @@ public class SourceCode {
 	public static final short AT_LEAST_ONE_SPACE = 0;
 	public static final short ZERO_OR_MORE_SPACE = 1;
 
-	private static final byte CC_LETTER  = 1;
-	private static final byte CC_DIGIT   = 2;
-	private static final byte CC_SPECIAL = 4; // _, $, €, £
-	private static final byte CC_QUOTE   = 3; // " or '
+	private static final short CC_LETTER      = 1; // a-z, A-Z, _, $, €, £
+	private static final short CC_DIGIT       = 2; // 0-9
+	private static final short CC_QUOTE       = 4; // " or '
+	private static final short CC_COMMENT     = 8; // reserved for lazy comment annotation
+
+	// charClass encoding: short[], (runLength << CC_RUN_SHIFT) | kind
+	// kind occupies bits 0-3; run-length occupies bits 4-14.
+	// bit 15 is the sign bit: negative = whitespace or annotated comment, 0 = operator, positive = var-char/quote.
+	private static final int  CC_RUN_SHIFT   = 4;
+	private static final int  CC_MAX_RUN     = Short.MAX_VALUE >> CC_RUN_SHIFT; // 2047 — effectively uncapped
+	private static final int  CC_SPACE_MAX   = Short.MAX_VALUE; // 32767 — one hop covers any whitespace/comment run
 
 	protected int pos = 0;
 	protected int currentLine = 1; // Track current line number (1-based)
@@ -47,25 +54,27 @@ public class SourceCode {
 	 *
 	 * Each byte encodes the character class of the corresponding lcText position:
 	 *
-	 *   negative  — whitespace: the value is -(distance to next non-space), capped at -127.
+	 *   negative  — whitespace or annotated comment: value is -(distance to end), capped at -CC_SPACE_MAX.
 	 *               removeSpace() reads this and jumps pos forward in one array load.
-	 *               Runs longer than 127 chars encode as -127; removeSpace() falls back to a loop.
+	 *               Runs longer than CC_SPACE_MAX encode as -CC_SPACE_MAX; removeSpace() falls back to a loop.
+	 *               annotateComment() writes the same encoding so removeSpace() skips comment ranges too.
 	 *
 	 *   0         — operator / punctuation: non-space, non-var, unclassified char.
 	 *
-	 *   positive  — var-char or quote, packed as (runLength << 3) | kind:
-	 *               bits 0-2: kind — CC_LETTER(1), CC_DIGIT(2), CC_SPECIAL(4), CC_QUOTE(3)
-	 *               bits 3-6: contiguous var-char run length from this position, capped at 15.
-	 *                         forwardVarCharRun() extracts this with >> 3 and adds it to pos,
+	 *   positive  — var-char or quote, packed as (runLength << CC_RUN_SHIFT) | kind:
+	 *               bits 0-3: kind — CC_LETTER(1), CC_DIGIT(2), CC_QUOTE(4), CC_COMMENT(8)
+	 *                         CC_LETTER covers a-z, A-Z, _, $, €, £
+	 *               bits 4-6: contiguous var-char run length, capped at CC_MAX_RUN (bit 7 must stay 0).
+	 *                         forwardVarCharRun() extracts with >> CC_RUN_SHIFT and adds to pos,
 	 *                         skipping an entire identifier body in one array load + add.
-	 *                         CC_QUOTE entries always have run-length 0 (bits 3-6 == 0).
+	 *                         CC_QUOTE entries always have run-length 0.
 	 *
 	 * Why this rocks: the common parser operations — skip whitespace, check char class,
 	 * hop over identifiers — all become a single array load plus a mask or add.
 	 * No per-character branching on lcText[], no Character.toLowerCase() call per char,
 	 * no inner loops inside removeSpace() or forwardVarCharRun() for the common case.
 	 */
-	protected final byte[] charClass;
+	protected final short[] charClass;
 	protected final int[] lines;
 	private final boolean writeLog;
 	private int hash;
@@ -93,7 +102,7 @@ public class SourceCode {
 		this.hash = strText.hashCode();
 		this.sourceOffset = sourceOffset;
 		lcText = new char[text.length];
-		charClass = new byte[text.length];
+		charClass = new short[text.length];
 
 		// single backward pass: builds lcText[], charClass[], and lines[] together.
 		// lines[] comes out in descending order and is reversed at the end.
@@ -132,7 +141,7 @@ public class SourceCode {
 
 			if (lc == ' ') {
 				int dist = nextNonSpace - i;
-				charClass[i] = (byte)(dist > 127 ? -127 : -dist);
+				charClass[i] = (short)(dist > CC_SPACE_MAX ? -CC_SPACE_MAX : -dist);
 				nextNonVar = i;
 			}
 			else {
@@ -140,12 +149,12 @@ public class SourceCode {
 				byte kind;
 				if      (lc >= 'a' && lc <= 'z')                                                                           kind = CC_LETTER;
 				else if (lc >= '0' && lc <= '9')                                                                           kind = CC_DIGIT;
-				else if (lc == '_' || lc == '$' || lc == SystemUtil.CHAR_EURO || lc == SystemUtil.CHAR_POUND) kind = CC_SPECIAL;
+				else if (lc == '_' || lc == '$' || lc == SystemUtil.CHAR_EURO || lc == SystemUtil.CHAR_POUND) kind = CC_LETTER;
 				else if (lc == '"' || lc == '\'')                                                                          kind = CC_QUOTE;
 				else                                                                                                       kind = 0;
-				if (kind == CC_LETTER || kind == CC_DIGIT || kind == CC_SPECIAL) {
+				if (kind == CC_LETTER || kind == CC_DIGIT) {
 					int runLen = nextNonVar - i;
-					charClass[i] = (byte)(((runLen > 15 ? 15 : runLen) << 3) | kind);
+					charClass[i] = (short)(((runLen > CC_MAX_RUN ? CC_MAX_RUN : runLen) << CC_RUN_SHIFT) | kind);
 				}
 				else {
 					charClass[i] = kind;
@@ -274,10 +283,8 @@ public class SourceCode {
 	 */
 	public boolean isCurrentVariableCharacter() {
 		if (pos >= text.length) return false;
-		byte v = charClass[pos];
-		if (v <= 0) return false;
-		int k = v & 7;
-		return k == CC_LETTER || k == CC_DIGIT || k == CC_SPECIAL;
+		short v = charClass[pos];
+		return v > 0 && (v & 3) != 0;
 	}
 
 	/**
@@ -287,8 +294,8 @@ public class SourceCode {
 	 */
 	public boolean isCurrentLetter() {
 		if (pos >= text.length) return false;
-		byte v = charClass[pos];
-		return v > 0 && (v & 7) == CC_LETTER;
+		short v = charClass[pos];
+		return v > 0 && (v & 0xF) == CC_LETTER;
 	}
 
 	/**
@@ -298,24 +305,14 @@ public class SourceCode {
 	 */
 	public boolean isCurrentNumber() {
 		if (pos >= text.length) return false;
-		byte v = charClass[pos];
-		return v > 0 && (v & 7) == CC_DIGIT;
-	}
-
-	/**
-	 * retuns if the current character (internal pointer) is a valid special sign (_, $, Pound Symbol,
-	 * Euro Symbol)
-	 */
-	public boolean isCurrentSpecial() {
-		if (pos >= text.length) return false;
-		byte v = charClass[pos];
-		return v > 0 && (v & 7) == CC_SPECIAL;
+		short v = charClass[pos];
+		return v > 0 && (v & 0xF) == CC_DIGIT;
 	}
 
 	public boolean isCurrentQuote() {
 		if (pos >= text.length) return false;
-		byte v = charClass[pos];
-		return v > 0 && (v & 7) == CC_QUOTE;
+		short v = charClass[pos];
+		return v > 0 && (v & 0xF) == CC_QUOTE;
 	}
 
 	public boolean isCurrentHash() {
@@ -328,14 +325,24 @@ public class SourceCode {
 
 	/**
 	 * Advances pos past the contiguous var-char run starting at the current position.
-	 * Safe to call only when isCurrentLetter() or isCurrentSpecial() is true.
+	 * Safe to call only when isCurrentLetter() is true.
 	 */
 	public void forwardVarCharRun() {
 		while (pos < text.length) {
-			int hop = charClass[pos] >> 3;
+			int hop = charClass[pos] >> CC_RUN_SHIFT;
 			if (hop <= 0) break;
 			pos += hop;
 		}
+	}
+
+	/**
+	 * Hops the var-char run at the current position, or advances by one if not on a var-char.
+	 * Use as the inner-loop body when scanning for a sentinel that cannot appear in identifier runs.
+	 */
+	public void forwardVarCharRunOrNext() {
+		int hop = charClass[pos] >> CC_RUN_SHIFT;
+		if (hop > 0) pos += hop;
+		else pos++;
 	}
 
 	/**
@@ -423,7 +430,7 @@ public class SourceCode {
 		// exactly str.length() — longer means the identifier continues past str (word-boundary fails),
 		// shorter or negative means str can't fully match. One array load replaces both the string
 		// compare and the followedByNoVariableCharacter check for the common non-match case.
-		if (followedByNoVariableCharacter && (pos >= charClass.length || (charClass[pos] >> 3) != str.length())) {
+		if (followedByNoVariableCharacter && (pos >= charClass.length || (charClass[pos] >> CC_RUN_SHIFT) != str.length())) {
 			pos = start;
 			return false;
 		}
@@ -444,6 +451,7 @@ public class SourceCode {
 	 * input, followed by a none word character
 	 */
 	public boolean forwardIfCurrentAndNoWordAfter(String str) {
+		if (pos >= charClass.length || (charClass[pos] >> CC_RUN_SHIFT) != str.length()) return false;
 		int c = pos;
 		if (forwardIfCurrentKeyword(str)) {
 			if (!isCurrentLetter() && !isCurrent('_')) return true;
@@ -734,15 +742,22 @@ public class SourceCode {
 	 */
 	public boolean removeSpace() {
 		if (pos >= text.length) return false;
-		byte v = charClass[pos];
+		short v = charClass[pos];
 		if (v >= 0) return false;
-		if (v == -127) {
-			int start = pos;
-			while (pos < text.length && lcText[pos] == ' ') pos++;
-			return pos > start;
-		}
 		pos -= v;
 		return true;
+	}
+
+	/**
+	 * Retroactively marks a consumed comment range as skippable whitespace.
+	 * Uses the same negative-distance encoding as removeSpace(), so any subsequent
+	 * removeSpace() call at or within [start, end) jumps past the whole range in one load.
+	 */
+	public void annotateComment(int start, int end) {
+		for (int i = end - 1; i >= start; i--) {
+			int dist = end - i;
+			charClass[i] = (short)(dist > CC_SPACE_MAX ? -CC_SPACE_MAX : -dist);
+		}
 	}
 
 	public void revertRemoveSpace() {
@@ -766,8 +781,11 @@ public class SourceCode {
 	 * @return Existiert eine weitere Zeile.
 	 */
 	public boolean nextLine() {
-		while (isValidIndex() && text[pos] != '\n' && text[pos] != '\r') {
-			next();
+		while (pos < text.length) {
+			int hop = charClass[pos] >> CC_RUN_SHIFT;
+			if (hop > 0) { pos += hop; continue; }
+			if (text[pos] == '\n' || text[pos] == '\r') break;
+			pos++;
 		}
 		if (!isValidIndex()) return false;
 
