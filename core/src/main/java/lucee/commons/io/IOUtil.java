@@ -47,6 +47,7 @@ import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -949,6 +950,63 @@ public final class IOUtil {
 		finally {
 			releaseCharBuffer(buf);
 		}
+	}
+
+	/**
+	 * Holder for a decoded char[] plus the number of valid chars in it. The buffer may be
+	 * oversized — callers must not read past {@code len}.
+	 */
+	public static final class CharArrayResult {
+		public final char[] buf;
+		public final int len;
+		public CharArrayResult(char[] buf, int len) {
+			this.buf = buf;
+			this.len = len;
+		}
+	}
+
+	/**
+	 * Reads an InputStream directly into a char[] via a CharsetDecoder, skipping the
+	 * intermediate String materialization that {@link #toString(InputStream, Charset)} does.
+	 * BOM detection is identical. The returned buffer may be oversized; the caller must use
+	 * {@code result.len} as the valid length.
+	 */
+	public static CharArrayResult toCharArray(InputStream is, Charset charset) throws IOException {
+		return toCharArray(is, charset, 512);
+	}
+
+	/**
+	 * Same as {@link #toCharArray(InputStream, Charset)} but with an initial capacity hint —
+	 * pass the file's byte length when known. For ASCII/Latin-1 CFML sources char count matches
+	 * byte count, so a well-sized hint means one alloc and no growth doublings.
+	 */
+	public static CharArrayResult toCharArray(InputStream is, Charset charset, int sizeHint) throws IOException {
+		if (charset == null) charset = SystemUtil.getCharset();
+		BOMInputStream bomIn = BOMInputStream.builder().setInputStream(is)
+				.setByteOrderMarks(ByteOrderMark.UTF_8, ByteOrderMark.UTF_16BE, ByteOrderMark.UTF_16LE, ByteOrderMark.UTF_32BE)
+				.get();
+		String bomCharset = bomIn.getBOMCharsetName();
+		if (bomCharset != null) charset = Charset.forName(bomCharset);
+		InputStreamReader isr = new InputStreamReader(bomIn, charset);
+		int initial = Math.max(64, sizeHint);
+		char[] out = new char[initial];
+		int off = 0;
+		while (true) {
+			int space = out.length - off;
+			if (space > 0) {
+				int n = isr.read(out, off, space);
+				if (n == -1) break;
+				off += n;
+			}
+			else {
+				// buffer exactly full — probe one more char to detect EOF without a speculative grow
+				int one = isr.read();
+				if (one == -1) break;
+				out = Arrays.copyOf(out, out.length * 2);
+				out[off++] = (char) one;
+			}
+		}
+		return new CharArrayResult(out, off);
 	}
 
 	/**

@@ -48,6 +48,9 @@ public class SourceCode {
 
 	protected final char[] text;
 	protected final char[] lcText;
+	/** valid length across text/lcText/charClass. May be less than text.length when the
+	 *  buffer was decoded directly from an oversized IO read. */
+	protected final int len;
 
 	/**
 	 * Per-character classification array, built once in the constructor alongside lcText[].
@@ -99,20 +102,49 @@ public class SourceCode {
 	public SourceCode(SourceCode parent, String strText, boolean writeLog, int sourceOffset) {
 		this.parent = parent;
 		this.text = strText.toCharArray();
+		this.len = this.text.length;
 		this.hash = strText.hashCode();
 		this.sourceOffset = sourceOffset;
-		lcText = new char[text.length];
-		charClass = new short[text.length];
+		lcText = new char[len];
+		charClass = new short[len];
+		this.lines = buildLcTextAndCharClass();
+		this.writeLog = writeLog;
+	}
 
+	/**
+	 * char[]-direct constructor: skips the {@code String -> char[]} copy that {@link String#toCharArray()}
+	 * incurs. {@code textBuf} may be oversized (e.g. from a growable IO read); if so, it is trimmed to
+	 * {@code validLen} so the class invariant {@code text.length == valid content length} always holds
+	 * (the transformer relies on that everywhere).
+	 */
+	public SourceCode(SourceCode parent, char[] textBuf, int validLen, boolean writeLog, int sourceOffset) {
+		this.parent = parent;
+		this.text = textBuf.length == validLen ? textBuf : Arrays.copyOf(textBuf, validLen);
+		this.len = validLen;
+		this.hash = hashCharArray(this.text, validLen);
+		this.sourceOffset = sourceOffset;
+		lcText = new char[validLen];
+		charClass = new short[validLen];
+		this.lines = buildLcTextAndCharClass();
+		this.writeLog = writeLog;
+	}
+
+	private static int hashCharArray(char[] a, int len) {
+		int h = 0;
+		for (int i = 0; i < len; i++) h = 31 * h + a[i];
+		return h;
+	}
+
+	private int[] buildLcTextAndCharClass() {
 		// single backward pass: builds lcText[], charClass[], and lines[] together.
 		// lines[] comes out in descending order and is reversed at the end.
 		// only A-Z need lowercasing (ASCII source) — bit-flip avoids Character.toLowerCase().
 		int[] arr = new int[32];
 		int count = 0;
-		int nextNonSpace = text.length;
-		int nextNonVar   = text.length;
+		int nextNonSpace = len;
+		int nextNonVar   = len;
 
-		for (int i = text.length - 1; i >= 0; i--) {
+		for (int i = len - 1; i >= 0; i--) {
 			char raw = text[i];
 			char lc;
 			if (raw == '\n') {
@@ -123,7 +155,7 @@ public class SourceCode {
 			else if (raw == '\r') {
 				lc = ' ';
 				// only record lone \r — \r\n pairs are already recorded via the \n
-				if (i + 1 >= text.length || text[i + 1] != '\n') {
+				if (i + 1 >= len || text[i + 1] != '\n') {
 					if (count == arr.length) arr = Arrays.copyOf(arr, arr.length * 2);
 					arr[count++] = i;
 				}
@@ -168,10 +200,8 @@ public class SourceCode {
 			int tmp = arr[l]; arr[l] = arr[r]; arr[r] = tmp;
 		}
 		if (count == arr.length) arr = Arrays.copyOf(arr, arr.length + 1);
-		arr[count++] = text.length;
-		lines = Arrays.copyOf(arr, count);
-
-		this.writeLog = writeLog;
+		arr[count++] = len;
+		return Arrays.copyOf(arr, count);
 	}
 
 	public SourceCode getParent() {
@@ -186,11 +216,11 @@ public class SourceCode {
 	 * returns if the internal pointer is not on the last positions
 	 */
 	public boolean hasNext() {
-		return pos + 1 < lcText.length;
+		return pos + 1 < len;
 	}
 
 	public boolean hasNextNext() {
-		return pos + 2 < lcText.length;
+		return pos + 2 < len;
 	}
 
 	/**
@@ -275,14 +305,14 @@ public class SourceCode {
 	 * @param right upper value.
 	 */
 	public boolean isCurrentBetween(char left, char right) {
-		return pos < lcText.length && lcText[pos] >= left && lcText[pos] <= right;
+		return pos < len && lcText[pos] >= left && lcText[pos] <= right;
 	}
 
 	/**
 	 * returns if the character at the current position (internal pointer) is a valid variable character
 	 */
 	public boolean isCurrentVariableCharacter() {
-		if (pos >= text.length) return false;
+		if (pos >= len) return false;
 		short v = charClass[pos];
 		return v > 0 && (v & 3) != 0;
 	}
@@ -293,7 +323,7 @@ public class SourceCode {
 	 * @return is a letter
 	 */
 	public boolean isCurrentLetter() {
-		if (pos >= text.length) return false;
+		if (pos >= len) return false;
 		short v = charClass[pos];
 		return v > 0 && (v & 0xF) == CC_LETTER;
 	}
@@ -304,23 +334,23 @@ public class SourceCode {
 	 * @return is a number
 	 */
 	public boolean isCurrentNumber() {
-		if (pos >= text.length) return false;
+		if (pos >= len) return false;
 		short v = charClass[pos];
 		return v > 0 && (v & 0xF) == CC_DIGIT;
 	}
 
 	public boolean isCurrentQuote() {
-		if (pos >= text.length) return false;
+		if (pos >= len) return false;
 		short v = charClass[pos];
 		return v > 0 && (v & 0xF) == CC_QUOTE;
 	}
 
 	public boolean isCurrentHash() {
-		return pos < text.length && lcText[pos] == '#';
+		return pos < len && lcText[pos] == '#';
 	}
 
 	public boolean isCurrentOperatorChar() {
-		return pos < text.length && charClass[pos] == 0;
+		return pos < len && charClass[pos] == 0;
 	}
 
 	/**
@@ -328,7 +358,7 @@ public class SourceCode {
 	 * Safe to call only when isCurrentLetter() is true.
 	 */
 	public void forwardVarCharRun() {
-		while (pos < text.length) {
+		while (pos < len) {
 			int hop = charClass[pos] >> CC_RUN_SHIFT;
 			if (hop <= 0) break;
 			pos += hop;
@@ -369,7 +399,7 @@ public class SourceCode {
 	 * input
 	 */
 	public boolean isCurrent(String str) {
-		if (pos + str.length() > lcText.length) return false;
+		if (pos + str.length() > len) return false;
 		for (int i = str.length() - 1; i >= 0; i--) {
 			if (str.charAt(i) != lcText[pos + i]) return false;
 		}
@@ -430,7 +460,7 @@ public class SourceCode {
 		// exactly str.length() — longer means the identifier continues past str (word-boundary fails),
 		// shorter or negative means str can't fully match. One array load replaces both the string
 		// compare and the followedByNoVariableCharacter check for the common non-match case.
-		if (followedByNoVariableCharacter && (pos >= charClass.length || (charClass[pos] >> CC_RUN_SHIFT) != str.length())) {
+		if (followedByNoVariableCharacter && (pos >= len || (charClass[pos] >> CC_RUN_SHIFT) != str.length())) {
 			pos = start;
 			return false;
 		}
@@ -451,7 +481,7 @@ public class SourceCode {
 	 * input, followed by a none word character
 	 */
 	public boolean forwardIfCurrentAndNoWordAfter(String str) {
-		if (pos >= charClass.length || (charClass[pos] >> CC_RUN_SHIFT) != str.length()) return false;
+		if (pos >= len || (charClass[pos] >> CC_RUN_SHIFT) != str.length()) return false;
 		int c = pos;
 		if (forwardIfCurrentKeyword(str)) {
 			if (!isCurrentLetter() && !isCurrent('_')) return true;
@@ -741,7 +771,7 @@ public class SourceCode {
 	 * @return Gibt zurueck ob der Zeiger innerhalb von Leerzeichen war oder nicht.
 	 */
 	public boolean removeSpace() {
-		if (pos >= text.length) return false;
+		if (pos >= len) return false;
 		short v = charClass[pos];
 		if (v >= 0) return false;
 		pos -= v;
@@ -768,7 +798,7 @@ public class SourceCode {
 
 	public String removeAndGetSpace() {
 		int start = pos;
-		while (pos < lcText.length && lcText[pos] == ' ') {
+		while (pos < len && lcText[pos] == ' ') {
 			pos++;
 		}
 		return substring(start, pos - start);
@@ -781,7 +811,7 @@ public class SourceCode {
 	 * @return Existiert eine weitere Zeile.
 	 */
 	public boolean nextLine() {
-		while (pos < text.length) {
+		while (pos < len) {
 			int hop = charClass[pos] >> CC_RUN_SHIFT;
 			if (hop > 0) { pos += hop; continue; }
 			if (text[pos] == '\n' || text[pos] == '\r') break;
@@ -811,7 +841,7 @@ public class SourceCode {
 	 * @return Untermenge als Zeichenkette
 	 */
 	public String substring(int start) {
-		return substring(start, lcText.length - start);
+		return substring(start, len - start);
 	}
 
 	/**
@@ -834,7 +864,7 @@ public class SourceCode {
 	 * @return Untermenge als Zeichenkette in Kleinbuchstaben.
 	 */
 	public String substringLower(int start) {
-		return substringLower(start, lcText.length - start);
+		return substringLower(start, len - start);
 	}
 
 	/**
@@ -857,7 +887,7 @@ public class SourceCode {
 	 * @return Untermenge als CFMLString
 	 */
 	public SourceCode subCFMLString(int start) {
-		return subCFMLString(start, text.length - start);
+		return subCFMLString(start, len - start);
 	}
 
 	/**
@@ -866,7 +896,7 @@ public class SourceCode {
 	 * Operator/punctuation chars that are not the sentinel advance by 1.
 	 */
 	public void scanStringSegment(char quoter) {
-		while (pos < text.length) {
+		while (pos < len) {
 			short v = charClass[pos];
 			if (v > 0 && (v & 3) != 0) {
 				pos += v >> CC_RUN_SHIFT;
@@ -1064,7 +1094,7 @@ public class SourceCode {
 		int min = 0;
 		if (index != 0) min = lines[index - 1] + 1;
 
-		if (min < max && max - 1 < lcText.length) return this.substring(min, max - min);
+		if (min < max && max - 1 < len) return this.substring(min, max - min);
 		return "";
 	}
 
@@ -1074,7 +1104,7 @@ public class SourceCode {
 	 * @return Gibt zurueck ob der Zeiger auf dem letzten Zeichen steht.
 	 */
 	public boolean isLast() {
-		return pos == lcText.length - 1;
+		return pos == len - 1;
 	}
 
 	/**
@@ -1083,7 +1113,7 @@ public class SourceCode {
 	 * @return Gibt zurueck ob der Zeiger nach dem letzten Zeichen steht.
 	 */
 	public boolean isAfterLast() {
-		return pos >= lcText.length;
+		return pos >= len;
 	}
 
 	/**
@@ -1092,7 +1122,7 @@ public class SourceCode {
 	 * @return Gibt zurueck ob der Zeiger einen korrekten Index hat.
 	 */
 	public boolean isValidIndex() {
-		return pos < lcText.length && pos > -1;
+		return pos < len && pos > -1;
 	}
 
 	/**
@@ -1104,7 +1134,7 @@ public class SourceCode {
 	 * @return Zeichen das gesucht werden soll.
 	 */
 	public int indexOfNext(char c) {
-		for (int i = pos; i < lcText.length; i++) {
+		for (int i = pos; i < len; i++) {
 			if (lcText[i] == c) return i;
 		}
 		return -1;
@@ -1112,12 +1142,12 @@ public class SourceCode {
 
 	public int indexOfNext(String str) {
 		char[] carr = str.toCharArray();
-		outer: for (int i = pos; i < lcText.length; i++) {
+		outer: for (int i = pos; i < len; i++) {
 			if (lcText[i] == carr[0]) {
 				// print.e("- "+lcText[i]);
 				for (int y = 1; y < carr.length; y++) {
 					// print.e("-- "+y);
-					if (lcText.length <= i + y || lcText[i + y] != carr[y]) {
+					if (len <= i + y || lcText[i + y] != carr[y]) {
 						// print.e("ggg");
 						continue outer;
 					}
@@ -1151,7 +1181,7 @@ public class SourceCode {
 	 * @return Laenge des CFMLString.
 	 */
 	public int length() {
-		return lcText.length;
+		return len;
 	}
 
 	/**
