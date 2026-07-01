@@ -31,11 +31,41 @@ public class SourceCode {
 	public static final short AT_LEAST_ONE_SPACE = 0;
 	public static final short ZERO_OR_MORE_SPACE = 1;
 
+	private static final byte CC_LETTER  = 1;
+	private static final byte CC_DIGIT   = 2;
+	private static final byte CC_SPECIAL = 4; // _, $, €, £
+	private static final byte CC_QUOTE   = 3; // " or '
+
 	protected int pos = 0;
 	protected int currentLine = 1; // Track current line number (1-based)
 
 	protected final char[] text;
 	protected final char[] lcText;
+
+	/**
+	 * Per-character classification array, built once in the constructor alongside lcText[].
+	 *
+	 * Each byte encodes the character class of the corresponding lcText position:
+	 *
+	 *   negative  — whitespace: the value is -(distance to next non-space), capped at -127.
+	 *               removeSpace() reads this and jumps pos forward in one array load.
+	 *               Runs longer than 127 chars encode as -127; removeSpace() falls back to a loop.
+	 *
+	 *   0         — operator / punctuation: non-space, non-var, unclassified char.
+	 *
+	 *   positive  — var-char or quote, packed as (runLength << 3) | kind:
+	 *               bits 0-2: kind — CC_LETTER(1), CC_DIGIT(2), CC_SPECIAL(4), CC_QUOTE(3)
+	 *               bits 3-6: contiguous var-char run length from this position, capped at 15.
+	 *                         forwardVarCharRun() extracts this with >> 3 and adds it to pos,
+	 *                         skipping an entire identifier body in one array load + add.
+	 *                         CC_QUOTE entries always have run-length 0 (bits 3-6 == 0).
+	 *
+	 * Why this rocks: the common parser operations — skip whitespace, check char class,
+	 * hop over identifiers — all become a single array load plus a mask or add.
+	 * No per-character branching on lcText[], no Character.toLowerCase() call per char,
+	 * no inner loops inside removeSpace() or forwardVarCharRun() for the common case.
+	 */
+	protected final byte[] charClass;
 	protected final int[] lines;
 	private final boolean writeLog;
 	private int hash;
@@ -63,36 +93,72 @@ public class SourceCode {
 		this.hash = strText.hashCode();
 		this.sourceOffset = sourceOffset;
 		lcText = new char[text.length];
+		charClass = new byte[text.length];
 
+		// single backward pass: builds lcText[], charClass[], and lines[] together.
+		// lines[] comes out in descending order and is reversed at the end.
+		// only A-Z need lowercasing (ASCII source) — bit-flip avoids Character.toLowerCase().
 		int[] arr = new int[32];
 		int count = 0;
+		int nextNonSpace = text.length;
+		int nextNonVar   = text.length;
 
-		for (int i = 0; i < text.length; i++) {
-			pos = i;
-			if (text[i] == '\n') {
-				if (count == arr.length) {
-					arr = Arrays.copyOf(arr, arr.length * 2);
-				}
+		for (int i = text.length - 1; i >= 0; i--) {
+			char raw = text[i];
+			char lc;
+			if (raw == '\n') {
+				lc = ' ';
+				if (count == arr.length) arr = Arrays.copyOf(arr, arr.length * 2);
 				arr[count++] = i;
-				lcText[i] = ' ';
 			}
-			else if (text[i] == '\r') {
-				if (isNextRaw('\n')) {
-					lcText[i++] = ' ';
+			else if (raw == '\r') {
+				lc = ' ';
+				// only record lone \r — \r\n pairs are already recorded via the \n
+				if (i + 1 >= text.length || text[i + 1] != '\n') {
+					if (count == arr.length) arr = Arrays.copyOf(arr, arr.length * 2);
+					arr[count++] = i;
 				}
-				if (count == arr.length) {
-					arr = Arrays.copyOf(arr, arr.length * 2);
-				}
-				arr[count++] = i;
-				lcText[i] = ' ';
 			}
-			else if (text[i] == '\t') lcText[i] = ' ';
-			else lcText[i] = Character.toLowerCase(text[i]);
+			else if (raw == '\t') {
+				lc = ' ';
+			}
+			else if (raw >= 'A' && raw <= 'Z') {
+				lc = (char)(raw | 0x20);
+			}
+			else {
+				lc = raw;
+			}
+			lcText[i] = lc;
+
+			if (lc == ' ') {
+				int dist = nextNonSpace - i;
+				charClass[i] = (byte)(dist > 127 ? -127 : -dist);
+				nextNonVar = i;
+			}
+			else {
+				nextNonSpace = i;
+				byte kind;
+				if      (lc >= 'a' && lc <= 'z')                                                                           kind = CC_LETTER;
+				else if (lc >= '0' && lc <= '9')                                                                           kind = CC_DIGIT;
+				else if (lc == '_' || lc == '$' || lc == SystemUtil.CHAR_EURO || lc == SystemUtil.CHAR_POUND) kind = CC_SPECIAL;
+				else if (lc == '"' || lc == '\'')                                                                          kind = CC_QUOTE;
+				else                                                                                                       kind = 0;
+				if (kind == CC_LETTER || kind == CC_DIGIT || kind == CC_SPECIAL) {
+					int runLen = nextNonVar - i;
+					charClass[i] = (byte)(((runLen > 15 ? 15 : runLen) << 3) | kind);
+				}
+				else {
+					charClass[i] = kind;
+					nextNonVar = i;
+				}
+			}
 		}
-		pos = 0;
-		if (count == arr.length) {
-			arr = Arrays.copyOf(arr, arr.length + 1);
+
+		// reverse the descending line positions to ascending, then append sentinel
+		for (int l = 0, r = count - 1; l < r; l++, r--) {
+			int tmp = arr[l]; arr[l] = arr[r]; arr[r] = tmp;
 		}
+		if (count == arr.length) arr = Arrays.copyOf(arr, arr.length + 1);
 		arr[count++] = text.length;
 		lines = Arrays.copyOf(arr, count);
 
@@ -192,11 +258,6 @@ public class SourceCode {
 		return lcText[pos + 1] == a && lcText[pos + 2] == b;
 	}
 
-	private boolean isNextRaw(char c) {
-		if (!hasNext()) return false;
-		return text[pos + 1] == c;
-	}
-
 	/**
 	 * is the character at the current position (internal pointer) in the range of the given input
 	 * characters?
@@ -212,8 +273,11 @@ public class SourceCode {
 	 * returns if the character at the current position (internal pointer) is a valid variable character
 	 */
 	public boolean isCurrentVariableCharacter() {
-		if (!isValidIndex()) return false;
-		return isCurrentLetter() || isCurrentNumber() || isCurrent('$') || isCurrent('_');
+		if (pos >= text.length) return false;
+		byte v = charClass[pos];
+		if (v <= 0) return false;
+		int k = v & 7;
+		return k == CC_LETTER || k == CC_DIGIT || k == CC_SPECIAL;
 	}
 
 	/**
@@ -222,18 +286,20 @@ public class SourceCode {
 	 * @return is a letter
 	 */
 	public boolean isCurrentLetter() {
-		if (!isValidIndex()) return false;
-		return lcText[pos] >= 'a' && lcText[pos] <= 'z';
+		if (pos >= text.length) return false;
+		byte v = charClass[pos];
+		return v > 0 && (v & 7) == CC_LETTER;
 	}
 
 	/**
 	 * returns if the current character is a number (0-9)
 	 *
-	 * @return is a letter
+	 * @return is a number
 	 */
 	public boolean isCurrentNumber() {
-		if (!isValidIndex()) return false;
-		return lcText[pos] >= '0' && lcText[pos] <= '9';
+		if (pos >= text.length) return false;
+		byte v = charClass[pos];
+		return v > 0 && (v & 7) == CC_DIGIT;
 	}
 
 	/**
@@ -241,8 +307,35 @@ public class SourceCode {
 	 * Euro Symbol)
 	 */
 	public boolean isCurrentSpecial() {
-		if (!isValidIndex()) return false;
-		return lcText[pos] == '_' || lcText[pos] == '$' || lcText[pos] == SystemUtil.CHAR_EURO || lcText[pos] == SystemUtil.CHAR_POUND;
+		if (pos >= text.length) return false;
+		byte v = charClass[pos];
+		return v > 0 && (v & 7) == CC_SPECIAL;
+	}
+
+	public boolean isCurrentQuote() {
+		if (pos >= text.length) return false;
+		byte v = charClass[pos];
+		return v > 0 && (v & 7) == CC_QUOTE;
+	}
+
+	public boolean isCurrentHash() {
+		return pos < text.length && lcText[pos] == '#';
+	}
+
+	public boolean isCurrentOperatorChar() {
+		return pos < text.length && charClass[pos] == 0;
+	}
+
+	/**
+	 * Advances pos past the contiguous var-char run starting at the current position.
+	 * Safe to call only when isCurrentLetter() or isCurrentSpecial() is true.
+	 */
+	public void forwardVarCharRun() {
+		while (pos < text.length) {
+			int hop = charClass[pos] >> 3;
+			if (hop <= 0) break;
+			pos += hop;
+		}
 	}
 
 	/**
@@ -326,6 +419,15 @@ public class SourceCode {
 		int start = pos;
 		if (startWithSpace && !removeSpace()) return false;
 
+		// run-length pre-check: if a word boundary is required, the var-char run at pos must be
+		// exactly str.length() — longer means the identifier continues past str (word-boundary fails),
+		// shorter or negative means str can't fully match. One array load replaces both the string
+		// compare and the followedByNoVariableCharacter check for the common non-match case.
+		if (followedByNoVariableCharacter && (pos >= charClass.length || (charClass[pos] >> 3) != str.length())) {
+			pos = start;
+			return false;
+		}
+
 		if (!forwardIfCurrentKeyword(str)) {
 			pos = start;
 			return false;
@@ -344,7 +446,7 @@ public class SourceCode {
 	public boolean forwardIfCurrentAndNoWordAfter(String str) {
 		int c = pos;
 		if (forwardIfCurrentKeyword(str)) {
-			if (!isCurrentBetween('a', 'z') && !isCurrent('_')) return true;
+			if (!isCurrentLetter() && !isCurrent('_')) return true;
 		}
 		pos = c;
 		return false;
@@ -357,7 +459,7 @@ public class SourceCode {
 	public boolean forwardIfCurrentAndNoVarExt(String str) {
 		int c = pos;
 		if (forwardIfCurrentKeyword(str)) {
-			if (!isCurrentBetween('a', 'z') && !isCurrentBetween('0', '9') && !isCurrent('_')) return true;
+			if (!isCurrentVariableCharacter()) return true;
 		}
 		pos = c;
 		return false;
@@ -631,11 +733,16 @@ public class SourceCode {
 	 * @return Gibt zurueck ob der Zeiger innerhalb von Leerzeichen war oder nicht.
 	 */
 	public boolean removeSpace() {
-		int start = pos;
-		while (pos < lcText.length && lcText[pos] == ' ') {
-			pos++;
+		if (pos >= text.length) return false;
+		byte v = charClass[pos];
+		if (v >= 0) return false;
+		if (v == -127) {
+			int start = pos;
+			while (pos < text.length && lcText[pos] == ' ') pos++;
+			return pos > start;
 		}
-		return (start < pos);
+		pos -= v;
+		return true;
 	}
 
 	public void revertRemoveSpace() {

@@ -112,7 +112,7 @@ public final class SimpleExprTransformer implements ExprTransformer {
 		Position line = cfml.getPosition();
 		while (cfml.isValidIndex()) {
 			if (cfml.isCurrent(' ') || cfml.isCurrent('>') || cfml.isCurrent("/>")) break;
-			else if (cfml.isCurrent('"') || cfml.isCurrent('#') || cfml.isCurrent('\'')) {
+			else if (cfml.isCurrentQuote() || cfml.isCurrentHash()) {
 				throw new TemplateException(cfml, "simple attribute value can't contain [" + cfml.getCurrent() + "]");
 			}
 			else sb.append(cfml.getCurrent());

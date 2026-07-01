@@ -1043,6 +1043,7 @@ public final class CFMLTransformer {
 				}
 			}
 			catch (TemplateException te) {
+				lucee.aprint.o(te);
 				data.srcCode.setPos(start);
 				// if the tag supports a non name attribute try this
 				TagLibTagAttr sa = tag.getSingleAttr();
@@ -1170,7 +1171,7 @@ public final class CFMLTransformer {
 	private static String attributeName(SourceCode cfml, RefBoolean dynamic, ArrayList<String> args, TagLibTag tag, StringBuilder sbType, boolean[] parseExpression,
 			boolean allowDefaultValue) throws TemplateException {
 
-		String _id = identifier(cfml, !allowDefaultValue, true);
+		String _id = identifier(cfml, false, true);
 		if (StringUtil.isEmpty(_id)) {
 			return null;
 		}
@@ -1244,12 +1245,16 @@ public final class CFMLTransformer {
 				transfomer = data.getSimpleExprTransformer();
 			}
 			if (isNonName) {
+				if (data.srcCode.isCurrent('>') || data.srcCode.isCurrent('/')) return noExpression;
 				int pos = data.srcCode.getPos();
 				try {
 					expr = transfomer.transform(data);
 				}
 				catch (TemplateException ete) {
-					if (data.srcCode.getPos() == pos) expr = noExpression;
+					if (data.srcCode.getPos() == pos) {
+						lucee.aprint.o(ete);
+						expr = noExpression;
+					}
 					else throw ete;
 				}
 			}
@@ -1288,18 +1293,19 @@ public final class CFMLTransformer {
 	 */
 	public static String identifier(SourceCode cfml, boolean throwError, boolean allowColon) throws TemplateException {
 		int start = cfml.getPos();
-
-		if (!cfml.isCurrentBetween('a', 'z') && !cfml.isCurrent('_')) {
+		if (!cfml.isCurrentLetter() && !cfml.isCurrent('_')) {
 			if (throwError) throw new TemplateException(cfml, "Invalid Identifier, the following character cannot be part of an identifier [" + cfml.getCurrent() + "]");
 			return null;
 		}
-		do {
-			cfml.next();
-			if (!(cfml.isCurrentBetween('a', 'z') || cfml.isCurrentBetween('0', '9') || cfml.isCurrent('_') || (allowColon && cfml.isCurrent(':')) || cfml.isCurrent('-'))) {
-				break;
+		cfml.forwardVarCharRun();
+		// slow path: ':' (XML namespace prefix) and '-' (hyphenated tag names) only
+		while (cfml.isValidIndex()) {
+			if ((allowColon && cfml.isCurrent(':')) || cfml.isCurrent('-')) {
+				cfml.next();
+				cfml.forwardVarCharRun();
 			}
+			else break;
 		}
-		while (cfml.isValidIndex());
 		return cfml.substring(start, cfml.getPos() - start);
 	}
 

@@ -1445,8 +1445,11 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 			}
 
 			boolean isValid = (data.srcCode.isCurrent(' ') || data.srcCode.isCurrent(';') || (tlt.getHasBody() && data.srcCode.isCurrent('{')));
-			if (isValid && (data.srcCode.isCurrent(" ", "=") || data.srcCode.isCurrent(" ", "("))) { // simply avoid a later exception
-				isValid = false;
+			if (isValid) { // simply avoid a later exception
+				int savedPos = data.srcCode.getPos();
+				data.srcCode.removeSpace();
+				if (data.srcCode.isCurrentOperatorChar() && !data.srcCode.isCurrent('{')) isValid = false;
+				data.srcCode.setPos(savedPos);
 			}
 			if (!isValid) {
 				data.srcCode.setPos(pos);
@@ -2439,6 +2442,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 			// if no more attributes break
 			if (endCond.isEnd(data)) break;
 			Attribute attr = attribute(tlt, data, ids, defaultValue, oAllowExpression, allowTwiceAttr, allowColonAsNameValueSeparator);
+			if (attr == null) break;
 			attrs.put(attr.getName().toLowerCase(), attr);
 
 			// seperator
@@ -2526,7 +2530,8 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 		comments(data);
 		// Name
 		String name = attributeName(data.srcCode, args, tlt, dynamic, sbType, allowTwiceAttr, !allowColonSeparator);
-		String nameLC = name == null ? null : name.toLowerCase();
+		if (name == null) return null;
+		String nameLC = name.toLowerCase();
 		boolean allowExpression = false;
 		if (oAllowExpression instanceof Boolean) allowExpression = ((Boolean) oAllowExpression).booleanValue();
 		else if (oAllowExpression instanceof String) allowExpression = ((String) oAllowExpression).equalsIgnoreCase(nameLC);
@@ -2558,7 +2563,8 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 
 	private final String attributeName(SourceCode cfml, ArrayList<String> args, TagLibTag tag, RefBoolean dynamic, StringBuilder sbType, boolean allowTwiceAttr, boolean allowColon)
 			throws TemplateException {
-		String id = CFMLTransformer.identifier(cfml, true, allowColon);
+		String id = CFMLTransformer.identifier(cfml, false, allowColon);
+		if (id == null) return null;
 		return validateAttributeName(id, cfml, args, tag, dynamic, sbType, allowTwiceAttr);
 	}
 
