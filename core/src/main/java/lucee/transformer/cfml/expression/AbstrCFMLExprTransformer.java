@@ -284,6 +284,7 @@ public abstract class AbstrCFMLExprTransformer {
 	 * @throws TemplateException
 	 */
 	protected Expression expression(Data data) throws TemplateException {
+		comments(data);
 		return assignOp(data);
 	}
 
@@ -973,6 +974,7 @@ public abstract class AbstrCFMLExprTransformer {
 	 * @throws TemplateException
 	 */
 	private Expression checker(Data data) throws TemplateException {
+		data.srcCode.removeSpace();
 		Expression expr = null;
 		// String
 		if ((expr = string(data)) != null) {
@@ -1094,7 +1096,7 @@ public abstract class AbstrCFMLExprTransformer {
 	protected Expression string(Data data) throws TemplateException {
 
 		// check starting character for a string literal
-		if (!data.srcCode.isCurrent('"') && !data.srcCode.isCurrent('\'')) return null;
+		if (!data.srcCode.isCurrentQuote()) return null;
 		Position line = data.srcCode.getPosition();
 
 		// Init Parameter
@@ -1183,7 +1185,7 @@ public abstract class AbstrCFMLExprTransformer {
 	 */
 	private LitNumber number(Data data) throws TemplateException {
 		// check first character is a number literal representation
-		if (!(data.srcCode.isCurrentBetween('0', '9') || data.srcCode.isCurrent('.'))) return null;
+		if (!(data.srcCode.isCurrentNumber() || data.srcCode.isCurrent('.'))) return null;
 
 		Position line = data.srcCode.getPosition();
 		StringBuilder rtn = new StringBuilder();
@@ -1200,7 +1202,7 @@ public abstract class AbstrCFMLExprTransformer {
 				if (data.srcCode.forwardIfCurrent('+')) expOp = Boolean.TRUE;
 				else if (data.srcCode.forwardIfCurrent('-')) expOp = Boolean.FALSE;
 
-				if (data.srcCode.isCurrentBetween('0', '9')) {
+				if (data.srcCode.isCurrentNumber()) {
 					if (expOp == Boolean.FALSE) rightSite += "e-";
 					else if (expOp == Boolean.TRUE) rightSite += "e+";
 					else rightSite += "e";
@@ -1221,7 +1223,7 @@ public abstract class AbstrCFMLExprTransformer {
 			if (data.srcCode.forwardIfCurrent('+')) expOp = Boolean.TRUE;
 			else if (data.srcCode.forwardIfCurrent('-')) expOp = Boolean.FALSE;
 
-			if (data.srcCode.isCurrentBetween('0', '9')) {
+			if (data.srcCode.isCurrentNumber()) {
 				String rightSite = "e";
 				if (expOp == Boolean.FALSE) rightSite += "-";
 				else if (expOp == Boolean.TRUE) rightSite += "+";
@@ -1253,13 +1255,10 @@ public abstract class AbstrCFMLExprTransformer {
 	 * @return digit Ausgelesene Zahlen als Zeichenkette.
 	 */
 	private String digit(Data data) {
-		String rtn = "";
-		while (data.srcCode.isValidIndex()) {
-			if (!data.srcCode.isCurrentBetween('0', '9')) break;
-			rtn += data.srcCode.getCurrentLower();
+		int start = data.srcCode.getPos();
+		while (data.srcCode.isValidIndex() && data.srcCode.isCurrentNumber())
 			data.srcCode.next();
-		}
-		return rtn;
+		return data.srcCode.substring(start, data.srcCode.getPos() - start);
 	}
 
 	/**
@@ -1813,15 +1812,9 @@ public abstract class AbstrCFMLExprTransformer {
 		Position start = data.srcCode.getPosition();
 		if (!data.srcCode.isCurrentLetter() && !data.srcCode.isCurrentSpecial()) {
 			if (!firstCanBeNumber) return null;
-			else if (!data.srcCode.isCurrentBetween('0', '9')) return null;
+			else if (!data.srcCode.isCurrentNumber()) return null;
 		}
-		do {
-			data.srcCode.next();
-			if (!(data.srcCode.isCurrentLetter() || data.srcCode.isCurrentBetween('0', '9') || data.srcCode.isCurrentSpecial())) {
-				break;
-			}
-		}
-		while (data.srcCode.isValidIndex());
+		data.srcCode.forwardVarCharRun();
 		return Identifier.toIdentifier(data.factory, data.srcCode.substring(start.pos, data.srcCode.getPos() - start.pos),
 				upper && data.settings.dotNotationUpper ? Identifier.CASE_UPPER : Identifier.CASE_ORIGNAL, start, data.srcCode.getPosition());
 	}
@@ -1830,15 +1823,9 @@ public abstract class AbstrCFMLExprTransformer {
 		int start = data.srcCode.getPos();
 		if (!data.srcCode.isCurrentLetter() && !data.srcCode.isCurrentSpecial()) {
 			if (!firstCanBeNumber) return null;
-			else if (!data.srcCode.isCurrentBetween('0', '9')) return null;
+			else if (!data.srcCode.isCurrentNumber()) return null;
 		}
-		do {
-			data.srcCode.next();
-			if (!(data.srcCode.isCurrentLetter() || data.srcCode.isCurrentBetween('0', '9') || data.srcCode.isCurrentSpecial())) {
-				break;
-			}
-		}
-		while (data.srcCode.isValidIndex());
+		data.srcCode.forwardVarCharRun();
 		return data.srcCode.substring( start, data.srcCode.getPos() - start );
 	}
 
@@ -2091,7 +2078,7 @@ public abstract class AbstrCFMLExprTransformer {
 				if (data.srcCode.isCurrent(breakConditions[i])) break outer;
 			}
 
-			if (data.srcCode.isCurrent('"') || data.srcCode.isCurrent('#') || data.srcCode.isCurrent('\'')) {
+			if (data.srcCode.isCurrentQuote() || data.srcCode.isCurrentHash()) {
 				throw new TemplateException(data.srcCode, "Simple attribute value can't contain [" + data.srcCode.getCurrent() + "]");
 			}
 			sb.append(data.srcCode.getCurrent());

@@ -1328,7 +1328,9 @@ public final class Admin extends TagImpl implements DynamicAttributes {
 							}
 						}
 						msg.append("]");
-						throw new ApplicationException(msg.toString());
+						ApplicationException ae = new ApplicationException(msg.toString());
+						ae.initCause(pe);
+						throw ae;
 					}
 
 				}
