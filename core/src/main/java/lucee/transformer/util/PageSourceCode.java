@@ -32,10 +32,13 @@ public final class PageSourceCode extends SourceCode {
 	private final PageSource ps;
 
 	public PageSourceCode(PageSource ps, Charset charset, boolean writeLog) throws IOException {
-		super(null, toString(ps, charset), writeLog, 0);
+		this(ps, readCharArray(ps, charset), charset, writeLog);
+	}
+
+	private PageSourceCode(PageSource ps, IOUtil.CharArrayResult content, Charset charset, boolean writeLog) {
+		super(null, content.buf, content.len, writeLog, 0);
 		this.charset = charset;
 		this.ps = ps;
-		// this.source=ps.getPhyscalFile().getAbsolutePath();
 	}
 
 	public PageSourceCode(PageSource ps, String text, Charset charset, boolean writeLog) {
@@ -48,6 +51,22 @@ public final class PageSourceCode extends SourceCode {
 		super(null, text, writeLog, sourceOffset);
 		this.charset = charset;
 		this.ps = ps;
+	}
+
+	private static IOUtil.CharArrayResult readCharArray(PageSource ps, Charset charset) throws IOException {
+		InputStream is = null;
+		try {
+			is = IOUtil.toBufferedInputStream(ps.getPhyscalFile().getInputStream());
+			if (ClassUtil.isBytecode(is)) throw new AlreadyClassException(ps.getPhyscalFile(), false);
+			if (ClassUtil.isEncryptedBytecode(is)) throw new AlreadyClassException(ps.getPhyscalFile(), true);
+			// byte length is a strong upper bound on char count for ASCII/Latin-1 CFML — one alloc, no growth
+			long bytes = ps.getPhyscalFile().length();
+			int hint = bytes > 0 && bytes <= Integer.MAX_VALUE ? (int) bytes : 512;
+			return IOUtil.toCharArray(is, charset, hint);
+		}
+		finally {
+			IOUtil.close(is);
+		}
 	}
 
 	public static String toString(PageSource ps, Charset charset) throws IOException {
