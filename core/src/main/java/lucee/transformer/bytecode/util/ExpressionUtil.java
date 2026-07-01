@@ -18,20 +18,15 @@
  */
 package lucee.transformer.bytecode.util;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.GeneratorAdapter;
 import org.objectweb.asm.commons.Method;
 
-import lucee.commons.io.SystemUtil;
 import lucee.commons.lang.CFTypes;
 import lucee.commons.lang.ExceptionUtil;
 import lucee.commons.lang.StringUtil;
 import lucee.runtime.functions.other.CreateUniqueId;
-import lucee.runtime.op.Caster;
 import lucee.transformer.Position;
 import lucee.transformer.TransformerException;
 import lucee.transformer.bytecode.BytecodeContext;
@@ -48,16 +43,6 @@ public final class ExpressionUtil {
 	public static final Method END = new Method("exeLogEnd", Types.VOID, new Type[] { Types.INT_VALUE, Types.STRING });
 
 	public static final Method CURRENT_LINE = new Method("currentLine", Types.VOID, new Type[] { Types.INT_VALUE });
-
-	// Cache for line number strings to avoid repeated Integer.toString() allocations
-	private static final String[] LINE_CACHE = new String[10000];
-	static {
-		for (int i = 0; i < LINE_CACHE.length; i++) {
-			LINE_CACHE[i] = Integer.toString(i);
-		}
-	}
-
-	private Map<String, String> last = new HashMap<String, String>();
 
 	public static void writeOutExpressionArray(BytecodeContext bc, Type arrayType, Expression[] array) throws TransformerException {
 		GeneratorAdapter adapter = bc.getAdapter();
@@ -83,26 +68,10 @@ public final class ExpressionUtil {
 		}
 	}
 
-	private static String lineToString(int line) {
-		return (line >= 0 && line < LINE_CACHE.length) ? LINE_CACHE[line] : Integer.toString(line);
-	}
-
 	private void visitLine(BytecodeContext bc, int line) {
-		if (line > 0) {
-			String lineStr = lineToString(line);
-			String key = bc.getLineKey();
-			if (!lineStr.equals(last.get(key))) {
-				bc.visitLineNumber(line);
-				last.put(key, lineStr);
-				last.put(bc.getClassName(), lineStr);
-			}
-		}
-	}
-
-	public void lastLine(BytecodeContext bc) {
-		synchronized (SystemUtil.createToken("ExpressionUtil", bc.getClassName())) {
-			int line = Caster.toIntValue(last.get(bc.getClassName()), -1);
-			visitLine(bc, line);
+		if (line > 0 && line != bc.getLastEmittedLine()) {
+			bc.visitLineNumber(line);
+			bc.setLastEmittedLine(line);
 		}
 	}
 

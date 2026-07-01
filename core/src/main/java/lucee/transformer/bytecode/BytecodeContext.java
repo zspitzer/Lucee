@@ -18,11 +18,10 @@
  */
 package lucee.transformer.bytecode;
 
+import java.util.BitSet;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.Stack;
-import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.objectweb.asm.ClassWriter;
@@ -63,7 +62,8 @@ public class BytecodeContext implements Context {
 	private BytecodeContext root;
 	private boolean writeLog;
 	private Boolean isLineBased; // cached value, null = not yet calculated
-	protected Set<Integer> executableLines; // lazy init
+	protected BitSet executableLines; // lazy init
+	private int lastEmittedLine = -1; // per-BC line-emit debounce (replaces ExpressionUtil.last HashMap)
 	private int rtn = -1;
 	private final boolean returnValue;
 
@@ -286,8 +286,8 @@ public class BytecodeContext implements Context {
 
 	public void visitLineNumber(int line) {
 		this.line = line;
-		if (executableLines == null) executableLines = new TreeSet<>();
-		executableLines.add(line);
+		if (executableLines == null) executableLines = new BitSet();
+		executableLines.set(line);
 		// Also track in constructor context so getExecutableLines() gets all lines
 		if (constr != null) {
 			constr.trackExecutableLine(line);
@@ -299,9 +299,18 @@ public class BytecodeContext implements Context {
 		return line;
 	}
 
+	/** Per-BC line-emit debounce: last line already emitted via visitLineNumber, or -1 if none. */
+	public int getLastEmittedLine() {
+		return lastEmittedLine;
+	}
+
+	public void setLastEmittedLine(int line) {
+		this.lastEmittedLine = line;
+	}
+
 	public int[] getExecutableLines() {
 		if (executableLines == null) return new int[0];
-		return executableLines.stream().mapToInt(Integer::intValue).toArray();
+		return executableLines.stream().toArray();
 	}
 
 	public BytecodeContext getRoot() {
