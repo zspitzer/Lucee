@@ -861,6 +861,32 @@ public class SourceCode {
 	}
 
 	/**
+	 * Advances pos to the next '#', quoter, or end of input using charClass hops.
+	 * Var-char runs (CC_LETTER, CC_DIGIT) provably contain no '#' or quote — hop them.
+	 * Operator/punctuation chars that are not the sentinel advance by 1.
+	 */
+	public void scanStringSegment(char quoter) {
+		while (pos < text.length) {
+			short v = charClass[pos];
+			if (v > 0 && (v & 3) != 0) {
+				pos += v >> CC_RUN_SHIFT;
+			}
+			else {
+				char c = lcText[pos];
+				if (c == '#' || c == quoter) break;
+				pos++;
+			}
+		}
+	}
+
+	/**
+	 * Appends text[from..to) to sb without creating an intermediate String.
+	 */
+	public void appendSegmentTo(StringBuilder sb, int from, int to) {
+		sb.append(text, from, to - from);
+	}
+
+	/**
 	 * return a subset of the current SourceCode
 	 * 
 	 * @param start start position of the new subset.

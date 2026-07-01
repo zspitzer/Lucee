@@ -1095,72 +1095,92 @@ public abstract class AbstrCFMLExprTransformer {
 	 */
 	protected Expression string(Data data) throws TemplateException {
 
-		// check starting character for a string literal
 		if (!data.srcCode.isCurrentQuote()) return null;
 		Position line = data.srcCode.getPosition();
 
-		// Init Parameter
 		char quoter = data.srcCode.getCurrentLower();
-		StringBuilder str = new StringBuilder();
+		data.srcCode.next(); // advance past opening quote
+
+		int segStart = data.srcCode.getPos();
+		StringBuilder sb = null; // lazy — only allocated when we hit ## or escaped quote
 		Expression expr = null;
 
-		while (data.srcCode.hasNext()) {
-			data.srcCode.next();
-			// check sharp
-			if (data.srcCode.isCurrent('#')) {
+		while (data.srcCode.isValidIndex()) {
+			data.srcCode.scanStringSegment(quoter);
 
-				// Ecaped sharp
+			if (!data.srcCode.isValidIndex()) break;
+			char c = data.srcCode.getCurrentLower();
+
+			if (c == '#') {
 				if (data.srcCode.isNext('#')) {
+					// escaped ## → literal #
+					if (sb == null) sb = new StringBuilder();
+					data.srcCode.appendSegmentTo(sb, segStart, data.srcCode.getPos());
+					sb.append('#');
 					data.srcCode.next();
-					str.append('#');
+					data.srcCode.next();
+					segStart = data.srcCode.getPos();
 				}
-				// get Content of sharp
 				else {
-					data.srcCode.next();
+					// #expr# interpolation — flush pending segment
+					String seg;
+					if (sb != null) {
+						data.srcCode.appendSegmentTo(sb, segStart, data.srcCode.getPos());
+						seg = sb.toString();
+						sb = null;
+					}
+					else {
+						seg = data.srcCode.substring(segStart, data.srcCode.getPos() - segStart);
+					}
+					if (!seg.isEmpty()) {
+						Expression exprStr = data.factory.createLitString(seg, line, data.srcCode.getPosition());
+						expr = expr == null ? exprStr : data.factory.opString(expr, exprStr);
+					}
+
+					data.srcCode.next(); // skip opening #
 					comments(data);
 					Expression inner = assignOp(data);
 					comments(data);
 					if (!data.srcCode.isCurrent('#')) throw new TemplateException(data.srcCode, "Invalid Syntax Closing [#] not found");
+					data.srcCode.next(); // skip closing #
 
-					ExprString exprStr = null;
-					if (str.length() != 0) {
-						exprStr = data.factory.createLitString(str.toString(), line, data.srcCode.getPosition());
-						if (expr != null) {
-							expr = data.factory.opString(expr, exprStr);
-						}
-						else expr = exprStr;
-						str = new StringBuilder();
-					}
-					if (expr == null) {
-						expr = inner;
-					}
-					else {
-						expr = data.factory.opString(expr, inner);
-					}
+					expr = expr == null ? inner : data.factory.opString(expr, inner);
+					segStart = data.srcCode.getPos();
 				}
 			}
-			// check quoter
-			else if (data.srcCode.isCurrent(quoter)) {
-				// Ecaped sharp
+			else { // c == quoter
 				if (data.srcCode.isNext(quoter)) {
+					// escaped quote
+					if (sb == null) sb = new StringBuilder();
+					data.srcCode.appendSegmentTo(sb, segStart, data.srcCode.getPos());
+					sb.append(quoter);
 					data.srcCode.next();
-					str.append(quoter);
+					data.srcCode.next();
+					segStart = data.srcCode.getPos();
 				}
-				// finish
 				else {
-					break;
+					break; // closing quote
 				}
-			}
-			// all other character
-			else {
-				str.append(data.srcCode.getCurrent());
 			}
 		}
+
+		int closeQuotePos = data.srcCode.getPos();
 		if (!data.srcCode.forwardIfCurrent(quoter)) throw new TemplateException(data.srcCode, "Invalid Syntax Closing [" + quoter + "] not found");
 
-		if (expr == null) expr = data.factory.createLitString(str.toString(), line, data.srcCode.getPosition());
-		else if (str.length() != 0) {
-			expr = data.factory.opString(expr, data.factory.createLitString(str.toString(), line, data.srcCode.getPosition()));
+		String finalSeg;
+		if (sb != null) {
+			data.srcCode.appendSegmentTo(sb, segStart, closeQuotePos);
+			finalSeg = sb.toString();
+		}
+		else {
+			finalSeg = data.srcCode.substring(segStart, closeQuotePos - segStart);
+		}
+
+		if (expr == null) {
+			expr = data.factory.createLitString(finalSeg, line, data.srcCode.getPosition());
+		}
+		else if (!finalSeg.isEmpty()) {
+			expr = data.factory.opString(expr, data.factory.createLitString(finalSeg, line, data.srcCode.getPosition()));
 		}
 		comments(data);
 
@@ -1170,7 +1190,6 @@ public abstract class AbstrCFMLExprTransformer {
 		}
 
 		return expr;
-
 	}
 
 	/**
