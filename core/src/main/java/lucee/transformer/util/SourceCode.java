@@ -888,6 +888,19 @@ public class SourceCode {
 	}
 
 	/**
+	 * Case-insensitive equality between the source range {@code lcText[start..start+length)} and
+	 * a lowercase literal. Zero-alloc alternative to {@code substring(start, length).equalsIgnoreCase(lower)}.
+	 * {@code lower} must already be lowercase — this method does no case folding on it.
+	 */
+	public boolean equalsLowerAt(int start, int length, String lower) {
+		if (length != lower.length()) return false;
+		for (int i = 0; i < length; i++) {
+			if ((lcText[start + i] & 0xFF) != lower.charAt(i)) return false;
+		}
+		return true;
+	}
+
+	/**
 	 * Gibt eine Untermenge des CFMLString als CFMLString zurueck, ausgehend von start bis zum Ende des
 	 * CFMLString.
 	 * 

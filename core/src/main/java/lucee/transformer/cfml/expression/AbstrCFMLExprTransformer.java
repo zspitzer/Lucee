@@ -148,15 +148,6 @@ public abstract class AbstrCFMLExprTransformer {
 	private static FunctionLibFunction JSON_ARRAY = null;
 	protected static FunctionLibFunction JSON_STRUCT = null;
 
-	// keyword constants for identifier checks
-	private static final String KW_TRUE = "TRUE";
-	private static final String KW_FALSE = "FALSE";
-	private static final String KW_NULL = "NULL";
-	private static final String KW_JAVA = "JAVA";
-	private static final String KW_CLASS = "CLASS";
-	private static final String KW_CFML = "CFML";
-	private static final String KW_CFC = "CFC";
-
 	public static final short CTX_OTHER = TagLibTagScript.CTX_OTHER;
 	public static final short CTX_NONE = TagLibTagScript.CTX_NONE;
 	public static final short CTX_IF = TagLibTagScript.CTX_IF;
@@ -1298,66 +1289,70 @@ public abstract class AbstrCFMLExprTransformer {
 
 		// get First Element of the Variable
 		Position line = data.srcCode.getPosition();
-		Identifier id = identifier(data, false, true);
-		if (id == null) {
-			if (!data.srcCode.forwardIfCurrent('(')) return null;
+		SourceCode src = data.srcCode;
+
+		// parse identifier char range without allocating an Identifier — we may not need one
+		// (scope/keyword paths return early). If it turns out we do (function-call / DataMember),
+		// startElement builds it from the range.
+		int idStart = src.getPos();
+		if (!src.isCurrentLetter()) {
+			if (!src.forwardIfCurrent('(')) return null;
 			comments(data);
 			Expression expr = assignOp(data);
 
-			if (!data.srcCode.forwardIfCurrent(')')) throw new TemplateException(data.srcCode, "Invalid Syntax Closing [)] not found");
+			if (!src.forwardIfCurrent(')')) throw new TemplateException(src, "Invalid Syntax Closing [)] not found");
 			comments(data);
-			return expr;// subDynamic(expr);
-
+			return expr;
 		}
+		src.forwardVarCharRun();
+		int idLen = src.getPos() - idStart;
+		Position idEndPos = src.getPosition();
 
-		Variable var;
 		comments(data);
 
-		// Check for keywords: TRUE(4), FALSE(5), NULL(4), JAVA(4), CLASS(5), CFML(4), CFC(3)
-		int len = id.getString().length();
-		if (len >= 3 && len <= 5) {
-			String strUC = id.getString().toUpperCase();
-			if (len == 4) {
-				if (strUC.equals(KW_TRUE)) {
+		// Check for keywords via lcText[] compare — zero alloc: TRUE(4), FALSE(5), NULL(4), JAVA(4), CLASS(5), CFML(4), CFC(3)
+		if (idLen >= 3 && idLen <= 5) {
+			if (idLen == 4) {
+				if (src.equalsLowerAt(idStart, 4, "true")) {
 					comments(data);
-					return id.getFactory().createLitBoolean(true, line, data.srcCode.getPosition());
+					return data.factory.createLitBoolean(true, line, src.getPosition());
 				}
-				else if (strUC.equals(KW_NULL) && !data.srcCode.isCurrent('.') && !data.srcCode.isCurrent('[')) {
+				else if (src.equalsLowerAt(idStart, 4, "null") && !src.isCurrent('.') && !src.isCurrent('[')) {
 					comments(data);
-					return id.getFactory().createNullConstant(line, data.srcCode.getPosition());
+					return data.factory.createNullConstant(line, src.getPosition());
 				}
-				else if (checkPrefix && data.srcCode.forwardIfCurrent(':')) {
-					if (strUC.equals(KW_JAVA)) {
+				else if (checkPrefix && src.forwardIfCurrent(':')) {
+					if (src.equalsLowerAt(idStart, 4, "java")) {
 						comments(data);
-						return id.getFactory().createLitString("saklsdjasklfhnsalkfddsf:java");
+						return data.factory.createLitString("saklsdjasklfhnsalkfddsf:java");
 					}
-					else if (strUC.equals(KW_CFML)) {
+					else if (src.equalsLowerAt(idStart, 4, "cfml")) {
 						comments(data);
-						return id.getFactory().createLitString("saklsdjasklfhnsalkfddsf:cfml");
+						return data.factory.createLitString("saklsdjasklfhnsalkfddsf:cfml");
 					}
-					data.srcCode.previous();
+					src.previous();
 				}
 			}
-			else if (len == 5) {
-				if (strUC.equals(KW_FALSE)) {
+			else if (idLen == 5) {
+				if (src.equalsLowerAt(idStart, 5, "false")) {
 					comments(data);
-					return id.getFactory().createLitBoolean(false, line, data.srcCode.getPosition());
+					return data.factory.createLitBoolean(false, line, src.getPosition());
 				}
-				else if (checkPrefix && strUC.equals(KW_CLASS) && data.srcCode.forwardIfCurrent(':')) {
+				else if (checkPrefix && src.equalsLowerAt(idStart, 5, "class") && src.forwardIfCurrent(':')) {
 					comments(data);
-					return id.getFactory().createLitString("saklsdjasklfhnsalkfddsf:java");
+					return data.factory.createLitString("saklsdjasklfhnsalkfddsf:java");
 				}
 			}
-			else if (len == 3 && checkPrefix && strUC.equals(KW_CFC) && data.srcCode.forwardIfCurrent(':')) {
+			else if (idLen == 3 && checkPrefix && src.equalsLowerAt(idStart, 3, "cfc") && src.forwardIfCurrent(':')) {
 				comments(data);
-				return id.getFactory().createLitString("saklsdjasklfhnsalkfddsf:cfml");
+				return data.factory.createLitString("saklsdjasklfhnsalkfddsf:cfml");
 			}
 		}
 
-		// Extract Scope from the Variable
-		var = startElement(data, id, line);
+		// Extract Scope from the Variable — Identifier only allocated inside startElement if needed
+		Variable var = startElement(data, idStart, idLen, line, idEndPos, line);
 		var.setStart(line);
-		var.setEnd(data.srcCode.getPosition());
+		var.setEnd(src.getPosition());
 		return var;
 	}
 
@@ -1724,31 +1719,41 @@ public abstract class AbstrCFMLExprTransformer {
 	 * @return CFXD Element
 	 * @throws TemplateException
 	 */
-	private Variable startElement(Data data, Identifier name, Position line) throws TemplateException {
+	private Variable startElement(Data data, int idStart, int idLen, Position idStartPos, Position idEndPos, Position line) throws TemplateException {
 
-		// check function
+		// check function — needs Identifier (fed to getFunctionMember)
 		if (data.srcCode.isCurrent('(')) {
+			Identifier name = buildIdentifier(data, idStart, idLen, idStartPos, idEndPos);
 			FunctionMember func = getFunctionMember(data, name, true);
 			Expression listener = getListener(data);
 
-			Variable var = name.getFactory().createVariable(line, data.srcCode.getPosition());
+			Variable var = data.factory.createVariable(line, data.srcCode.getPosition());
 			var.addMember(func);
 			if (listener != null) var.addListener(listener);
 			comments(data);
 			return var;
 		}
 
-		// check scope
-		Variable var = scope(data, name, line);
+		// check scope — zero alloc via lcText[] range comparison
+		Variable var = scope(data, idStart, idLen, line);
 		if (var != null) return var;
 
-		// undefined variable
-		var = name.getFactory().createVariable(line, data.srcCode.getPosition());
+		// undefined variable — needs Identifier for the DataMember
+		Identifier name = buildIdentifier(data, idStart, idLen, idStartPos, idEndPos);
+		var = data.factory.createVariable(line, data.srcCode.getPosition());
 		var.addMember(data.factory.createDataMember(name));
 
 		comments(data);
 		return var;
 
+	}
+
+	/** Allocates an Identifier for the char range [start, start+len) with dotNotationUpper honored. */
+	private Identifier buildIdentifier(Data data, int start, int len, Position startPos, Position endPos) {
+		return Identifier.toIdentifier(data.factory,
+				data.srcCode.substring(start, len),
+				data.settings.dotNotationUpper ? Identifier.CASE_UPPER : Identifier.CASE_ORIGNAL,
+				startPos, endPos);
 	}
 
 	/**
@@ -1762,15 +1767,15 @@ public abstract class AbstrCFMLExprTransformer {
 	 * @return CFXD Variable Element oder null
 	 * @throws TemplateException
 	 */
-	private Variable scope(Data data, Identifier id, Position line) throws TemplateException {
-		// scope names range from 3-11 chars, skip check for identifiers outside this range
-		int len = id.getString().length();
+	private Variable scope(Data data, int start, int len, Position line) throws TemplateException {
+		// Compare the source range against lowercase scope name literals directly via lcText[].
+		// Zero-alloc — no Identifier / getUpper() / toUpperCase() intermediate String needed.
+		SourceCode src = data.srcCode;
 		if (len < 3 || len > 11) return null;
 
 		// VAR(3) is only first-group scope at len 3, check it first to allow early exit for len < 5
 		if (len == 3) {
-			String idStr = id.getUpper();
-			if (idStr.equals("VAR")) {
+			if (src.equalsLowerAt(start, 3, "var")) {
 				Identifier _id = identifier(data, false, true);
 				if (_id != null) {
 					comments(data);
@@ -1785,35 +1790,33 @@ public abstract class AbstrCFMLExprTransformer {
 			}
 			// len==3 scopes in second group: CGI, URL
 			if (data.settings.ignoreScopes) return null;
-			if (idStr.equals("CGI")) return data.factory.createVariable(Scope.SCOPE_CGI, line, data.srcCode.getPosition());
-			if (idStr.equals("URL")) return data.factory.createVariable(Scope.SCOPE_URL, line, data.srcCode.getPosition());
+			if (src.equalsLowerAt(start, 3, "cgi")) return data.factory.createVariable(Scope.SCOPE_CGI, line, data.srcCode.getPosition());
+			if (src.equalsLowerAt(start, 3, "url")) return data.factory.createVariable(Scope.SCOPE_URL, line, data.srcCode.getPosition());
 			return null;
 		}
 
 		// len==4: only FORM in second group
 		if (len == 4) {
 			if (data.settings.ignoreScopes) return null;
-			if (id.getUpper().equals("FORM")) return data.factory.createVariable(Scope.SCOPE_FORM, line, data.srcCode.getPosition());
+			if (src.equalsLowerAt(start, 4, "form")) return data.factory.createVariable(Scope.SCOPE_FORM, line, data.srcCode.getPosition());
 			return null;
 		}
 
 		// len >= 5: check first group scopes
-		String idStr = id.getUpper();
-
-		if (idStr.equals("LOCAL")) return data.factory.createVariable(Scope.SCOPE_LOCAL, line, data.srcCode.getPosition());
-		else if (idStr.equals("VARIABLES")) return data.factory.createVariable(Scope.SCOPE_VARIABLES, line, data.srcCode.getPosition());
-		else if (idStr.equals("REQUEST")) return data.factory.createVariable(Scope.SCOPE_REQUEST, line, data.srcCode.getPosition());
-		else if (idStr.equals("SERVER")) return data.factory.createVariable(Scope.SCOPE_SERVER, line, data.srcCode.getPosition());
-		else if (idStr.equals("THREAD")) return data.factory.createVariable(Scope.SCOPE_CLUSTER, line, data.srcCode.getPosition());
-		else if (idStr.equals("ARGUMENTS")) return data.factory.createVariable(Scope.SCOPE_ARGUMENTS, line, data.srcCode.getPosition());
+		if (src.equalsLowerAt(start, len, "local")) return data.factory.createVariable(Scope.SCOPE_LOCAL, line, data.srcCode.getPosition());
+		if (src.equalsLowerAt(start, len, "variables")) return data.factory.createVariable(Scope.SCOPE_VARIABLES, line, data.srcCode.getPosition());
+		if (src.equalsLowerAt(start, len, "request")) return data.factory.createVariable(Scope.SCOPE_REQUEST, line, data.srcCode.getPosition());
+		if (src.equalsLowerAt(start, len, "server")) return data.factory.createVariable(Scope.SCOPE_SERVER, line, data.srcCode.getPosition());
+		if (src.equalsLowerAt(start, len, "thread")) return data.factory.createVariable(Scope.SCOPE_CLUSTER, line, data.srcCode.getPosition());
+		if (src.equalsLowerAt(start, len, "arguments")) return data.factory.createVariable(Scope.SCOPE_ARGUMENTS, line, data.srcCode.getPosition());
 
 		if (data.settings.ignoreScopes) return null;
 
 		// second group scopes with len >= 5: SESSION(7), APPLICATION(11), CLIENT(6), COOKIE(6)
-		if (idStr.equals("SESSION")) return data.factory.createVariable(Scope.SCOPE_SESSION, line, data.srcCode.getPosition());
-		else if (idStr.equals("APPLICATION")) return data.factory.createVariable(Scope.SCOPE_APPLICATION, line, data.srcCode.getPosition());
-		else if (idStr.equals("CLIENT")) return data.factory.createVariable(Scope.SCOPE_CLIENT, line, data.srcCode.getPosition());
-		else if (idStr.equals("COOKIE")) return data.factory.createVariable(Scope.SCOPE_COOKIE, line, data.srcCode.getPosition());
+		if (src.equalsLowerAt(start, len, "session")) return data.factory.createVariable(Scope.SCOPE_SESSION, line, data.srcCode.getPosition());
+		if (src.equalsLowerAt(start, len, "application")) return data.factory.createVariable(Scope.SCOPE_APPLICATION, line, data.srcCode.getPosition());
+		if (src.equalsLowerAt(start, len, "client")) return data.factory.createVariable(Scope.SCOPE_CLIENT, line, data.srcCode.getPosition());
+		if (src.equalsLowerAt(start, len, "cookie")) return data.factory.createVariable(Scope.SCOPE_COOKIE, line, data.srcCode.getPosition());
 
 		return null;
 	}
