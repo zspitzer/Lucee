@@ -96,7 +96,6 @@ public class SourceCode {
 		this.parent = parent;
 		this.text = strText.toCharArray();
 		this.len = this.text.length;
-		this.hash = strText.hashCode();
 		lcText = new byte[len];
 		charClass = new short[len];
 		this.lines = buildLcTextAndCharClass();
@@ -113,30 +112,29 @@ public class SourceCode {
 		this.parent = parent;
 		this.text = textBuf.length == validLen ? textBuf : Arrays.copyOf(textBuf, validLen);
 		this.len = validLen;
-		this.hash = hashCharArray(this.text, validLen);
 		lcText = new byte[validLen];
 		charClass = new short[validLen];
 		this.lines = buildLcTextAndCharClass();
 		this.writeLog = writeLog;
 	}
 
-	private static int hashCharArray(char[] a, int len) {
-		int h = 0;
-		for (int i = 0; i < len; i++) h = 31 * h + a[i];
-		return h;
-	}
-
 	private int[] buildLcTextAndCharClass() {
-		// single backward pass: builds lcText[], charClass[], and lines[] together.
+		// single backward pass: builds lcText[], charClass[], lines[], and hash together.
 		// lines[] comes out in descending order and is reversed at the end.
+		// hash is Horner-from-the-right: h += text[i] * 31^(n-1-i) — algebraically
+		// identical to String.hashCode()'s forward 31*h + a[i] under Java int overflow.
 		// only A-Z need lowercasing (ASCII source) — bit-flip avoids Character.toLowerCase().
 		int[] arr = new int[32];
 		int count = 0;
 		int nextNonSpace = len;
 		int nextNonVar   = len;
+		int h = 0;
+		int pow = 1;
 
 		for (int i = len - 1; i >= 0; i--) {
 			char raw = text[i];
+			h += raw * pow;
+			pow *= 31;
 			char lc;
 			if (raw == '\n') {
 				lc = ' ';
@@ -185,6 +183,8 @@ public class SourceCode {
 				}
 			}
 		}
+
+		this.hash = h;
 
 		// reverse the descending line positions to ascending, then append sentinel
 		for (int l = 0, r = count - 1; l < r; l++, r--) {
