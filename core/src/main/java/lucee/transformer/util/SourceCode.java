@@ -773,6 +773,68 @@ public class SourceCode {
 	}
 
 	/**
+	 * Positional variant of {@link #nextLine()}: find the next literal {@code '\n'} in
+	 * {@code [from, end)}. Var-char runs (identifier bodies) provably contain no newline —
+	 * hopped in one array load via the charClass encoding. Returns {@code end} if not found.
+	 * Does not mutate {@code pos}.
+	 */
+	public int nextNewline(int from, int end) {
+		int p = from;
+		while (p < end) {
+			int hop = charClass[p] >> CC_RUN_SHIFT;
+			if (hop > 0) { p += hop; continue; }
+			if (text[p] == '\n') return p;
+			p++;
+		}
+		return end;
+	}
+
+	/**
+	 * Find first whitespace-or-annotated position ({@code charClass < 0}) in {@code [from, end)}.
+	 * Var-char runs are hopped; operator/punctuation chars step by 1. Returns {@code end} if the
+	 * range contains no whitespace. Does not mutate {@code pos}.
+	 */
+	public int nextWhitespace(int from, int end) {
+		int p = from;
+		while (p < end) {
+			short cc = charClass[p];
+			if (cc < 0) return p;
+			if (cc > 0) { p += cc >> CC_RUN_SHIFT; continue; }
+			p++;
+		}
+		return end;
+	}
+
+	/**
+	 * Positional variant of {@link #removeSpace()}: advance past whitespace via the negative-distance
+	 * hop encoding. Returns the first non-whitespace position in {@code [from, end)}, or {@code end}
+	 * if the range is entirely whitespace. Does not mutate {@code pos}.
+	 */
+	public int skipWhitespace(int from, int end) {
+		int p = from;
+		while (p < end) {
+			short cc = charClass[p];
+			if (cc >= 0) return p;
+			p -= cc;
+		}
+		return end;
+	}
+
+	/** Positional whitespace predicate — {@code true} when {@code charClass[p] < 0}. */
+	public boolean isWhiteSpaceAt(int p) {
+		return p < len && charClass[p] < 0;
+	}
+
+	/**
+	 * Positional char predicate — case-sensitive, reads raw {@code text[]}. Matches the
+	 * semantic of {@link #charAt(int)}. If a case-insensitive positional peek is ever needed,
+	 * add {@code isCharAtLower} as its own thing rather than overloading this one.
+	 */
+	public boolean isCharAt(int p, char c) {
+		return p < len && text[p] == c;
+	}
+
+	/**
 	 * Skip whitespace and return the lcText byte at the resulting pos, or -1 at EOF.
 	 * Combines removeSpace() with a peek so callers doing "skip ws, then decide on next char"
 	 * avoid a second bounds check + array load. Multiple whitespace runs (e.g. across
@@ -824,15 +886,17 @@ public class SourceCode {
 	}
 
 	/**
-	 * Retroactively marks a consumed comment range as skippable whitespace.
-	 * Uses the same negative-distance encoding as removeSpace(), so any subsequent
-	 * removeSpace() call at or within [start, end) jumps past the whole range in one load.
+	 * Retroactively marks a consumed comment range as skippable whitespace via a single
+	 * charClass write at {@code start}. Interior positions are left untouched — the parser
+	 * never lands inside a consumed comment (forwardIfCurrent advances past the opener on
+	 * success; on failure pos stays before it), so only the pre-comment hop entry point
+	 * needs the negative distance-to-end. removeSpace() reads at pos and jumps past the
+	 * whole range in one load; the interior's natural var-char / operator / whitespace
+	 * encoding is preserved for anyone (e.g. DocCommentTransformer) walking the range later.
 	 */
 	public void annotateComment(int start, int end) {
-		for (int i = end - 1; i >= start; i--) {
-			int dist = end - i;
-			charClass[i] = (short)(dist > CC_SPACE_MAX ? -CC_SPACE_MAX : -dist);
-		}
+		int dist = end - start;
+		charClass[start] = (short)(dist > CC_SPACE_MAX ? -CC_SPACE_MAX : -dist);
 	}
 
 	public void revertRemoveSpace() {

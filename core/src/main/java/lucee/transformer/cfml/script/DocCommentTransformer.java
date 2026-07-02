@@ -34,23 +34,26 @@ public final class DocCommentTransformer {
 	private int endPos;
 
 	/**
-	 * Range-based transform. Reads the doc comment directly from {@code sc.text[]} starting at {@code start}
-	 * (the position of the leading {@code /} in {@code /**}) — no String/ParserString/char[] intermediate allocs.
-	 * Scans forward internally for the closing {@code *&#47;} (guaranteed present by {@code multiLineComment}).
+	 * Range-based transform. Reads the doc comment directly from the {@code SourceCode} char buffer
+	 * starting at {@code start} (the position of the leading {@code /} in {@code /**}).
+	 * Zero String/ParserString/char[] intermediate allocs; walks the range with charClass hops
+	 * via {@link SourceCode#nextNewline}, {@link SourceCode#nextWhitespace}, and
+	 * {@link SourceCode#skipWhitespace}. End of comment is recovered from the one-write annotation
+	 * that {@code multiLineComment} + {@code annotateComment} left at {@code charClass[start]}.
 	 */
 	public DocComment transform(Factory f, SourceCode sc, int start) {
-		try {
-			// find closing */ — guaranteed present since multiLineComment validated closure before us
-			int p = start + 2;
-			while (!(sc.charAt(p) == '*' && sc.charAt(p + 1) == '/')) p++;
-			int end = p + 2;
+		// Recover end via annotation: charClass[start] = -(end - start). One hop past the whole range.
+		int savedPos = sc.getPos();
+		sc.setPos(start);
+		sc.removeSpace();
+		int end = sc.getPos();
+		sc.setPos(savedPos);
 
-			this.sc     = sc;
-			this.pos    = start + 3;   // skip /**
-			this.endPos = end - 2;     // stop before */
-			// outer trim: leading + trailing whitespace within the /** ... */ range
-			while (this.pos < this.endPos && sc.charAt(this.pos) <= ' ') this.pos++;
-			while (this.endPos > this.pos && sc.charAt(this.endPos - 1) <= ' ') this.endPos--;
+		try {
+			this.sc = sc;
+			this.endPos = end - 2;                                 // stop before */
+			this.pos = sc.skipWhitespace(start + 3, this.endPos);  // skip /** and any leading ws
+			while (this.endPos > this.pos && sc.isWhiteSpaceAt(this.endPos - 1)) this.endPos--;
 
 			DocComment dc = new DocComment();
 			walk(f, dc);
@@ -69,19 +72,18 @@ public final class DocCommentTransformer {
 	private void walk(Factory factory, DocComment dc) {
 		while (pos < endPos) {
 			asterix();
-			removeSpace();
-			if (pos < endPos && sc.charAt(pos) == '@') {
+			pos = sc.skipWhitespace(pos, endPos);
+			if (sc.isCharAt(pos, '@')) {
 				pos++;
 				dc.addParam(param(factory));
 			}
 			else {
-				while (pos < endPos && sc.charAt(pos) != '\n') {
-					dc.addHint(sc.charAt(pos));
-					pos++;
-				}
+				int lineEnd = sc.nextNewline(pos, endPos);
+				dc.addHint(sc, pos, lineEnd);
 				dc.addHint('\n');
+				pos = lineEnd < endPos ? lineEnd + 1 : endPos;
 			}
-			removeSpace();
+			pos = sc.skipWhitespace(pos, endPos);
 		}
 	}
 
@@ -89,39 +91,38 @@ public final class DocCommentTransformer {
 		String name = paramName();
 		if (name == null) return new Attribute(true, "@", factory.TRUE(), "boolean");
 
-		// white space (stop early on newline — bare `@name\n` means boolean true)
-		while (pos < endPos && sc.charAt(pos) <= ' ') {
-			if (sc.charAt(pos) == '\n') return new Attribute(true, name, factory.TRUE(), "boolean");
-			pos++;
+		// whitespace with early-exit on newline: bare `@name\n` means boolean true
+		int wsEnd = sc.skipWhitespace(pos, endPos);
+		int nl = sc.nextNewline(pos, wsEnd);
+		if (nl < wsEnd) {
+			pos = nl;
+			return new Attribute(true, name, factory.TRUE(), "boolean");
 		}
+		pos = wsEnd;
 		Expression value = paramValue(factory);
 		return new Attribute(true, name, value, value instanceof LitBoolean ? "boolean" : "string");
 	}
 
 	private String paramName() {
 		int start = pos;
-		while (pos < endPos && sc.charAt(pos) > ' ') pos++;
+		pos = sc.nextWhitespace(start, endPos);
 		if (pos == start) return null;
 		return sc.substring(start, pos - start);
 	}
 
 	private Expression paramValue(Factory factory) {
 		int start = pos;
-		while (pos < endPos && sc.charAt(pos) != '\n') pos++;
+		pos = sc.nextNewline(start, endPos);
 		if (pos == start) return factory.TRUE();
 		return factory.createLitString(StringUtil.unwrap(sc.substring(start, pos - start)));
 	}
 
 	private void asterix() {
 		while (pos < endPos) {
-			removeSpace();
-			if (pos < endPos && sc.charAt(pos) == '*') pos++;
-			else break;
+			pos = sc.skipWhitespace(pos, endPos);
+			if (!sc.isCharAt(pos, '*')) break;
+			pos++;
 		}
-	}
-
-	private void removeSpace() {
-		while (pos < endPos && sc.charAt(pos) <= ' ') pos++;
 	}
 
 }

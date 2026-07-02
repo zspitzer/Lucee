@@ -25,6 +25,7 @@ import lucee.commons.lang.StringUtil;
 import lucee.transformer.Factory;
 import lucee.transformer.expression.literal.Literal;
 import lucee.transformer.statement.tag.Attribute;
+import lucee.transformer.util.SourceCode;
 
 public final class DocComment {
 
@@ -35,6 +36,11 @@ public final class DocComment {
 
 	public void addHint(char c) {
 		tmpHint.append(c);
+	}
+
+	/** Batch-append a source range to the hint via {@link SourceCode#appendSegmentTo}. */
+	public void addHint(SourceCode sc, int from, int to) {
+		sc.appendSegmentTo(tmpHint, from, to);
 	}
 
 	public void addParam(Attribute attribute) {
