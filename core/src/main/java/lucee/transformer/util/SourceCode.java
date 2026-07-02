@@ -886,22 +886,22 @@ public class SourceCode {
 	}
 
 	/**
-	 * If {@code pos} sits on {@code //}, consume up to and including the line terminator, annotate
-	 * the consumed range as skippable whitespace, and return {@code true}. Otherwise return
-	 * {@code false} (pos untouched).
+	 * Consume {@code //} through the end of line and annotate the range as skippable
+	 * whitespace. <b>Caller contract:</b> {@code pos} sits on the opening {@code //} — verified
+	 * by {@link #skipSpaceAndComments} via b2 dispatch. No self-verification here.
 	 */
-	public boolean singleLineComment() {
+	public void singleLineComment() {
 		int start = pos;
-		if (!forwardIfCurrent("//")) return false;
+		pos += 2;
 		nextLine();
 		annotateComment(start, pos);
-		return true;
 	}
 
 	/**
-	 * If {@code pos} sits on {@code /*}, consume up to and including the closing {@code *&#47;},
-	 * annotate the range with forward + backward markers via {@link #annotateBlockComment}, and
-	 * return {@code true}. Otherwise return {@code false}. Throws {@link TemplateException} on
+	 * Consume {@code /*} through the closing {@code *&#47;} and annotate the range with
+	 * forward + backward markers via {@link #annotateBlockComment}. <b>Caller contract:</b>
+	 * {@code pos} sits on the opening {@code /*} — verified by {@link #skipSpaceAndComments}
+	 * via b2 dispatch. No self-verification here. Throws {@link TemplateException} on
 	 * unclosed block comment.
 	 *
 	 * <p>Doc-comment ({@code /** *&#47;}) discovery is now a consumer-side concern:
@@ -909,20 +909,22 @@ public class SourceCode {
 	 * from the consumer position, uses the {@link #CC_COMMENT_END} marker to locate
 	 * {@code commentStart}, and checks for the third {@code *}.
 	 */
-	public boolean multiLineComment() throws TemplateException {
+	public void multiLineComment() throws TemplateException {
 		int commentStart = pos;
-		if (!forwardIfCurrent("/*")) return false;
-		int startAfter = pos;
-		while (isValidIndex()) {
-			if (isCurrent("*/")) break;
-			forwardVarCharRunOrNext();
+		int p = pos + 2;
+		while (true) {
+			p = indexOfNext(p, '*');
+			if (p < 0 || p + 1 >= len) {
+				pos = commentStart + 2;
+				throw new TemplateException(this, "block comment is not closed");
+			}
+			if (text[p + 1] == '/') {
+				pos = p + 2;
+				annotateBlockComment(commentStart, pos);
+				return;
+			}
+			p++;
 		}
-		if (!forwardIfCurrent("*/")) {
-			pos = startAfter;
-			throw new TemplateException(this, "block comment is not closed");
-		}
-		annotateBlockComment(commentStart, pos);
-		return true;
 	}
 
 	/**
@@ -995,6 +997,35 @@ public class SourceCode {
 			if (v < 0 && -v == commentEnd - i) return i;
 		}
 		return -1;
+	}
+
+	/**
+	 * Fast-path token-boundary primitive: skip whitespace, then consume any run of comments
+	 * ({@code //}, {@code /*}, {@code <!--- --->}) interleaved with more whitespace. Direct
+	 * field access on {@code charClass}/{@code lcText} — no {@code data.srcCode.*} indirection
+	 * for the 160 transformer call sites this replaces.
+	 *
+	 * <p>Two-char opener dispatch: peeks {@code b} (first non-ws char) and {@code b2}
+	 * ({@code lcText[pos+1]}) up front. '/' dispatches to single/multi by {@code b2}; '<' pre-gates
+	 * on {@code b2 == '!'} so the 99% of '<' sightings in tag-mode CFML that open a real tag
+	 * exit in three byte compares without calling {@link #tagComment()}. Single/multi callees no
+	 * longer verify their opener — caller has done so.
+	 */
+	public void skipSpaceAndComments() throws TemplateException {
+		while (true) {
+			int b = skipSpaceReturnCurrent();
+			if (b != '/' && b != '<') return;
+			if (pos + 1 >= len) return;
+			int b2 = lcText[pos + 1] & 0xFF;
+			if (b == '/') {
+				if (b2 == '/') { singleLineComment(); continue; }
+				if (b2 == '*') { multiLineComment(); continue; }
+				return;
+			}
+			// b == '<' — b2 == '!' is the rare positive; most '<' in tag-mode CFML are tag opens
+			if (b2 == '!' && tagComment()) continue;
+			return;
+		}
 	}
 
 	public void revertRemoveSpace() {
@@ -1398,8 +1429,23 @@ public class SourceCode {
 	 * @return Zeichen das gesucht werden soll.
 	 */
 	public int indexOfNext(char c) {
-		for (int i = pos; i < len; i++) {
-			if ((lcText[i] & 0xFF) == c) return i;
+		return indexOfNext(pos, c);
+	}
+
+	/**
+	 * Find next {@code c} in {@code [from, len)}. <b>Contract:</b> c must be an operator/punctuation
+	 * char (charClass kind 0) — not a var-char, not whitespace. Hops annotated runs of both kinds via
+	 * charClass, so identifier bodies and whitespace stretches skip in one array load. For whitespace
+	 * targets use {@link #skipWhitespace}; for identifier scans use {@link #forwardVarCharRun}.
+	 */
+	public int indexOfNext(int from, char c) {
+		while (from < len) {
+			short cc = charClass[from];
+			if (cc < 0) { from += -cc; continue; }
+			int hop = cc >> CC_RUN_SHIFT;
+			if (hop > 0) { from += hop; continue; }
+			if ((lcText[from] & 0xFF) == c) return from;
+			from++;
 		}
 		return -1;
 	}
