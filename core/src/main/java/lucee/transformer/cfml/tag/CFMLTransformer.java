@@ -408,49 +408,17 @@ public final class CFMLTransformer {
 	}
 
 	/**
-	 * Liest einen Kommentar ein, Kommentare werden nicht in die CFXD uebertragen sondern verworfen.
-	 * Komentare koennen auch Kommentare enthalten. <br />
-	 * EBNF:<br />
-	 * <code>"<!---" {?-"--->"} "--->";</code>
-	 * 
-	 * @throws TemplateException
+	 * Consume a tag comment, optionally trimmed by surrounding whitespace.
+	 * Delegates to {@link SourceCode#tagComment()}; the wrapper survives here only
+	 * because five internal call sites in this class use the whitespace-trim variant.
 	 */
-
 	private static void comment(SourceCode cfml, boolean removeSpace) throws TemplateException {
 		if (!removeSpace) {
-			comment(cfml);
+			cfml.tagComment();
 		}
 		else {
 			cfml.removeSpace();
-			if (comment(cfml)) cfml.removeSpace();
-		}
-
-	}
-
-	public static boolean comment(SourceCode cfml) throws TemplateException {
-		int commentStart = cfml.getPos();
-		if (!cfml.forwardIfCurrent("<!---")) return false;
-
-		int start = cfml.getPos();
-		short counter = 1;
-		while (true) {
-			if (cfml.isAfterLast()) {
-				cfml.setPos(start);
-				throw new TemplateException(cfml, "no end comment found");
-			}
-			else if (cfml.forwardIfCurrent("<!---")) {
-				counter++;
-			}
-			else if (cfml.forwardIfCurrent("--->")) {
-				if (--counter == 0) {
-					comment(cfml);
-					cfml.annotateComment(commentStart, cfml.getPos());
-					return true;
-				}
-			}
-			else {
-				cfml.forwardVarCharRunOrNext();
-			}
+			if (cfml.tagComment()) cfml.removeSpace();
 		}
 	}
 

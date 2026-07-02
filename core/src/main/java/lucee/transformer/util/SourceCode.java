@@ -21,6 +21,7 @@ import java.util.Arrays;
 
 import lucee.commons.digest.HashUtil;
 import lucee.commons.io.SystemUtil;
+import lucee.runtime.exp.TemplateException;
 import lucee.transformer.Position;
 
 /**
@@ -760,7 +761,7 @@ public class SourceCode {
 	/**
 	 * Stellt den Zeiger nach vorne, wenn er sich innerhalb von Leerzeichen befindet, bis die
 	 * Leerzeichen fertig sind.
-	 * 
+	 *
 	 * @return Gibt zurueck ob der Zeiger innerhalb von Leerzeichen war oder nicht.
 	 */
 	public boolean removeSpace() {
@@ -769,6 +770,57 @@ public class SourceCode {
 		if (v >= 0) return false;
 		pos -= v;
 		return true;
+	}
+
+	/**
+	 * Skip whitespace and return the lcText byte at the resulting pos, or -1 at EOF.
+	 * Combines removeSpace() with a peek so callers doing "skip ws, then decide on next char"
+	 * avoid a second bounds check + array load. Multiple whitespace runs (e.g. across
+	 * annotated comment ranges) are all consumed in one call.
+	 */
+	public int skipSpaceReturnCurrent() {
+		while (pos < len) {
+			short v = charClass[pos];
+			if (v >= 0) return lcText[pos] & 0xFF;
+			pos -= v;
+		}
+		return -1;
+	}
+
+
+	/**
+	 * Consume a CFML tag comment {@code <!--- ... --->} at the current position. Nested
+	 * {@code <!---}/{@code --->} pairs are tracked via a counter. On successful consumption,
+	 * greedily eats any immediately-following tag comment (recursive) and annotates the
+	 * entire consumed range so future {@link #removeSpace()} calls hop past it in one load.
+	 *
+	 * @return true if a tag comment was consumed, false if the current position is not '<!---'
+	 */
+	public boolean tagComment() throws TemplateException {
+		int commentStart = pos;
+		if (!forwardIfCurrent("<!---")) return false;
+
+		int start = pos;
+		short counter = 1;
+		while (true) {
+			if (isAfterLast()) {
+				setPos(start);
+				throw new TemplateException(this, "no end comment found");
+			}
+			else if (forwardIfCurrent("<!---")) {
+				counter++;
+			}
+			else if (forwardIfCurrent("--->")) {
+				if (--counter == 0) {
+					tagComment();
+					annotateComment(commentStart, pos);
+					return true;
+				}
+			}
+			else {
+				forwardVarCharRunOrNext();
+			}
+		}
 	}
 
 	/**

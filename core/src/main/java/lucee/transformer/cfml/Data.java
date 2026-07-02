@@ -54,7 +54,14 @@ public final class Data {
 	public boolean isInterface;
 	public short context = TagLibTagScript.CTX_NONE;
 	public DocComment docComment;
+	public int docCommentStart = -1;
 	private Body parent;
+
+	public void clearDocComment() {
+		docComment = null;
+		docCommentStart = -1;
+	}
+
 	public ExprTransformer transformer;
 
 	public boolean insideTenaryMiddle = false;
