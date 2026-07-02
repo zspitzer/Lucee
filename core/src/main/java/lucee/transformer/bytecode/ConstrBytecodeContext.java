@@ -35,8 +35,8 @@ public final class ConstrBytecodeContext extends BytecodeContext {
 	private List<Data> properties = new ArrayList<Data>();
 
 	public ConstrBytecodeContext(Config config, PageSource ps, PageImpl page, Map<LitString, Integer> keys, ClassWriter classWriter, String className, GeneratorAdapter adapter,
-			Method method, boolean writeLog, boolean suppressWSbeforeArg, boolean output, boolean returnValue, int sourceOffset) {
-		super(config, ps, null, page, keys, classWriter, className, adapter, method, writeLog, suppressWSbeforeArg, output, returnValue, sourceOffset);
+			Method method, boolean writeLog, boolean suppressWSbeforeArg, boolean output, boolean returnValue) {
+		super(config, ps, null, page, keys, classWriter, className, adapter, method, writeLog, suppressWSbeforeArg, output, returnValue);
 	}
 
 	/**

@@ -897,7 +897,7 @@ public abstract class AbstrCFMLExprTransformer {
 		comments(data);
 		if (leftEnd != null) {
 			start = leftEnd;
-			end = new Position(leftEnd.line, leftEnd.column + 2, leftEnd.pos + 2, data.srcCode.getSourceOffset());
+			end = new Position(leftEnd.line, leftEnd.column + 2, leftEnd.pos + 2);
 		}
 
 		if (op == Factory.OP_UNARY_CONCAT) return data.factory.opUnaryString((Variable) expr, data.factory.NUMBER_ONE(), Factory.OP_UNARY_POST, op, start, end);

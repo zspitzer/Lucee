@@ -196,7 +196,7 @@ public final class ComponentUtil {
 		adapter.loadThis();
 		adapter.invokeConstructor(Types.OBJECT, CONSTRUCTOR_OBJECT);
 		PageImpl.registerFields(new BytecodeContext(ThreadLocalPageContext.getConfig(pc), null, constr, getPage(constr), _keys, cw, real, adapter, CONSTRUCTOR_OBJECT, writeLog,
-				suppressWSbeforeArg, output, returnValue, 0), _keys);
+				suppressWSbeforeArg, output, returnValue), _keys);
 		adapter.returnValue();
 		adapter.endMethod();
 
@@ -597,7 +597,7 @@ public final class ComponentUtil {
 			Method method = new Method(udf.getFunctionName(), rtnType, types);
 			GeneratorAdapter adapter = new GeneratorAdapter(Opcodes.ACC_PUBLIC + Opcodes.ACC_FINAL, method, null, null, cw);
 			BytecodeContext bc = new BytecodeContext(ThreadLocalPageContext.getConfig(pc), null, constr, getPage(constr), keys, cw, className, adapter, method, writeLog,
-					suppressWSbeforeArg, output, returnValue, 0);
+					suppressWSbeforeArg, output, returnValue);
 			Label start = adapter.newLabel();
 			adapter.visitLabel(start);
 

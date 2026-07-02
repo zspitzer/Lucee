@@ -86,7 +86,6 @@ public class SourceCode {
 	private final boolean writeLog;
 	private int hash;
 	private SourceCode parent;
-	private int sourceOffset;
 	private boolean scriptMode;
 
 	// Position cache - reduces allocations during parsing
@@ -94,22 +93,10 @@ public class SourceCode {
 	private int cachedPos = -1;
 
 	public SourceCode(SourceCode parent, String strText, boolean writeLog) {
-		this(parent, strText, writeLog, 0);
-	}
-
-	/**
-	 * Constructor of the class
-	 * 
-	 * @param parent
-	 * @param strText
-	 * @param writeLog
-	 */
-	public SourceCode(SourceCode parent, String strText, boolean writeLog, int sourceOffset) {
 		this.parent = parent;
 		this.text = strText.toCharArray();
 		this.len = this.text.length;
 		this.hash = strText.hashCode();
-		this.sourceOffset = sourceOffset;
 		lcText = new byte[len];
 		charClass = new short[len];
 		this.lines = buildLcTextAndCharClass();
@@ -122,12 +109,11 @@ public class SourceCode {
 	 * {@code validLen} so the class invariant {@code text.length == valid content length} always holds
 	 * (the transformer relies on that everywhere).
 	 */
-	public SourceCode(SourceCode parent, char[] textBuf, int validLen, boolean writeLog, int sourceOffset) {
+	public SourceCode(SourceCode parent, char[] textBuf, int validLen, boolean writeLog) {
 		this.parent = parent;
 		this.text = textBuf.length == validLen ? textBuf : Arrays.copyOf(textBuf, validLen);
 		this.len = validLen;
 		this.hash = hashCharArray(this.text, validLen);
-		this.sourceOffset = sourceOffset;
 		lcText = new byte[validLen];
 		charClass = new short[validLen];
 		this.lines = buildLcTextAndCharClass();
@@ -902,6 +888,19 @@ public class SourceCode {
 	}
 
 	/**
+	 * Zero-alloc case-insensitive search for an identifier of an exact length,
+	 * preceded by {@code lowerBefore} and followed by {@code lowerAfter}.
+	 *
+	 * The scan pivots on {@code charClass} run lengths: for each var-char run, one array load
+	 * gives the run length. Runs of the wrong length are hopped in a single add — {@code lcText}
+	 * is never touched for them. Only length-matching runs get the leading/trailing byte check
+	 * and, if that passes, the identifier byte-compare.
+	 *
+	 * All three arguments must already be lowercase — this method does no case folding.
+	 * {@code lowerIdent} must be composed entirely of var-chars (a-z, 0-9, _, $) — the run-length
+	 * pivot only fires inside identifier runs.
+	 */
+	/**
 	 * True if the source contains {@code <name} or {@code </name} for any of the given tag names.
 	 * Used to decide whether a .cfc file needs wrapping in {@code <cfscript>} — script-syntax CFCs
 	 * have no tag markers so scanning replaces two full-file case-insensitive substring searches.
@@ -1085,7 +1084,7 @@ public class SourceCode {
 
 		int posAtStart = (line > 1) ? lines[line - 2] : 0;
 		int column = pos - posAtStart;
-		Position position = new Position(line, column, pos, getSourceOffset());
+		Position position = new Position(line, column, pos);
 		// Cache this position
 		cachedPos = pos;
 		cachedPosition = position;
@@ -1274,10 +1273,6 @@ public class SourceCode {
 	@Override
 	public int hashCode() {
 		return hash;
-	}
-
-	public int getSourceOffset() {
-		return sourceOffset;
 	}
 
 	/** True when the source should be parsed directly by the script transformer (bypassing the tag parser).
