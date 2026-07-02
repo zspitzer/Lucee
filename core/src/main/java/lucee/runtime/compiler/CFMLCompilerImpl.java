@@ -59,7 +59,6 @@ import lucee.transformer.cfml.script.CFMLScriptTransformer;
 import lucee.transformer.cfml.tag.CFMLTransformer;
 import lucee.transformer.library.function.FunctionLib;
 import lucee.transformer.library.tag.TagLib;
-import lucee.transformer.library.tag.TagLibTag;
 import lucee.transformer.util.AlreadyClassException;
 import lucee.transformer.util.PageSourceCode;
 import lucee.transformer.util.SourceCode;
@@ -91,13 +90,10 @@ public final class CFMLCompilerImpl implements CFMLCompiler {
 		Struct root = new StructImpl(Struct.TYPE_LINKED);
 		page.dump(root);
 
-		// TODO better solution than simply look at the offset from script
-		if (page.getSourceCode().getSourceOffset() == 10) {
-
+		// post-fastpath: source that was parsed in script-mode has no <cfscript> wrap tag around it.
+		// For component files, the parser still emits an empty synthetic script tag we strip here.
+		if (page.getSourceCode().isScriptMode()) {
 			boolean isCFMLCompExt = Constants.isCFMLComponentExtension(ResourceUtil.getExtension(ps.getResource(), ""));
-			// in case of a component Lucee moves the component to the root, so at the first position is just an
-			// empty script, we simply have to emove this
-			// TODO remove the script after moving in the parser
 			if (isCFMLCompExt) {
 				removeEmptyScriptTag(root);
 			}
@@ -113,13 +109,8 @@ public final class CFMLCompilerImpl implements CFMLCompiler {
 		// TODO auto when script is null
 
 		if (script != null && script) {
-			TagLibTag scriptTag = CFMLTransformer.getTLT(sc, Constants.CFML_SCRIPT_TAG_NAME, config.getIdentification());
-
 			sc.setPos(0);
-			// try inside a cfscript
-			String text = "<" + scriptTag.getFullName() + ">" + sc.getText() + "\n</" + scriptTag.getFullName() + ">";
-			int sourceOffset = ("<" + scriptTag.getFullName() + ">").length();
-			sc = new SourceCode(null, text, sc.getWriteLog(), sourceOffset);
+			sc.setScriptMode(true);
 		}
 
 		PageImpl page = ((PageImpl) cfmlTagTransformer.transform(factory, config, sc, config.getTLDs(), config.getFLDs(), System.currentTimeMillis(),
