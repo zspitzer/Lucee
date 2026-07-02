@@ -28,6 +28,6 @@ public final class AstFromString extends BIF {
 
 		}
 
-		return ((PageContextImpl) pc).transform(new SourceCode(null, content, false, 0), script);
+		return ((PageContextImpl) pc).transform(new SourceCode(null, content, false), script);
 	}
 }

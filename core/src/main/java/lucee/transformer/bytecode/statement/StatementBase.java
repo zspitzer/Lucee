@@ -137,22 +137,16 @@ public abstract class StatementBase implements BytecodeStatement {
 		if (start != null) {
 			Struct sctStart = new StructImpl(StructImpl.TYPE_LINKED_NOT_SYNC, 8);
 			sctStart.setEL(KeyConstants._line, start.line);
-			sctStart.setEL(KeyConstants._column, start.displayColumn());
-			sctStart.setEL(KeyConstants._offset, start.displayPosition());
-			// sctStart.setEL("_pos", start.pos);
-			// sctStart.setEL("_col", start.column);
-			// sctStart.setEL("_off", start.offset);
+			sctStart.setEL(KeyConstants._column, start.column);
+			sctStart.setEL(KeyConstants._offset, start.pos);
 			sct.setEL(KeyConstants._start, sctStart);
 		}
 		// end
 		if (end != null) {
 			Struct sctEnd = new StructImpl(StructImpl.TYPE_LINKED_NOT_SYNC, 8);
 			sctEnd.setEL(KeyConstants._line, end.line);
-			sctEnd.setEL(KeyConstants._column, end.displayColumn());
-			sctEnd.setEL(KeyConstants._offset, end.displayPosition());
-			// sctEnd.setEL("_pos", end.pos);
-			// sctEnd.setEL("_col", end.column);
-			// sctEnd.setEL("_off", end.offset);
+			sctEnd.setEL(KeyConstants._column, end.column);
+			sctEnd.setEL(KeyConstants._offset, end.pos);
 			sct.setEL(KeyConstants._end, sctEnd);
 		}
 	}

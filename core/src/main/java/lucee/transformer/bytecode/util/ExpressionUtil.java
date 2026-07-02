@@ -143,8 +143,7 @@ public final class ExpressionUtil {
 			}
 			else {
 				// Push character position for char-based execution logs (e.g. console)
-				int off = bc.getSourceOffset();
-				adapter.push(pos.pos - off);
+				adapter.push(pos.pos);
 			}
 
 			adapter.push(id);

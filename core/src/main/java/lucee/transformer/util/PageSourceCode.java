@@ -36,19 +36,13 @@ public final class PageSourceCode extends SourceCode {
 	}
 
 	private PageSourceCode(PageSource ps, IOUtil.CharArrayResult content, Charset charset, boolean writeLog) {
-		super(null, content.buf, content.len, writeLog, 0);
+		super(null, content.buf, content.len, writeLog);
 		this.charset = charset;
 		this.ps = ps;
 	}
 
 	public PageSourceCode(PageSource ps, String text, Charset charset, boolean writeLog) {
-		super(null, text, writeLog, 0);
-		this.charset = charset;
-		this.ps = ps;
-	}
-
-	public PageSourceCode(PageSource ps, String text, Charset charset, boolean writeLog, int sourceOffset) {
-		super(null, text, writeLog, sourceOffset);
+		super(null, text, writeLog);
 		this.charset = charset;
 		this.ps = ps;
 	}
@@ -105,6 +99,6 @@ public final class PageSourceCode extends SourceCode {
 
 	@Override
 	public SourceCode subCFMLString( int start, int count ) {
-		return new PageSourceCode( ps, String.valueOf( text, start, count ), charset, getWriteLog(), getSourceOffset() + start );
+		return new PageSourceCode( ps, String.valueOf( text, start, count ), charset, getWriteLog() );
 	}
 }

@@ -84,10 +84,9 @@ public class BytecodeContext implements Context {
 	private PageImpl page;
 	protected PageSource ps;
 	protected final ExpressionUtil expressionUtil;
-	private int sourceOffset;
 
 	public BytecodeContext(Config config, PageSource ps, ConstrBytecodeContext constr, PageImpl page, Map<LitString, Integer> keys, ClassWriter classWriter, String className,
-			GeneratorAdapter adapter, Method method, boolean writeLog, boolean suppressWSbeforeArg, boolean output, boolean returnValue, int sourceOffset) {
+			GeneratorAdapter adapter, Method method, boolean writeLog, boolean suppressWSbeforeArg, boolean output, boolean returnValue) {
 		this.config = config;
 		this.classWriter = classWriter;
 		this.className = className;
@@ -95,7 +94,6 @@ public class BytecodeContext implements Context {
 		this.adapter = adapter;
 		this.keys = keys;
 		this.method = method;
-		// this.staticConstr=statConstr;
 		this.constr = constr;
 		this.page = page;
 		this.suppressWSbeforeArg = suppressWSbeforeArg;
@@ -110,8 +108,6 @@ public class BytecodeContext implements Context {
 		else {
 			this.expressionUtil = constr.expressionUtil;
 		}
-		this.sourceOffset = sourceOffset;
-
 	}
 
 	public BytecodeContext(ConstrBytecodeContext constr, Map<LitString, Integer> keys, BytecodeContext bc, GeneratorAdapter adapter, Method method) {
@@ -373,10 +369,6 @@ public class BytecodeContext implements Context {
 	 */
 	public PageSource getPageSource() {
 		return ps;
-	}
-
-	public int getSourceOffset() {
-		return sourceOffset;
 	}
 
 	public void finallyPush(OnFinally onf) {
