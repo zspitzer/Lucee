@@ -35,7 +35,12 @@ public class SourceCode {
 	private static final short CC_LETTER      = 1; // a-z, A-Z, _, $, €, £
 	private static final short CC_DIGIT       = 2; // 0-9
 	private static final short CC_QUOTE       = 4; // " or '
-	private static final short CC_COMMENT     = 8; // reserved for lazy comment annotation
+	/** Backward comment-end marker: written at {@code commentEnd - 1} by {@link #annotateBlockComment}.
+	 *  Enables lazy reverse scans for doc comments — {@link #findPrecedingComment} walks backward from
+	 *  a consumer position past whitespace, and if it lands on a position with this kind bit, the run
+	 *  bits (bits 4-14) carry {@code reverseOffset - 1} back to {@code commentStart}. Capped at
+	 *  {@link #CC_MAX_RUN}; long-comment overflow falls back to scanning charClass for the forward marker. */
+	private static final short CC_COMMENT_END = 8;
 
 	// charClass encoding: short[], (runLength << CC_RUN_SHIFT) | kind
 	// kind occupies bits 0-3; run-length occupies bits 4-14.
@@ -70,7 +75,7 @@ public class SourceCode {
 	 *   0         — operator / punctuation: non-space, non-var, unclassified char.
 	 *
 	 *   positive  — var-char or quote, packed as (runLength << CC_RUN_SHIFT) | kind:
-	 *               bits 0-3: kind — CC_LETTER(1), CC_DIGIT(2), CC_QUOTE(4), CC_COMMENT(8)
+	 *               bits 0-3: kind — CC_LETTER(1), CC_DIGIT(2), CC_QUOTE(4), CC_COMMENT_END(8)
 	 *                         CC_LETTER covers a-z, A-Z, _, $, €, £
 	 *               bits 4-6: contiguous var-char run length, capped at CC_MAX_RUN (bit 7 must stay 0).
 	 *                         forwardVarCharRun() extracts with >> CC_RUN_SHIFT and adds to pos,
@@ -88,6 +93,7 @@ public class SourceCode {
 	private int hash;
 	private SourceCode parent;
 	private boolean scriptMode;
+
 
 	// Position cache - reduces allocations during parsing
 	private Position cachedPosition;
@@ -851,6 +857,75 @@ public class SourceCode {
 
 
 	/**
+	 * Retroactively marks a consumed comment range as skippable whitespace via a single
+	 * charClass write at {@code start}. Interior positions are left untouched — the parser
+	 * never lands inside a consumed comment (forwardIfCurrent advances past the opener on
+	 * success; on failure pos stays before it), so only the pre-comment hop entry point
+	 * needs the negative distance-to-end. removeSpace() reads at pos and jumps past the
+	 * whole range in one load; the interior's natural var-char / operator / whitespace
+	 * encoding is preserved for anyone (e.g. DocCommentTransformer) walking the range later.
+	 */
+	public void annotateComment(int start, int end) {
+		int dist = end - start;
+		charClass[start] = (short)(dist > CC_SPACE_MAX ? -CC_SPACE_MAX : -dist);
+	}
+
+	/**
+	 * Same forward marker as {@link #annotateComment}, plus a backward marker at {@code end - 1}
+	 * so {@link #findPrecedingComment} can locate the comment's start from a consumer position
+	 * downstream. Called by {@link #multiLineComment} to enable lazy doc-comment discovery.
+	 * The backward marker stashes {@code reverseOffset - 1} (= {@code end - 2 - start}) in the
+	 * run bits under {@link #CC_COMMENT_END}, capped at {@link #CC_MAX_RUN}.
+	 */
+	public void annotateBlockComment(int start, int end) {
+		int dist = end - start;
+		charClass[start] = (short)(dist > CC_SPACE_MAX ? -CC_SPACE_MAX : -dist);
+		int rev = dist - 2;   // reverseOffset - 1 = (end - 1 - start) - 1 = end - start - 2
+		int stashed = rev > CC_MAX_RUN ? CC_MAX_RUN : rev;
+		charClass[end - 1] = (short)((stashed << CC_RUN_SHIFT) | CC_COMMENT_END);
+	}
+
+	/**
+	 * If {@code pos} sits on {@code //}, consume up to and including the line terminator, annotate
+	 * the consumed range as skippable whitespace, and return {@code true}. Otherwise return
+	 * {@code false} (pos untouched).
+	 */
+	public boolean singleLineComment() {
+		int start = pos;
+		if (!forwardIfCurrent("//")) return false;
+		nextLine();
+		annotateComment(start, pos);
+		return true;
+	}
+
+	/**
+	 * If {@code pos} sits on {@code /*}, consume up to and including the closing {@code *&#47;},
+	 * annotate the range with forward + backward markers via {@link #annotateBlockComment}, and
+	 * return {@code true}. Otherwise return {@code false}. Throws {@link TemplateException} on
+	 * unclosed block comment.
+	 *
+	 * <p>Doc-comment ({@code /** *&#47;}) discovery is now a consumer-side concern:
+	 * {@code materializeDocComment} calls {@link #findPrecedingComment} which walks backward
+	 * from the consumer position, uses the {@link #CC_COMMENT_END} marker to locate
+	 * {@code commentStart}, and checks for the third {@code *}.
+	 */
+	public boolean multiLineComment() throws TemplateException {
+		int commentStart = pos;
+		if (!forwardIfCurrent("/*")) return false;
+		int startAfter = pos;
+		while (isValidIndex()) {
+			if (isCurrent("*/")) break;
+			forwardVarCharRunOrNext();
+		}
+		if (!forwardIfCurrent("*/")) {
+			pos = startAfter;
+			throw new TemplateException(this, "block comment is not closed");
+		}
+		annotateBlockComment(commentStart, pos);
+		return true;
+	}
+
+	/**
 	 * Consume a CFML tag comment {@code <!--- ... --->} at the current position. Nested
 	 * {@code <!---}/{@code --->} pairs are tracked via a counter. On successful consumption,
 	 * greedily eats any immediately-following tag comment (recursive) and annotates the
@@ -886,17 +961,40 @@ public class SourceCode {
 	}
 
 	/**
-	 * Retroactively marks a consumed comment range as skippable whitespace via a single
-	 * charClass write at {@code start}. Interior positions are left untouched — the parser
-	 * never lands inside a consumed comment (forwardIfCurrent advances past the opener on
-	 * success; on failure pos stays before it), so only the pre-comment hop entry point
-	 * needs the negative distance-to-end. removeSpace() reads at pos and jumps past the
-	 * whole range in one load; the interior's natural var-char / operator / whitespace
-	 * encoding is preserved for anyone (e.g. DocCommentTransformer) walking the range later.
+	 * Walks backward from {@code fromPos - 1} past whitespace looking for the immediately-preceding
+	 * block comment. Uses the {@link #CC_COMMENT_END} marker written by {@link #annotateBlockComment}.
+	 *
+	 * <p>Fast path: reads the marker's stashed reverse-offset and recovers {@code commentStart},
+	 * cross-checked against the forward whitespace marker at that position.
+	 *
+	 * <p>Slow path (block comments longer than {@code CC_MAX_RUN + 1} chars, where the reverse-offset
+	 * overflows the run bits): scans {@code charClass} backward looking for the forward marker whose
+	 * negative-distance matches {@code commentEnd - i}. Natural whitespace annotations point to
+	 * {@code commentStart} (not {@code commentEnd}), so the forward marker is uniquely identifiable.
+	 *
+	 * @return position of the {@code /} opener of the preceding block comment, or {@code -1} if
+	 *         nothing immediately before {@code fromPos} (skipping whitespace) is a block-comment end.
 	 */
-	public void annotateComment(int start, int end) {
-		int dist = end - start;
-		charClass[start] = (short)(dist > CC_SPACE_MAX ? -CC_SPACE_MAX : -dist);
+	public int findPrecedingComment(int fromPos) {
+		int p = fromPos - 1;
+		while (p >= 0 && (lcText[p] & 0xFF) == ' ') p--;
+		if (p < 0) return -1;
+		short cc = charClass[p];
+		if (cc <= 0 || (cc & 0xF) != CC_COMMENT_END) return -1;
+
+		int stashed = cc >> CC_RUN_SHIFT;
+		int commentEnd = p + 1;
+		int putative = p - (stashed + 1);
+		if (putative >= 0 && charClass[putative] < 0 && -charClass[putative] == commentEnd - putative) {
+			return putative;
+		}
+
+		// slow path: reverse-offset overflowed CC_MAX_RUN — scan backward for the forward marker
+		for (int i = p - 1; i >= 0; i--) {
+			short v = charClass[i];
+			if (v < 0 && -v == commentEnd - i) return i;
+		}
+		return -1;
 	}
 
 	public void revertRemoveSpace() {

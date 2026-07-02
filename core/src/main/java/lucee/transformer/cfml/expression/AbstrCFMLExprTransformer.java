@@ -2135,7 +2135,7 @@ public abstract class AbstrCFMLExprTransformer {
 	private void commentsStrip(Data data, int b) throws TemplateException {
 		SourceCode sc = data.srcCode;
 		while (true) {
-			boolean consumed = (b == '/' && (singleLineComment(sc) || multiLineComment(data)))
+			boolean consumed = (b == '/' && (sc.singleLineComment() || sc.multiLineComment()))
 					|| (b == '<' && sc.tagComment());
 			if (!consumed) return;
 			b = sc.skipSpaceReturnCurrent();
@@ -2144,60 +2144,19 @@ public abstract class AbstrCFMLExprTransformer {
 	}
 
 	/**
-	 * Liest einen Mehrzeiligen Kommentar ein. <br />
-	 * EBNF:<br />
-	 * <code>?-"*<!-- -->/";</code>
-	 *
-	 * @return bool Wurde ein Kommentar entfernt?
-	 * @throws TemplateException
-	 */
-	private boolean multiLineComment(Data data) throws TemplateException {
-		SourceCode cfml = data.srcCode;
-		int commentStart = cfml.getPos();
-		if (!cfml.forwardIfCurrent("/*")) return false;
-		int pos = cfml.getPos();
-		boolean isDocComment = cfml.isCurrent('*');
-		while (cfml.isValidIndex()) {
-			if (cfml.isCurrent("*/")) break;
-			cfml.forwardVarCharRunOrNext();
-		}
-		if (!cfml.forwardIfCurrent("*/")) {
-			cfml.setPos(pos);
-			throw new TemplateException(cfml, "block comment is not closed");
-		}
-		if (isDocComment && !data.insideFunction) {
-			// record start only — DocCommentTransformer scans for */ on materialize
-			data.docCommentStart = pos - 2;
-		}
-		cfml.annotateComment(commentStart, cfml.getPos());
-		return true;
-	}
-
-	/**
-	 * Lazy materialization of the pending doc-comment range recorded by {@link #multiLineComment}.
-	 * No-op if already materialized ({@code data.docComment != null}) or no pending range.
-	 * Consumers call this before reading {@code data.docComment}.
+	 * Lazy doc-comment discovery via {@link SourceCode#findPrecedingComment}. Walks backward from
+	 * the current parser position past whitespace to find an immediately-preceding block comment;
+	 * if that comment starts with {@code /**}, extracts it via {@link DocCommentTransformer}.
+	 * No-op if already materialized or no preceding comment.
 	 */
 	protected void materializeDocComment(Data data) {
 		if (data.docComment != null) return;
-		if (data.docCommentStart < 0) return;
-		data.docComment = docCommentTransformer.transform(data.factory, data.srcCode, data.docCommentStart);
-		data.docCommentStart = -1;
-	}
-
-	/**
-	 * Liest einen Einzeiligen Kommentar ein. <br />
-	 * EBNF:<br />
-	 * <code>{?-"\n"} "\n";</code>
-	 *
-	 * @return bool Wurde ein Kommentar entfernt?
-	 */
-	private boolean singleLineComment(SourceCode cfml) {
-		int start = cfml.getPos();
-		if (!cfml.forwardIfCurrent("//")) return false;
-		cfml.nextLine();
-		cfml.annotateComment(start, cfml.getPos());
-		return true;
+		if (data.insideFunction) return;
+		SourceCode sc = data.srcCode;
+		int start = sc.findPrecedingComment(sc.getPos());
+		if (start < 0) return;
+		if (!sc.isCharAt(start + 2, '*')) return;
+		data.docComment = docCommentTransformer.transform(data.factory, sc, start);
 	}
 
 }
