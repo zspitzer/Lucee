@@ -161,35 +161,12 @@ public final class CFMLTransformer {
 			try {
 				psc = new PageSourceCode(ps, charset, writeLog);
 				sc = psc;
-				// script files (cfs)
-				if (Constants.isCFMLScriptExtension(ListUtil.last(ps.getRealpath(), '.'))) {
-					TagLibTag scriptTag = CFMLTransformer.getTLT(sc, Constants.CFML_SCRIPT_TAG_NAME, config.getIdentification());
+				// script mode: .cfs unconditionally, or .cfc without <cfcomponent>/<cfinterface> at the root.
+				// Direct-entry into the script transformer — no wrap allocation, no double SourceCode build.
+				sc.setScriptMode(Constants.isCFMLScriptExtension(ListUtil.last(ps.getRealpath(), '.'))
+						|| (isCFMLCompExt && !sc.findTag("cfcomponent", "cfinterface")));
+				wrapped = sc.isScriptMode() && isCFMLCompExt;
 
-					sc.setPos(0);
-					SourceCode original = sc;
-
-					// try inside a cfscript
-					String text = "<" + scriptTag.getFullName() + ">" + original.getText() + "\n</" + scriptTag.getFullName() + ">";
-					int sourceOffset = ("<" + scriptTag.getFullName() + ">").length();
-					sc = new PageSourceCode(ps, text, charset, writeLog, sourceOffset);
-				}
-				else if (isCFMLCompExt) {
-					TagLib tl = CFMLTransformer.getTagLib(sc, config.getIdentification());
-					String text = sc.getText();
-					if (StringUtil.indexOfIgnoreCase(text, "<" + tl.getNameSpaceAndSeparator()) == -1
-							&& StringUtil.indexOfIgnoreCase(text, "</" + tl.getNameSpaceAndSeparator()) == -1) {
-
-						TagLibTag scriptTag = CFMLTransformer.getTLT(sc, Constants.CFML_SCRIPT_TAG_NAME, config.getIdentification());
-						sc.setPos(0);
-						// try inside a cfscript
-						text = "<" + scriptTag.getFullName() + ">" + text + "\n</" + scriptTag.getFullName() + ">";
-						int sourceOffset = ("<" + scriptTag.getFullName() + ">").length();
-						sc = new PageSourceCode(ps, text, charset, writeLog, sourceOffset);
-						wrapped = true;
-
-					}
-
-				}
 				p = transform(factory, config, sc, tlibs, flibs, ps.getResource().lastModified(), dotUpper, returnValue, ignoreScopes, hasWriteLog, hasUpper, hasCharset,
 						allowUnknownTags);
 				break;
@@ -220,24 +197,17 @@ public final class CFMLTransformer {
 		}
 
 		if (possibleUndetectedComponent) {
+			// initial tag-parse produced a plain Page for a .cfc — retry via direct script-mode entry.
+			// Same shape as the main-path change: no <cfscript> wrap, script transformer parses to EOF.
 			Page _p;
-
-			TagLibTag scriptTag = CFMLTransformer.getTLT(sc, Constants.CFML_SCRIPT_TAG_NAME, config.getIdentification());
-
 			sc.setPos(0);
-			SourceCode original = sc;
-
-			// try inside a cfscript
-			String text = "<" + scriptTag.getFullName() + ">" + original.getText() + "\n</" + scriptTag.getFullName() + ">";
-			int sourceOffset = ("<" + scriptTag.getFullName() + ">").length();
-			sc = new PageSourceCode(ps, text, charset, writeLog, sourceOffset);
+			sc.setScriptMode(true);
 
 			try {
 				while (true) {
 					if (sc == null) {
 						sc = new PageSourceCode(ps, charset, writeLog);
-						text = "<" + scriptTag.getFullName() + ">" + sc.getText() + "\n</" + scriptTag.getFullName() + ">";
-						sc = new PageSourceCode(ps, text, charset, writeLog, sourceOffset);
+						sc.setScriptMode(true);
 					}
 					try {
 						_p = transform(factory, config, sc, tlibs, flibs, ps.getResource().lastModified(), dotUpper, returnValue, ignoreScopes, hasWriteLog, hasUpper, hasCharset,
@@ -341,9 +311,25 @@ public final class CFMLTransformer {
 		TransfomerSettings settings = new TransfomerSettings(dnuc, config.getHandleUnQuotedAttrValueAsString(), ignoreScope);
 		Data data = new Data(factory, config, page, sc, new EvaluatorPool(), settings, _tlibs, flibs, config.getCoreTagLib().getScriptTags(), false, hasWriteLog, hasUpper,
 				hasCharset, allowUnknownTags);
-		transform(data, page);
-		return page;
 
+		if (sc.isScriptMode()) {
+			// direct script-transformer entry: no <cfscript> wrap, no wrapped SourceCode.
+			// tagName = null makes isFinish() return false so statements() parses to EOF.
+			data.tagName = null;
+			data.allowLowerThan = true;
+			Body body = new CFMLScriptTransformer().transform(data, null);
+			for (Statement stmt : body.getStatements()) {
+				page.addStatement(stmt);
+			}
+			// evaluator pool callback (mirrors the tail of transform(data, page))
+			int pos = sc.getPos();
+			data.ep.run();
+			sc.setPos(pos);
+		}
+		else {
+			transform(data, page);
+		}
+		return page;
 	}
 
 	public void transform(Data data, Body parent) throws TemplateException {

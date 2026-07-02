@@ -87,6 +87,7 @@ public class SourceCode {
 	private int hash;
 	private SourceCode parent;
 	private int sourceOffset;
+	private boolean scriptMode;
 
 	// Position cache - reduces allocations during parsing
 	private Position cachedPosition;
@@ -1277,5 +1278,15 @@ public class SourceCode {
 
 	public int getSourceOffset() {
 		return sourceOffset;
+	}
+
+	/** True when the source should be parsed directly by the script transformer (bypassing the tag parser).
+	 *  Set for .cfs and script-syntax .cfc after {@link #findTag} rules out tag markers. */
+	public boolean isScriptMode() {
+		return scriptMode;
+	}
+
+	public void setScriptMode(boolean scriptMode) {
+		this.scriptMode = scriptMode;
 	}
 }
