@@ -250,7 +250,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 		else if (block(data, parent)) {}
 
 		else parent.addStatement(expressionStatement(data, parent));
-		data.docComment = null;
+		data.clearDocComment();
 		data.context = prior;
 
 		return false;
@@ -1002,6 +1002,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 			displayName = data.factory.EMPTY();
 			hint = data.factory.EMPTY();
 			meta = null;
+			materializeDocComment(data);
 			if (data.docComment != null) {
 				Map<String, Attribute> params = data.docComment.getParams();
 				Attribute[] attrs = params.values().toArray(new Attribute[params.size()]);
@@ -1072,10 +1073,11 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 
 		// doc comment
 		String hint = null;
+		materializeDocComment(data);
 		if (data.docComment != null) {
 			func.setHint(data.factory, hint = data.docComment.getHint());
 			func.setMetaData(data.docComment.getParams());
-			data.docComment = null;
+			data.clearDocComment();
 		}
 
 		comments(data);
@@ -1376,7 +1378,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 				Expression expr = expression(data);
 				Return rtn = new Return(expr, line, data.srcCode.getPosition());
 				body.addStatement(rtn);
-				data.docComment = null;
+				data.clearDocComment();
 				data.context = prior;
 
 			}
@@ -1631,6 +1633,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 	}
 
 	private final void addMetaData(Data data, Tag tag, String[] ignoreList) {
+		materializeDocComment(data);
 		if (data.docComment == null) return;
 
 		tag.addMetaData(data.docComment.getHintAsAttribute(data.factory));
@@ -1648,7 +1651,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 			}
 			tag.addMetaData(attr);
 		}
-		data.docComment = null;
+		data.clearDocComment();
 	}
 
 	private final Statement propertyStatement(Data data, Body parent) throws TemplateException {

@@ -56,7 +56,6 @@ import lucee.transformer.bytecode.statement.udf.Function;
 import lucee.transformer.bytecode.util.ASMUtil;
 import lucee.transformer.cfml.Data;
 import lucee.transformer.cfml.script.DocCommentTransformer;
-import lucee.transformer.cfml.tag.CFMLTransformer;
 import lucee.transformer.expression.ExprBoolean;
 import lucee.transformer.expression.ExprNumber;
 import lucee.transformer.expression.ExprString;
@@ -2120,27 +2119,35 @@ public abstract class AbstrCFMLExprTransformer {
 	 * @throws TemplateException
 	 */
 	protected void comments(Data data) throws TemplateException {
-		while (data.srcCode.removeSpace() || comment(data));
+		// Fast path: skip whitespace, peek at what's next. Most calls here see no comment
+		// (real CFML has 5-20 comments per file vs thousands of token boundaries), so 99% exit
+		// after this one call. Only '/' or '<' can start a comment ('//', '/*', '<!---').
+		int b = data.srcCode.skipSpaceReturnCurrent();
+		if (b == '/' || b == '<') commentsStrip(data, b);
 	}
 
 	/**
-	 * Liest einen Einzeiligen Kommentar ein. <br />
-	 * EBNF:<br />
-	 * <code>{?-"\n"} "\n";</code>
-	 * 
-	 * @return bool Wurde ein Kommentar entfernt?
-	 * @throws TemplateException
+	 * Slow path: an actual comment (or run of comments/whitespace) may start here.
+	 * The peeked byte {@code b} disambiguates '/' (single or multi-line CFML) vs
+	 * '<' (HTML-style CFML tag comment), so we skip the failed-try overhead the old
+	 * waterfall paid.
 	 */
-	private boolean comment(Data data) throws TemplateException {
-		if (singleLineComment(data.srcCode) || multiLineComment(data) || CFMLTransformer.comment(data.srcCode)) return true;
-		return false;
+	private void commentsStrip(Data data, int b) throws TemplateException {
+		SourceCode sc = data.srcCode;
+		while (true) {
+			boolean consumed = (b == '/' && (singleLineComment(sc) || multiLineComment(data)))
+					|| (b == '<' && sc.tagComment());
+			if (!consumed) return;
+			b = sc.skipSpaceReturnCurrent();
+			if (b != '/' && b != '<') return;
+		}
 	}
 
 	/**
 	 * Liest einen Mehrzeiligen Kommentar ein. <br />
 	 * EBNF:<br />
 	 * <code>?-"*<!-- -->/";</code>
-	 * 
+	 *
 	 * @return bool Wurde ein Kommentar entfernt?
 	 * @throws TemplateException
 	 */
@@ -2159,18 +2166,30 @@ public abstract class AbstrCFMLExprTransformer {
 			throw new TemplateException(cfml, "block comment is not closed");
 		}
 		if (isDocComment && !data.insideFunction) {
-			String comment = cfml.substring(pos - 2, cfml.getPos() - pos);
-			data.docComment = docCommentTransformer.transform(data.factory, comment);
+			// record start only — DocCommentTransformer scans for */ on materialize
+			data.docCommentStart = pos - 2;
 		}
 		cfml.annotateComment(commentStart, cfml.getPos());
 		return true;
 	}
 
 	/**
+	 * Lazy materialization of the pending doc-comment range recorded by {@link #multiLineComment}.
+	 * No-op if already materialized ({@code data.docComment != null}) or no pending range.
+	 * Consumers call this before reading {@code data.docComment}.
+	 */
+	protected void materializeDocComment(Data data) {
+		if (data.docComment != null) return;
+		if (data.docCommentStart < 0) return;
+		data.docComment = docCommentTransformer.transform(data.factory, data.srcCode, data.docCommentStart);
+		data.docCommentStart = -1;
+	}
+
+	/**
 	 * Liest einen Einzeiligen Kommentar ein. <br />
 	 * EBNF:<br />
 	 * <code>{?-"\n"} "\n";</code>
-	 * 
+	 *
 	 * @return bool Wurde ein Kommentar entfernt?
 	 */
 	private boolean singleLineComment(SourceCode cfml) {
