@@ -1015,24 +1015,11 @@ public class SourceCode {
 	 * @param pos Position an die der Zeiger gestellt werde soll.
 	 */
 	public void setPos(int pos) {
-		// Update current line cache when position changes
-		if (pos != this.pos) {
-			// If moving forward and staying on same line, no update needed
-			if (pos > this.pos && pos <= lines[currentLine - 1]) {
-				// Still on same line, no update needed
-			}
-			// Moving forward past current line
-			else if (pos > this.pos) {
-				// Scan forward to find new line
-				while (currentLine < lines.length && pos > lines[currentLine - 1]) {
-					currentLine++;
-				}
-			}
-			// Moving backward - binary search
-			else {
-				currentLine = getLine(pos);
-			}
-		}
+		// Trivial: currentLine is left stale as a "last known good" hint.
+		// getPosition() / getLine() reconcile lazily via linear scan from the hint in either
+		// direction — cheap for the common rollback/advance patterns where the parser stays
+		// within 1-3 lines. next() / previous() already skip currentLine maintenance, so this
+		// is symmetric with existing behavior.
 		this.pos = pos;
 	}
 
@@ -1072,9 +1059,10 @@ public class SourceCode {
 				currentLine = line;  // Update cache
 			}
 			else {
-				// Moved backward (rare) - binary search
-				line = getLine(pos);
-				currentLine = line;  // Update cache
+				// Moved backward — linear scan from stale hint
+				line = currentLine;
+				while (line > 1 && pos <= lines[line - 2]) line--;
+				currentLine = line;
 			}
 		}
 		else {
