@@ -901,6 +901,47 @@ public class SourceCode {
 	}
 
 	/**
+	 * True if the source contains {@code <name} or {@code </name} for any of the given tag names.
+	 * Used to decide whether a .cfc file needs wrapping in {@code <cfscript>} — script-syntax CFCs
+	 * have no tag markers so scanning replaces two full-file case-insensitive substring searches.
+	 * charClass run-length lets us skip identifier runs of the wrong length in one array load.
+	 * Tag names must be lowercase and composed entirely of var-chars.
+	 */
+	public boolean findTag(String... lowerTagNames) {
+		int n = lowerTagNames.length;
+		if (n == 0) return false;
+		int i = 0;
+		while (i < len) {
+			short cc = charClass[i];
+			if (cc > 0) {
+				int runLen = cc >> CC_RUN_SHIFT;
+				if (runLen == 0) { i++; continue; } // CC_QUOTE
+				// check preceded by `<` or `</`
+				boolean beforeOK = false;
+				if (i >= 1 && (lcText[i - 1] & 0xFF) == '<') beforeOK = true;
+				else if (i >= 2 && (lcText[i - 1] & 0xFF) == '/' && (lcText[i - 2] & 0xFF) == '<') beforeOK = true;
+				if (beforeOK) {
+					for (int t = 0; t < n; t++) {
+						String tag = lowerTagNames[t];
+						if (tag.length() != runLen) continue;
+						int y = 0;
+						while (y < runLen && (lcText[i + y] & 0xFF) == tag.charAt(y)) y++;
+						if (y == runLen) return true;
+					}
+				}
+				i += runLen;
+				continue;
+			}
+			if (cc < 0) {
+				i -= cc; // -cc = distance to next non-space
+				continue;
+			}
+			i++;
+		}
+		return false;
+	}
+
+	/**
 	 * Gibt eine Untermenge des CFMLString als CFMLString zurueck, ausgehend von start bis zum Ende des
 	 * CFMLString.
 	 * 
