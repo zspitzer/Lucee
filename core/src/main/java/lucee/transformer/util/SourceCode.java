@@ -1043,32 +1043,23 @@ public class SourceCode {
 	}
 
 	/**
-	 * Stellt den internen Zeiger an den Anfang der naechsten Zeile, gibt zurueck ob eine weitere Zeile
-	 * existiert oder ob es bereits die letzte Zeile war.
-	 * 
-	 * @return Existiert eine weitere Zeile.
+	 * Advance {@code pos} to the start of the next line. {@code lines[]} is an ascending
+	 * index of every newline position (the {@code \n} for {@code \r\n} pairs, or lone {@code \r}),
+	 * with {@code len} appended as sentinel. {@code currentLine} is a stale hint (kept fresh
+	 * by {@link #getPosition}); reconcile it in 0-3 iterations, then jump one array load past
+	 * this line's terminator. No scan through the line body — {@code \r\n} skipped in the same
+	 * jump because {@code lines[]} records the {@code \n} position for pairs.
+	 *
+	 * @return true if another line follows.
 	 */
 	public boolean nextLine() {
-		while (pos < len) {
-			int hop = charClass[pos] >> CC_RUN_SHIFT;
-			if (hop > 0) { pos += hop; continue; }
-			if (text[pos] == '\n' || text[pos] == '\r') break;
-			pos++;
-		}
-		if (!isValidIndex()) return false;
+		while (currentLine < lines.length && pos > lines[currentLine - 1]) currentLine++;
+		while (currentLine > 1 && pos <= lines[currentLine - 2]) currentLine--;
 
-		if (text[pos] == '\n') {
-			next();
-			return isValidIndex();
-		}
-		if (text[pos] == '\r') {
-			next();
-			if (isValidIndex() && text[pos] == '\n') {
-				next();
-			}
-			return isValidIndex();
-		}
-		return false;
+		if (currentLine >= lines.length) return false;
+		pos = lines[currentLine - 1] + 1;
+		currentLine++;
+		return isValidIndex();
 	}
 
 	/**
