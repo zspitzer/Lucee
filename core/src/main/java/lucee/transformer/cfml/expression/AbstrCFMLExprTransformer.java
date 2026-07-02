@@ -2114,33 +2114,12 @@ public abstract class AbstrCFMLExprTransformer {
 	 * Liest alle folgenden Komentare ein. <br />
 	 * EBNF:<br />
 	 * <code>{?-"\n"} "\n";</code>
-	 * 
+	 *
 	 * @param data
 	 * @throws TemplateException
 	 */
 	protected void comments(Data data) throws TemplateException {
-		// Fast path: skip whitespace, peek at what's next. Most calls here see no comment
-		// (real CFML has 5-20 comments per file vs thousands of token boundaries), so 99% exit
-		// after this one call. Only '/' or '<' can start a comment ('//', '/*', '<!---').
-		int b = data.srcCode.skipSpaceReturnCurrent();
-		if (b == '/' || b == '<') commentsStrip(data, b);
-	}
-
-	/**
-	 * Slow path: an actual comment (or run of comments/whitespace) may start here.
-	 * The peeked byte {@code b} disambiguates '/' (single or multi-line CFML) vs
-	 * '<' (HTML-style CFML tag comment), so we skip the failed-try overhead the old
-	 * waterfall paid.
-	 */
-	private void commentsStrip(Data data, int b) throws TemplateException {
-		SourceCode sc = data.srcCode;
-		while (true) {
-			boolean consumed = (b == '/' && (sc.singleLineComment() || sc.multiLineComment()))
-					|| (b == '<' && sc.tagComment());
-			if (!consumed) return;
-			b = sc.skipSpaceReturnCurrent();
-			if (b != '/' && b != '<') return;
-		}
+		data.srcCode.skipSpaceAndComments();
 	}
 
 	/**
