@@ -161,10 +161,17 @@ public final class CFMLTransformer {
 			try {
 				psc = new PageSourceCode(ps, charset, writeLog);
 				sc = psc;
-				// script mode: .cfs unconditionally, or .cfc without <cfcomponent>/<cfinterface> at the root.
-				// Direct-entry into the script transformer — no wrap allocation, no double SourceCode build.
+				// script mode: .cfs unconditionally, or .cfc without <cfcomponent>/<cfinterface>/<cfscript>
+				// at the root. Direct-entry into the script transformer — no wrap allocation, no double
+				// SourceCode build. cfscript is a tag marker too — mixed-mode CFCs (Dump.cfc / Comment.cfc /
+				// LuceeTestSuite.cfc pattern: <cfscript>\ncomponent { ... }) must stay in tag mode so the
+				// tag transformer can pick up the <cfscript> opener and hand off to the script transformer
+				// via the normal tag-body route.
+				// findTag arg order matters for early-exit inside the inner match loop: cfcomponent is by
+				// far the most common tag marker in .cfc files, cfscript comes next (mixed-mode CFCs),
+				// cfinterface is rare so keep it last.
 				sc.setScriptMode(Constants.isCFMLScriptExtension(ListUtil.last(ps.getRealpath(), '.'))
-						|| (isCFMLCompExt && !sc.findTag("cfcomponent", "cfinterface")));
+						|| (isCFMLCompExt && !sc.findTag("cfcomponent", "cfscript", "cfinterface")));
 				wrapped = sc.isScriptMode() && isCFMLCompExt;
 
 				p = transform(factory, config, sc, tlibs, flibs, ps.getResource().lastModified(), dotUpper, returnValue, ignoreScopes, hasWriteLog, hasUpper, hasCharset,
@@ -1208,7 +1215,8 @@ public final class CFMLTransformer {
 				}
 				catch (TemplateException ete) {
 					if (data.srcCode.getPos() == pos) {
-						lucee.aprint.o(ete);
+						// TODO exception based flow control debug!!!
+						// lucee.aprint.o(ete); 
 						expr = noExpression;
 					}
 					else throw ete;
