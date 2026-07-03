@@ -1262,9 +1262,13 @@ public final class CFMLTransformer {
 			return null;
 		}
 		cfml.forwardVarCharRun();
-		// slow path: ':' (XML namespace prefix) and '-' (hyphenated tag names) only
+		// slow path: ':' (XML namespace prefix) and '-' (hyphenated tag names) only.
+		// After forwardVarCharRun terminates, pos is guaranteed non-var-char, so one lcText[] read
+		// via getCurrentLower() replaces the two isCurrent(char) method calls per iteration and
+		// tightens the JIT profile (the ':' / '-' bimodal was tripping unstable_if/reinterpret).
 		while (cfml.isValidIndex()) {
-			if ((allowColon && cfml.isCurrent(':')) || cfml.isCurrent('-')) {
+			char c = cfml.getCurrentLower();
+			if (c == '-' || (allowColon && c == ':')) {
 				cfml.next();
 				cfml.forwardVarCharRun();
 			}
