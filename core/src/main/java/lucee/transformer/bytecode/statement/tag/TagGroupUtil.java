@@ -59,6 +59,7 @@ public final class TagGroupUtil {
 	public static final Method RANGE = new Method("range", Types.INT_VALUE, new Type[] { Types.INT_VALUE, Types.INT_VALUE });
 
 	public static final Type NUMBER_ITERATOR = Type.getType(NumberIterator.class);
+	public static final String NUMBER_ITERATOR_NAME = NUMBER_ITERATOR.getInternalName();
 
 	// NumberIterator load(double from, double to, double max)
 	public static final Method LOAD_MAX = new Method("loadMax", NUMBER_ITERATOR, new Type[] { Types.INT_VALUE, Types.INT_VALUE, Types.INT_VALUE });
@@ -108,14 +109,14 @@ public final class TagGroupUtil {
 		adapter.loadArg(0);
 		Expression val = tag.getAttribute("query").getValue();
 		val.writeOut(bc, Expression.MODE_REF);
-		if (val instanceof LitString) adapter.invokeVirtual(Types.PAGE_CONTEXT, TagLoop.GET_QUERY_STRING);
-		else adapter.invokeVirtual(Types.PAGE_CONTEXT, TagLoop.GET_QUERY_OBJ);
+		if (val instanceof LitString) bc.invokeVirtual(Types.PAGE_CONTEXT_NAME, TagLoop.GET_QUERY_STRING);
+		else bc.invokeVirtual(Types.PAGE_CONTEXT_NAME, TagLoop.GET_QUERY_OBJ);
 
 		adapter.storeLocal(tag.getQuery());
 
 		tag.setPID(adapter.newLocal(Types.INT_VALUE));
 		adapter.loadArg(0);
-		adapter.invokeVirtual(Types.PAGE_CONTEXT, TagLoop.GET_ID);
+		bc.invokeVirtual(Types.PAGE_CONTEXT_NAME, TagLoop.GET_ID);
 		adapter.storeLocal(tag.getPID());
 
 		// int startAt=query.getCurrentrow();
@@ -124,8 +125,8 @@ public final class TagGroupUtil {
 
 		adapter.loadLocal(tag.getPID());
 		// adapter.loadArg(0);
-		// adapter.invokeVirtual(Types.PAGE_CONTEXT, TagLoop.GET_ID);
-		adapter.invokeInterface(Types.QUERY, TagLoop.GET_CURRENTROW_1);
+		// bc.invokeVirtual(Types.PAGE_CONTEXT_NAME, TagLoop.GET_ID);
+		bc.invokeInterface(Types.QUERY_NAME, TagLoop.GET_CURRENTROW_1);
 
 		adapter.storeLocal(startAt);
 
@@ -133,7 +134,7 @@ public final class TagGroupUtil {
 		DecisionIntVisitor div = new DecisionIntVisitor();
 		div.visitBegin();
 		adapter.loadLocal(tag.getQuery());
-		adapter.invokeInterface(Types.QUERY, GET_RECORDCOUNT);
+		bc.invokeInterface(Types.QUERY_NAME, GET_RECORDCOUNT);
 		div.visitGT();
 		adapter.push(0);
 		div.visitEnd(bc);
@@ -149,7 +150,7 @@ public final class TagGroupUtil {
 			bc.getFactory().toExprInt(attrStartRow.getValue()).writeOut(bc, Expression.MODE_VALUE);
 			// adapter.visitInsn(Opcodes.D2I);
 			adapter.push(1);
-			adapter.invokeStatic(Types.NUMBER_RANGE, RANGE);
+			bc.invokeStatic(Types.NUMBER_RANGE_NAME, RANGE);
 			// adapter.visitInsn(Opcodes.D2I);
 		}
 		else {
@@ -161,21 +162,21 @@ public final class TagGroupUtil {
 
 		adapter.loadLocal(from);
 		adapter.loadLocal(tag.getQuery());
-		adapter.invokeInterface(Types.QUERY, GET_RECORDCOUNT);
+		bc.invokeInterface(Types.QUERY_NAME, GET_RECORDCOUNT);
 		// adapter.visitInsn(Opcodes.I2D);
 
 		Attribute attrMaxRow = tag.getAttribute("maxrows");
 		Attribute attrEndRow = tag.getAttribute("endrow");
 		if (attrMaxRow != null) {
 			bc.getFactory().toExprInt(attrMaxRow.getValue()).writeOut(bc, Expression.MODE_VALUE);
-			adapter.invokeStatic(NUMBER_ITERATOR, LOAD_MAX);
+			bc.invokeStatic(NUMBER_ITERATOR_NAME, LOAD_MAX);
 		}
 		else if (attrEndRow != null) {
 			bc.getFactory().toExprInt(attrEndRow.getValue()).writeOut(bc, Expression.MODE_VALUE);
-			adapter.invokeStatic(NUMBER_ITERATOR, LOAD_END);
+			bc.invokeStatic(NUMBER_ITERATOR_NAME, LOAD_END);
 		}
 		else {
-			adapter.invokeStatic(NUMBER_ITERATOR, LOAD_2);
+			bc.invokeStatic(NUMBER_ITERATOR_NAME, LOAD_2);
 		}
 		adapter.storeLocal(tag.getNumberIterator());
 
@@ -195,9 +196,9 @@ public final class TagGroupUtil {
 
 		// pc.us().addQuery(query);
 		adapter.loadArg(0);
-		adapter.invokeVirtual(Types.PAGE_CONTEXT, US);
+		bc.invokeVirtual(Types.PAGE_CONTEXT_NAME, US);
 		adapter.loadLocal(tag.getQuery());
-		adapter.invokeInterface(UNDEFINED, ADD_QUERY);
+		bc.invokeInterface(Types.UNDEFINED_NAME, ADD_QUERY);
 
 		// current
 		final int current = adapter.newLocal(Types.INT_VALUE);
@@ -218,18 +219,18 @@ public final class TagGroupUtil {
 
 				// adapter.loadLocal(tag.getPID());
 				adapter.loadArg(0);
-				adapter.invokeVirtual(Types.PAGE_CONTEXT, TagLoop.GET_ID);
-				adapter.invokeInterface(Types.QUERY, TagLoop.GOe);
+				bc.invokeVirtual(Types.PAGE_CONTEXT_NAME, TagLoop.GET_ID);
+				bc.invokeInterface(Types.QUERY_NAME, TagLoop.GOe);
 				adapter.pop();
 
 				// pc.us().removeQuery();
 				adapter.loadArg(0);
-				adapter.invokeVirtual(Types.PAGE_CONTEXT, US);
-				adapter.invokeInterface(UNDEFINED, REMOVE_QUERY);
+				bc.invokeVirtual(Types.PAGE_CONTEXT_NAME, US);
+				bc.invokeInterface(Types.UNDEFINED_NAME, REMOVE_QUERY);
 
 				// NumberIterator.release(ni);
 				adapter.loadLocal(tag.getNumberIterator());
-				adapter.invokeStatic(NUMBER_ITERATOR, REALEASE);
+				bc.invokeStatic(NUMBER_ITERATOR_NAME, REALEASE);
 			}
 		}, null);
 		tfv.visitTryBegin(bc);
@@ -242,19 +243,19 @@ public final class TagGroupUtil {
 		adapter.loadLocal(current);
 		adapter.push(1);
 		adapter.visitInsn(Opcodes.IADD);
-		adapter.invokeVirtual(NUMBER_ITERATOR, IS_VALID_1);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, IS_VALID_1);
 
 		wv.visitAfterExpressionBeforeBody(bc);
 
 		// if(!query.go(ni.current()))break;
 		adapter.loadLocal(tag.getQuery());
 		adapter.loadLocal(tag.getNumberIterator());
-		adapter.invokeVirtual(NUMBER_ITERATOR, CURRENT);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, CURRENT);
 
 		// adapter.loadLocal(tag.getPID());
 		adapter.loadArg(0);
-		adapter.invokeVirtual(Types.PAGE_CONTEXT, GET_ID);
-		adapter.invokeInterface(Types.QUERY, TagLoop.GOe);
+		bc.invokeVirtual(Types.PAGE_CONTEXT_NAME, GET_ID);
+		bc.invokeInterface(Types.QUERY_NAME, TagLoop.GOe);
 
 		NotVisitor.visitNot(bc);
 		Label _if = new Label();
@@ -274,12 +275,12 @@ public final class TagGroupUtil {
 			adapter.loadLocal(tag.getQuery());
 			adapter.loadLocal(tag.getGroup());
 			adapter.loadLocal(groupCaseSensitive);
-			adapter.invokeStatic(NUMBER_ITERATOR, LOAD_5);
+			bc.invokeStatic(NUMBER_ITERATOR_NAME, LOAD_5);
 			adapter.storeLocal(tag.getNumberIterator());
 
 			// current=oldNi.current();
 			adapter.loadLocal(oldNi);
-			adapter.invokeVirtual(NUMBER_ITERATOR, CURRENT);
+			bc.invokeVirtual(NUMBER_ITERATOR_NAME, CURRENT);
 			adapter.storeLocal(current);
 
 			tag.getBody().writeOut(bc);
@@ -288,7 +289,7 @@ public final class TagGroupUtil {
 
 			// NumberIterator.release(ni);
 			adapter.loadLocal(tag.getNumberIterator());
-			adapter.invokeStatic(NUMBER_ITERATOR, REALEASE);
+			bc.invokeStatic(NUMBER_ITERATOR_NAME, REALEASE);
 
 			// numberIterator=oldNi;
 			adapter.loadLocal(oldNi);
@@ -297,7 +298,7 @@ public final class TagGroupUtil {
 		else {
 			// current=ni.current();
 			adapter.loadLocal(tag.getNumberIterator());
-			adapter.invokeVirtual(NUMBER_ITERATOR, CURRENT);
+			bc.invokeVirtual(NUMBER_ITERATOR_NAME, CURRENT);
 			adapter.storeLocal(current);
 
 			tag.getBody().writeOut(bc);
@@ -306,7 +307,7 @@ public final class TagGroupUtil {
 		// ni.setCurrent(current+1);
 		/*
 		 * adapter.loadLocal(tag.getNumberIterator()); adapter.loadLocal(current); adapter.push(1);
-		 * adapter.visitInsn(Opcodes.IADD); adapter.invokeVirtual(NUMBER_ITERATOR, SET_CURRENT);
+		 * adapter.visitInsn(Opcodes.IADD); bc.invokeVirtual(NUMBER_ITERATOR_NAME, SET_CURRENT);
 		 */
 
 		wv.visitAfterBody(bc, tag.getEnd());
@@ -345,7 +346,7 @@ public final class TagGroupUtil {
 		// current
 		int current = adapter.newLocal(Types.INT_VALUE);
 		adapter.loadLocal(tag.getNumberIterator());
-		adapter.invokeVirtual(NUMBER_ITERATOR, CURRENT);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, CURRENT);
 		adapter.storeLocal(current);
 
 		// current
@@ -365,18 +366,18 @@ public final class TagGroupUtil {
 		adapter.loadLocal(icurrent);
 		adapter.push(1);
 		adapter.visitInsn(Opcodes.IADD);
-		adapter.invokeVirtual(NUMBER_ITERATOR, IS_VALID_1);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, IS_VALID_1);
 
 		wv.visitAfterExpressionBeforeBody(bc);
 
 		// if(!query.go(ni.current()))break;
 		adapter.loadLocal(tag.getQuery());
 		adapter.loadLocal(tag.getNumberIterator());
-		adapter.invokeVirtual(NUMBER_ITERATOR, CURRENT);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, CURRENT);
 
 		adapter.loadArg(0);
-		adapter.invokeVirtual(Types.PAGE_CONTEXT, GET_ID);
-		adapter.invokeInterface(Types.QUERY, TagLoop.GOe);
+		bc.invokeVirtual(Types.PAGE_CONTEXT_NAME, GET_ID);
+		bc.invokeInterface(Types.QUERY_NAME, TagLoop.GOe);
 
 		NotVisitor.visitNot(bc);
 		Label _if = new Label();
@@ -396,12 +397,12 @@ public final class TagGroupUtil {
 		adapter.loadLocal(tag.getQuery());
 		adapter.loadLocal(tag.getGroup());
 		adapter.loadLocal(groupCaseSensitive);
-		adapter.invokeStatic(NUMBER_ITERATOR, LOAD_5);
+		bc.invokeStatic(NUMBER_ITERATOR_NAME, LOAD_5);
 		adapter.storeLocal(tag.getNumberIterator());
 
 		// current=oldNi.current();
 		adapter.loadLocal(oldNi);
-		adapter.invokeVirtual(NUMBER_ITERATOR, CURRENT);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, CURRENT);
 		adapter.storeLocal(icurrent);
 
 		tag.getBody().writeOut(bc);
@@ -410,7 +411,7 @@ public final class TagGroupUtil {
 
 		// NumberIterator.release(ni);
 		adapter.loadLocal(tag.getNumberIterator());
-		adapter.invokeStatic(NUMBER_ITERATOR, REALEASE);
+		bc.invokeStatic(NUMBER_ITERATOR_NAME, REALEASE);
 
 		// numberIterator=oldNi;
 		adapter.loadLocal(oldNi);
@@ -419,7 +420,7 @@ public final class TagGroupUtil {
 		// ni.setCurrent(current+1);
 		/*
 		 * adapter.loadLocal(tag.getNumberIterator()); adapter.loadLocal(icurrent); adapter.push(1);
-		 * adapter.visitInsn(Opcodes.IADD); adapter.invokeVirtual(NUMBER_ITERATOR, SET_CURRENT);
+		 * adapter.visitInsn(Opcodes.IADD); bc.invokeVirtual(NUMBER_ITERATOR_NAME, SET_CURRENT);
 		 */
 		wv.visitAfterBody(bc, tag.getEnd());
 
@@ -428,7 +429,7 @@ public final class TagGroupUtil {
 
 		// ni.first();
 		adapter.loadLocal(tag.getNumberIterator());
-		adapter.invokeVirtual(NUMBER_ITERATOR, FIRST);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, FIRST);
 		adapter.pop();
 
 		if (isOutput) pbv.visitEnd(bc);
@@ -444,7 +445,7 @@ public final class TagGroupUtil {
 
 		int current = adapter.newLocal(Types.INT_VALUE);
 		adapter.loadLocal(tag.getNumberIterator());
-		adapter.invokeVirtual(NUMBER_ITERATOR, CURRENT);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, CURRENT);
 		adapter.storeLocal(current);
 
 		// inner current
@@ -464,7 +465,7 @@ public final class TagGroupUtil {
 		adapter.loadLocal(icurrent);
 		adapter.push(1);
 		adapter.visitInsn(Opcodes.IADD);
-		adapter.invokeVirtual(NUMBER_ITERATOR, IS_VALID_1);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, IS_VALID_1);
 
 		wv.visitAfterExpressionBeforeBody(bc);
 
@@ -472,14 +473,14 @@ public final class TagGroupUtil {
 
 		adapter.loadLocal(tag.getQuery());
 		adapter.loadLocal(tag.getNumberIterator());
-		adapter.invokeVirtual(NUMBER_ITERATOR, CURRENT);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, CURRENT);
 
 		adapter.loadArg(0);
-		adapter.invokeVirtual(Types.PAGE_CONTEXT, GET_ID);
-		adapter.invokeInterface(Types.QUERY, TagLoop.GOe);
+		bc.invokeVirtual(Types.PAGE_CONTEXT_NAME, GET_ID);
+		bc.invokeInterface(Types.QUERY_NAME, TagLoop.GOe);
 
 		/*
-		 * OLD adapter.invokeInterface(Types.QUERY, TagLoop.GO_1);
+		 * OLD bc.invokeInterface(Types.QUERY_NAME, TagLoop.GO_1);
 		 */
 		NotVisitor.visitNot(bc);
 		Label _if = new Label();
@@ -489,7 +490,7 @@ public final class TagGroupUtil {
 
 		// current=ni.current();
 		adapter.loadLocal(tag.getNumberIterator());
-		adapter.invokeVirtual(NUMBER_ITERATOR, CURRENT);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, CURRENT);
 		adapter.storeLocal(icurrent);
 
 		tag.getBody().writeOut(bc);
@@ -497,7 +498,7 @@ public final class TagGroupUtil {
 		// ni.setCurrent(current+1);
 		/*
 		 * adapter.loadLocal(tag.getNumberIterator()); adapter.loadLocal(icurrent); adapter.push(1);
-		 * adapter.visitInsn(Opcodes.IADD); adapter.invokeVirtual(NUMBER_ITERATOR, SET_CURRENT);
+		 * adapter.visitInsn(Opcodes.IADD); bc.invokeVirtual(NUMBER_ITERATOR_NAME, SET_CURRENT);
 		 */
 
 		wv.visitAfterBody(bc, tag.getEnd());
@@ -506,7 +507,7 @@ public final class TagGroupUtil {
 
 		// ni.first();
 		adapter.loadLocal(tag.getNumberIterator());
-		adapter.invokeVirtual(NUMBER_ITERATOR, FIRST);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, FIRST);
 		adapter.pop();
 	}
 
@@ -522,7 +523,7 @@ public final class TagGroupUtil {
 		// int currentOuter=ni.current();
 		int current = adapter.newLocal(Types.INT_VALUE);
 		adapter.loadLocal(tag.getNumberIterator());
-		adapter.invokeVirtual(NUMBER_ITERATOR, CURRENT);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, CURRENT);
 		adapter.storeLocal(current);
 
 		// current
@@ -542,19 +543,19 @@ public final class TagGroupUtil {
 		adapter.loadLocal(icurrent);
 		adapter.push(1);
 		adapter.visitInsn(Opcodes.IADD);
-		adapter.invokeVirtual(NUMBER_ITERATOR, IS_VALID_1);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, IS_VALID_1);
 
 		wv.visitAfterExpressionBeforeBody(bc);
 
 		// if(!query.go(ni.current()))break;
 		adapter.loadLocal(tag.getQuery());
 		adapter.loadLocal(tag.getNumberIterator());
-		adapter.invokeVirtual(NUMBER_ITERATOR, CURRENT);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, CURRENT);
 
 		// adapter.loadLocal(tag.getPID());
 		adapter.loadArg(0);
-		adapter.invokeVirtual(Types.PAGE_CONTEXT, GET_ID);
-		adapter.invokeInterface(Types.QUERY, TagLoop.GOe);
+		bc.invokeVirtual(Types.PAGE_CONTEXT_NAME, GET_ID);
+		bc.invokeInterface(Types.QUERY_NAME, TagLoop.GOe);
 
 		NotVisitor.visitNot(bc);
 		Label _if = new Label();
@@ -564,7 +565,7 @@ public final class TagGroupUtil {
 
 		// current=ni.current();
 		adapter.loadLocal(tag.getNumberIterator());
-		adapter.invokeVirtual(NUMBER_ITERATOR, CURRENT);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, CURRENT);
 		adapter.storeLocal(icurrent);
 
 		tag.getBody().writeOut(bc);
@@ -572,7 +573,7 @@ public final class TagGroupUtil {
 		// ni.setCurrent(current+1);
 		/*
 		 * adapter.loadLocal(tag.getNumberIterator()); adapter.loadLocal(icurrent); adapter.push(1);
-		 * adapter.visitInsn(Opcodes.IADD); adapter.invokeVirtual(NUMBER_ITERATOR, SET_CURRENT);
+		 * adapter.visitInsn(Opcodes.IADD); bc.invokeVirtual(NUMBER_ITERATOR_NAME, SET_CURRENT);
 		 */
 
 		wv.visitAfterBody(bc, tag.getEnd());
@@ -580,15 +581,15 @@ public final class TagGroupUtil {
 		// ni.setCurrent(currentOuter);
 		adapter.loadLocal(tag.getNumberIterator());
 		adapter.loadLocal(current);
-		adapter.invokeVirtual(NUMBER_ITERATOR, SET_CURRENT);
+		bc.invokeVirtual(NUMBER_ITERATOR_NAME, SET_CURRENT);
 
 		adapter.loadLocal(tag.getQuery());
 		adapter.loadLocal(current);
 
 		// adapter.loadLocal(tag.getPID());
 		adapter.loadArg(0);
-		adapter.invokeVirtual(Types.PAGE_CONTEXT, GET_ID);
-		adapter.invokeInterface(Types.QUERY, TagLoop.GOe);
+		bc.invokeVirtual(Types.PAGE_CONTEXT_NAME, GET_ID);
+		bc.invokeInterface(Types.QUERY_NAME, TagLoop.GOe);
 		adapter.pop();
 		// adapter.pop();
 	}

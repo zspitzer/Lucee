@@ -282,6 +282,88 @@ public final class Types {
 	public static final Type STATIC_STRUCT = Type.getType(StaticStruct.class);
 	public static final Type THREAD_LOCAL_PAGE_CONTEXT = Type.getType(ThreadLocalPageContext.class);
 
+	// ------------------------------------------------------------------------
+	// Cached internal-name + descriptor Strings for hot object/array Types.
+	//
+	// Rationale: every call to Type.getInternalName() / Type.getDescriptor()
+	// runs valueBuffer.substring(...) which allocates a fresh String -- 250+
+	// TLAB events per compile-benchmark run. The same String content is
+	// produced every time (Type instances are immutable), so precomputing
+	// once at class-load time is free at runtime.
+	//
+	// Bonus: passing the *same* String instance to ASM's SymbolTable makes
+	// String.equals hit the ==-fastpath in hash-chain walks (addConstantUtf8,
+	// addConstantMemberReference, addType). Cascades speedup into ~6.8% of
+	// exec samples on the ASM side.
+	//
+	// Only add entries for object/array Types -- primitives + VOID don't have
+	// internal names (getInternalName() throws for them).
+	// ------------------------------------------------------------------------
+	public static final String PAGE_CONTEXT_NAME      = PAGE_CONTEXT.getInternalName();
+	public static final String PAGE_CONTEXT_DESC      = PAGE_CONTEXT.getDescriptor();
+	public static final String PAGE_CONTEXT_IMPL_NAME = PAGE_CONTEXT_IMPL.getInternalName();
+	public static final String PAGE_CONTEXT_UTIL_NAME = PAGE_CONTEXT_UTIL.getInternalName();
+	public static final String ABORT_NAME             = ABORT.getInternalName();
+	public static final String DYNAMIC_ATTRIBUTES_NAME = DYNAMIC_ATTRIBUTES.getInternalName();
+	public static final String BODY_TAG_NAME          = BODY_TAG.getInternalName();
+	public static final String TAG_NAME               = TAG.getInternalName();
+	public static final String QUERY_NAME             = QUERY.getInternalName();
+	public static final String QUERY_COLUMN_NAME      = QUERY_COLUMN.getInternalName();
+	public static final String NUMBER_RANGE_NAME      = NUMBER_RANGE.getInternalName();
+	public static final String UNDEFINED_NAME         = UNDEFINED.getInternalName();
+	public static final String LIST_UTIL_NAME         = LIST_UTIL.getInternalName();
+	public static final String VARIABLE_INTERPRETER_NAME = VARIABLE_INTERPRETER.getInternalName();
+	public static final String VARIABLE_REFERENCE_NAME = VARIABLE_REFERENCE.getInternalName();
+	public static final String NULL_SUPPORT_HELPER_NAME = NULL_SUPPORT_HELPER.getInternalName();
+	public static final String ITERATOR_NAME          = ITERATOR.getInternalName();
+	public static final String ITERATORABLE_NAME      = ITERATORABLE.getInternalName();
+	public static final String STRUCT_IMPL_NAME       = STRUCT_IMPL.getInternalName();
+	public static final String ARRAY_IMPL_NAME        = ARRAY_IMPL.getInternalName();
+	public static final String COLLECTION_NAME        = COLLECTION.getInternalName();
+	public static final String FUNCTION_VALUE_IMPL_NAME = FUNCTION_VALUE_IMPL.getInternalName();
+	public static final String INTERFACE_IMPL_NAME    = INTERFACE_IMPL.getInternalName();
+	public static final String INTERFACE_PAGE_IMPL_NAME = INTERFACE_PAGE_IMPL.getInternalName();
+	public static final String DATE_TIME_NAME         = DATE_TIME.getInternalName();
+	public static final String EXCEPTION_HANDLER_NAME = EXCEPTION_HANDLER.getInternalName();
+	public static final String UDF_PROPERTIES_IMPL_NAME = UDF_PROPERTIES_IMPL.getInternalName();
+	public static final String UDF_PROPERTIES_NAME    = UDF_PROPERTIES.getInternalName();
+	public static final String UDF_NAME               = UDF.getInternalName();
+	public static final String CLOSURE_NAME           = CLOSURE.getInternalName();
+	public static final String LAMBDA_NAME            = LAMBDA.getInternalName();
+	public static final String FUNCTION_VALUE_NAME    = FUNCTION_VALUE.getInternalName();
+	public static final String REFERENCE_NAME         = REFERENCE.getInternalName();
+	public static final String CASTER_NAME           = CASTER.getInternalName();
+	public static final String STRING_UTIL_NAME      = STRING_UTIL.getInternalName();
+	public static final String COMPONENT_IMPL_NAME   = COMPONENT_IMPL.getInternalName();
+	public static final String COMPONENT_IMPL_DESC   = COMPONENT_IMPL.getDescriptor();
+	public static final String COMPONENT_PAGE_IMPL_NAME = COMPONENT_PAGE_IMPL.getInternalName();
+	public static final String KEY_CONSTANTS_NAME    = KEY_CONSTANTS.getInternalName();
+	public static final String COLLECTION_KEY_NAME   = COLLECTION_KEY.getInternalName();
+	public static final String COLLECTION_KEY_DESC   = COLLECTION_KEY.getDescriptor();
+	public static final String STRING_NAME           = STRING.getInternalName();
+	public static final String STRING_DESC           = STRING.getDescriptor();
+	public static final String OBJECT_NAME           = OBJECT.getInternalName();
+	public static final String THROWABLE_NAME        = THROWABLE.getInternalName();
+	public static final String PAGE_EXCEPTION_NAME   = PAGE_EXCEPTION.getInternalName();
+	public static final String OP_UTIL_NAME          = OP_UTIL.getInternalName();
+	public static final String UDF_IMPL_NAME         = UDF_IMPL.getInternalName();
+	public static final String BIF_NAME              = BIF.getInternalName();
+	public static final String BIF_DESC              = BIF.getDescriptor();
+	public static final String COMPONENT_NAME        = COMPONENT.getInternalName();
+	public static final String COMPONENT_DESC        = COMPONENT.getDescriptor();
+	public static final String VARIABLES_NAME        = VARIABLES.getInternalName();
+	public static final String ARRAY_NAME            = ARRAY.getInternalName();
+	public static final String STRUCT_NAME           = STRUCT.getInternalName();
+	public static final String TAG_UTIL_NAME         = TAG_UTIL.getInternalName();
+	public static final String CI_PAGE_NAME          = CI_PAGE.getInternalName();
+	public static final String PAGE_NAME             = PAGE.getInternalName();
+	public static final String PAGE_SOURCE_NAME      = PAGE_SOURCE.getInternalName();
+	public static final String CI_PAGE_ARRAY_DESC    = CI_PAGE_ARRAY.getDescriptor();
+	public static final String STATIC_STRUCT_NAME    = STATIC_STRUCT.getInternalName();
+	public static final String STATIC_STRUCT_DESC    = STATIC_STRUCT.getDescriptor();
+	public static final String STRING_ARRAY_DESC     = STRING_ARRAY.getDescriptor();
+	public static final String IMPORT_DEFINITIONS_ARRAY_DESC = IMPORT_DEFINITIONS_ARRAY.getDescriptor();
+
 	/**
 	 * translate sString classname to a real type
 	 * 

@@ -55,7 +55,7 @@ public final class FunctionImpl extends Function {
 		// pc.variablesScope().set(<name>,udf);
 		else {
 			adapter.loadArg(0);
-			adapter.invokeVirtual(Types.PAGE_CONTEXT, VARIABLE_SCOPE);
+			bc.invokeVirtual(Types.PAGE_CONTEXT_NAME, VARIABLE_SCOPE);
 		}
 
 		bc.getFactory().registerKey(bc, name, true);
@@ -63,43 +63,43 @@ public final class FunctionImpl extends Function {
 			if (this.jf != null) {
 				bc.registerJavaFunction(jf);
 				adapter.push(jf.getClassName());
-				adapter.invokeVirtual(Types.COMPONENT_IMPL, REG_JAVA_FUNCTION);
+				bc.invokeVirtual(Types.COMPONENT_IMPL_NAME, REG_JAVA_FUNCTION);
 			}
 			else {
 				loadUDFProperties(bc, index, TYPE_UDF);
 				adapter.loadArg(0);
-				adapter.invokeVirtual(Types.COMPONENT_IMPL, "staticConstructor".equals(bc.getMethod().getName()) ? REG_STATIC_UDF_KEY3 : REG_UDF_KEY3);
+				bc.invokeVirtual(Types.COMPONENT_IMPL_NAME, "staticConstructor".equals(bc.getMethod().getName()) ? REG_STATIC_UDF_KEY3 : REG_UDF_KEY3);
 			}
 		}
 		else if (pageType == PAGE_TYPE_INTERFACE) {
 			if (this.jf != null) {
 				bc.registerJavaFunction(jf);
 				adapter.push(jf.getClassName());
-				adapter.invokeVirtual(Types.INTERFACE_IMPL, REG_JAVA_FUNCTION);
+				bc.invokeVirtual(Types.INTERFACE_IMPL_NAME, REG_JAVA_FUNCTION);
 			}
 			else {
 				loadUDFProperties(bc, index, TYPE_UDF);
-				adapter.invokeVirtual(Types.INTERFACE_IMPL, "staticConstructor".equals(bc.getMethod().getName()) ? REG_STATIC_UDF_KEY2 : REG_UDF_KEY2);
+				bc.invokeVirtual(Types.INTERFACE_IMPL_NAME, "staticConstructor".equals(bc.getMethod().getName()) ? REG_STATIC_UDF_KEY2 : REG_UDF_KEY2);
 			}
 		}
 		else {
 			if (this.jf != null) {
 				bc.registerJavaFunction(jf);
 				adapter.loadArg(0);
-				adapter.checkCast(Types.PAGE_CONTEXT_IMPL);
+				bc.checkCast(Types.PAGE_CONTEXT_IMPL_NAME);
 				adapter.visitVarInsn(ALOAD, 0);
 				adapter.push(jf.getClassName());
-				adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, USE_JAVA_FUNCTION);
+				bc.invokeVirtual(Types.PAGE_CONTEXT_IMPL_NAME, USE_JAVA_FUNCTION);
 			}
 			else {
-				adapter.newInstance(Types.UDF_IMPL);
+				bc.newInstance(Types.UDF_IMPL_NAME);
 				adapter.dup();
 				adapter.loadArg(0);
 				loadUDFProperties(bc, index, TYPE_UDF);
-				adapter.invokeConstructor(Types.UDF_IMPL, INIT_UDF_IMPL_PROP2);
+				bc.invokeConstructor(Types.UDF_IMPL_NAME, INIT_UDF_IMPL_PROP2);
 			}
 			// loadUDF(bc, index);
-			adapter.invokeInterface(Types.VARIABLES, SET_KEY);
+			bc.invokeInterface(Types.VARIABLES_NAME, SET_KEY);
 			adapter.pop();
 		}
 

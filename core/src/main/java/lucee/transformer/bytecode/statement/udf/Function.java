@@ -98,6 +98,8 @@ public abstract class Function extends StatementBaseNoFinal implements Opcodes, 
 	private static final Type FUNCTION_ARGUMENT = Type.getType(FunctionArgument.class);
 	private static final Type FUNCTION_ARGUMENT_IMPL = Type.getType(FunctionArgumentImpl.class);
 	private static final Type FUNCTION_ARGUMENT_LIGHT = Type.getType(FuncArgLite.class);
+	private static final String FUNCTION_ARGUMENT_IMPL_NAME = FUNCTION_ARGUMENT_IMPL.getInternalName();
+	private static final String FUNCTION_ARGUMENT_LIGHT_NAME = FUNCTION_ARGUMENT_LIGHT.getInternalName();
 	private static final Type FUNCTION_ARGUMENT_ARRAY = Type.getType(FunctionArgument[].class);
 
 	protected static final Method INIT_UDF_IMPL_PROP1 = new Method("<init>", Types.VOID, new Type[] { Types.UDF_PROPERTIES });
@@ -254,7 +256,7 @@ public abstract class Function extends StatementBaseNoFinal implements Opcodes, 
 	public final void createUDFProperties(BytecodeContext bc, int index, int type) throws TransformerException {
 
 		GeneratorAdapter adapter = bc.getAdapter();
-		adapter.newInstance(Types.UDF_PROPERTIES_IMPL);
+		bc.newInstance(Types.UDF_PROPERTIES_IMPL_NAME);
 		adapter.dup();
 
 		// Page
@@ -263,7 +265,7 @@ public abstract class Function extends StatementBaseNoFinal implements Opcodes, 
 		// PageSource
 		if (type != TYPE_UDF) {
 			adapter.loadThis();
-			adapter.invokeVirtual(Types.PAGE, GET_PAGESOURCE);
+			bc.invokeVirtual(Types.PAGE_NAME, GET_PAGESOURCE);
 		}
 		else adapter.visitVarInsn(ALOAD, 1);
 
@@ -304,7 +306,7 @@ public abstract class Function extends StatementBaseNoFinal implements Opcodes, 
 		if (light && modifier != Component.MODIFIER_NONE) light = false;
 		if (light && PageImpl.hasMetaDataStruct(metadata, null)) light = false;
 		if (light) {
-			adapter.invokeConstructor(Types.UDF_PROPERTIES_IMPL, INIT_UDF_PROPERTIES_SHORTTYPE_LIGHT);
+			bc.invokeConstructor(Types.UDF_PROPERTIES_IMPL_NAME, INIT_UDF_PROPERTIES_SHORTTYPE_LIGHT);
 			return;
 		}
 
@@ -346,7 +348,7 @@ public abstract class Function extends StatementBaseNoFinal implements Opcodes, 
 		// meta
 		PageImpl.createMetaDataStruct(bc, metadata, null);
 
-		adapter.invokeConstructor(Types.UDF_PROPERTIES_IMPL, sType == -1 ? INIT_UDF_PROPERTIES_STRTYPE : INIT_UDF_PROPERTIES_SHORTTYPE);
+		bc.invokeConstructor(Types.UDF_PROPERTIES_IMPL_NAME, sType == -1 ? INIT_UDF_PROPERTIES_STRTYPE : INIT_UDF_PROPERTIES_SHORTTYPE);
 
 	}
 
@@ -356,10 +358,10 @@ public abstract class Function extends StatementBaseNoFinal implements Opcodes, 
 			GeneratorAdapter adapter = bc.getAdapter();
 			bc.registerJavaFunction(jf);
 			adapter.loadArg(0);
-			adapter.checkCast(Types.PAGE_CONTEXT_IMPL);
+			bc.checkCast(Types.PAGE_CONTEXT_IMPL_NAME);
 			adapter.visitVarInsn(ALOAD, 0);
 			adapter.push(jf.getClassName());
-			adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, USE_JAVA_FUNCTION);
+			bc.invokeVirtual(Types.PAGE_CONTEXT_IMPL_NAME, USE_JAVA_FUNCTION);
 		}
 		else {
 			// new UDF(...)
@@ -452,7 +454,7 @@ public abstract class Function extends StatementBaseNoFinal implements Opcodes, 
 			ga.push(i);
 
 			// new FunctionArgument(...)
-			ga.newInstance(canHaveKey && functionIndex < INIT_FAI_KEY_LIGHT.length ? FUNCTION_ARGUMENT_LIGHT : FUNCTION_ARGUMENT_IMPL);
+			bc.newInstance(canHaveKey && functionIndex < INIT_FAI_KEY_LIGHT.length ? FUNCTION_ARGUMENT_LIGHT_NAME : FUNCTION_ARGUMENT_IMPL_NAME);
 			ga.dup();
 			// name
 			bc.getFactory().registerKey(bc, arg.getName(), false);
@@ -475,8 +477,8 @@ public abstract class Function extends StatementBaseNoFinal implements Opcodes, 
 			// meta
 			if (functionIndex == INIT_FAI_KEY.length - 1) PageImpl.createMetaDataStruct(bc, _meta, null);
 
-			if (functionIndex < INIT_FAI_KEY_LIGHT.length) ga.invokeConstructor(FUNCTION_ARGUMENT_LIGHT, INIT_FAI_KEY[functionIndex]);
-			else ga.invokeConstructor(FUNCTION_ARGUMENT_IMPL, INIT_FAI_KEY[functionIndex]);
+			if (functionIndex < INIT_FAI_KEY_LIGHT.length) bc.invokeConstructor(FUNCTION_ARGUMENT_LIGHT_NAME, INIT_FAI_KEY[functionIndex]);
+			else bc.invokeConstructor(FUNCTION_ARGUMENT_IMPL_NAME, INIT_FAI_KEY[functionIndex]);
 
 			ga.visitInsn(Opcodes.AASTORE);
 		}

@@ -63,6 +63,7 @@ public final class TagHelper {
 	private static final int TYPE_MVN = 4;
 
 	private static final Type MISSING_ATTRIBUTE = Type.getType(MissingAttribute.class);
+	private static final String MISSING_ATTRIBUTE_NAME = MISSING_ATTRIBUTE.getInternalName();
 	private static final Type MISSING_ATTRIBUTE_ARRAY = Type.getType(MissingAttribute[].class);
 	private static final Type BODY_TAG = Type.getType(BodyTag.class);
 	private static final Type TAG = Type.getType(jakarta.servlet.jsp.tagext.Tag.class);/* JAVJAK */
@@ -186,7 +187,7 @@ public final class TagHelper {
 		// tag=pc.use(String tagClassName,String tagBundleName, String tagBundleVersion, String fullname,int
 		// attrType) throws PageException {
 		adapter.loadArg(0);
-		adapter.checkCast(Types.PAGE_CONTEXT_IMPL);
+		bc.checkCast(Types.PAGE_CONTEXT_IMPL_NAME);
 		adapter.push(cd.getClassName());
 		// has bundle info/version
 		if (type == TYPE_OSGI) {
@@ -203,9 +204,9 @@ public final class TagHelper {
 		adapter.push(tlt.getAttributeType());
 		adapter.push((bc.getPageSource() == null ? "<memory>" : bc.getPageSource().getDisplayPath()) + ":" + ((tag.getStart() == null) ? 0 : tag.getStart().line));
 
-		if (type == TYPE_OSGI) adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, USE_OSGI);
-		else if (type == TYPE_MVN) adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, USE_MVN);
-		else adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, USE_REG);
+		if (type == TYPE_OSGI) bc.invokeVirtual(Types.PAGE_CONTEXT_IMPL_NAME, USE_OSGI);
+		else if (type == TYPE_MVN) bc.invokeVirtual(Types.PAGE_CONTEXT_IMPL_NAME, USE_MVN);
+		else bc.invokeVirtual(Types.PAGE_CONTEXT_IMPL_NAME, USE_REG);
 
 		if (currType != TAG) adapter.checkCast(currType);
 		adapter.storeLocal(currLocal);
@@ -214,23 +215,23 @@ public final class TagHelper {
 			@Override
 			public void _writeOut(BytecodeContext bc) {
 				adapter.loadArg(0);
-				adapter.checkCast(Types.PAGE_CONTEXT_IMPL);
+				bc.checkCast(Types.PAGE_CONTEXT_IMPL_NAME);
 				adapter.loadLocal(currLocal);
 				// OSGi
 				if (type == TYPE_OSGI) {
 					adapter.push(cd.getName());
 					if (cd.getVersion() != null) adapter.push(cd.getVersionAsString());
 					else ASMConstants.NULL(adapter);
-					adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, RE_USE_OSGI);
+					bc.invokeVirtual(Types.PAGE_CONTEXT_IMPL_NAME, RE_USE_OSGI);
 				}
 				// Maven
 				else if (type == TYPE_MVN) {
 					adapter.push(((ClassDefinitionImpl) cd).getMavenRaw());
-					adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, RE_USE_MVN);
+					bc.invokeVirtual(Types.PAGE_CONTEXT_IMPL_NAME, RE_USE_MVN);
 				}
 				// Regular
 				else {
-					adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, RE_USE_REG);
+					bc.invokeVirtual(Types.PAGE_CONTEXT_IMPL_NAME, RE_USE_REG);
 				}
 			}
 		}, null);
@@ -284,10 +285,10 @@ public final class TagHelper {
 						av.visitBeginItem(adapter, count++);
 						bc.getFactory().registerKey(bc, bc.getFactory().createLitString(miss.getName()), false);
 						adapter.push(miss.getType());
-						if (ArrayUtil.isEmpty(miss.getAlias())) adapter.invokeStatic(MISSING_ATTRIBUTE, NEW_INSTANCE_MAX2);
+						if (ArrayUtil.isEmpty(miss.getAlias())) bc.invokeStatic(MISSING_ATTRIBUTE_NAME, NEW_INSTANCE_MAX2);
 						else {
 							new LiteralStringArray(bc.getFactory(), miss.getAlias()).writeOut(bc, Expression.MODE_REF);
-							adapter.invokeStatic(MISSING_ATTRIBUTE, NEW_INSTANCE_MAX3);
+							bc.invokeStatic(MISSING_ATTRIBUTE_NAME, NEW_INSTANCE_MAX3);
 						}
 						av.visitEndItem(bc.getAdapter());
 					}
@@ -300,7 +301,7 @@ public final class TagHelper {
 				attrColl.getValue().writeOut(bc, Expression.MODE_REF);
 
 				adapter.push(attrType);
-				adapter.invokeStatic(TAG_UTIL, SET_ATTRIBUTE_COLLECTION);
+				bc.invokeStatic(Types.TAG_UTIL_NAME, SET_ATTRIBUTE_COLLECTION);
 			}
 		}
 
@@ -341,7 +342,7 @@ public final class TagHelper {
 			adapter.loadArg(0);
 			adapter.loadLocal(currLocal);
 			adapter.loadLocal(state);
-			adapter.invokeVirtual(Types.PAGE_CONTEXT, INIT_BODY);
+			bc.invokeVirtual(Types.PAGE_CONTEXT_NAME, INIT_BODY);
 
 			OnFinally onFinally = new OnFinally() {
 
@@ -357,7 +358,7 @@ public final class TagHelper {
 					adapter.visitJumpInsn(Opcodes.IF_ICMPEQ, endIf);
 					// ... pc.popBody();
 					adapter.loadArg(0);
-					adapter.invokeStatic(Types.PAGE_CONTEXT_UTIL, POP_BODY);
+					bc.invokeStatic(Types.PAGE_CONTEXT_UTIL_NAME, POP_BODY);
 					adapter.visitLabel(endIf);
 
 					// tag.doFinally();
@@ -414,7 +415,7 @@ public final class TagHelper {
 		adapter.push(jakarta.servlet.jsp.tagext.Tag.SKIP_PAGE);/* JAVJAK */
 		adapter.visitJumpInsn(Opcodes.IF_ICMPNE, endDoEndTag);
 		adapter.push(Abort.SCOPE_PAGE);
-		adapter.invokeStatic(ABORT, NEW_INSTANCE);
+		bc.invokeStatic(Types.ABORT_NAME, NEW_INSTANCE);
 		adapter.throwException();
 		adapter.visitLabel(endDoEndTag);
 
@@ -440,7 +441,7 @@ public final class TagHelper {
 
 			if (attr.isDynamicType()) {
 				adapter.loadLocal(currLocal);
-				if (interf) adapter.checkCast(Types.DYNAMIC_ATTRIBUTES);
+				if (interf) bc.checkCast(Types.DYNAMIC_ATTRIBUTES_NAME);
 				adapter.visitInsn(Opcodes.ACONST_NULL);
 				// adapter.push(attr.getName());
 				bc.getFactory().registerKey(bc, bc.getFactory().createLitString(attr.getName()), false);
@@ -456,7 +457,7 @@ public final class TagHelper {
 					adapter.loadLocal(currLocal); // tag
 					bc.getFactory().createLitString(attr.getName()).writeOut(bc, Expression.MODE_REF);// name
 					attr.getValue().writeOut(bc, Expression.MODE_REF); // value
-					adapter.invokeStatic(TAG_UTIL, SET_ATTRIBUTE4);
+					bc.invokeStatic(Types.TAG_UTIL_NAME, SET_ATTRIBUTE4);
 
 				}
 				else {
@@ -489,7 +490,7 @@ public final class TagHelper {
 
 		// while (tag.doAfterBody()==BodyTag.EVAL_BODY_AGAIN);
 		adapter.loadLocal(currLocal);
-		if (interf) adapter.checkCast(Types.BODY_TAG);
+		if (interf) bc.checkCast(Types.BODY_TAG_NAME);
 
 		// Use BODY_TAG type for the invoke, not the original currType
 		Type invokeType = interf ? Types.BODY_TAG : currType;

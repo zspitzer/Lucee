@@ -1895,13 +1895,13 @@ public final class PageImpl extends BodyBase implements Page {
 		adapter.visitLabel(methodBegin);
 
 		int comp = adapter.newLocal(Types.COMPONENT_IMPL);
-		adapter.newInstance(Types.COMPONENT_IMPL);
+		bc.newInstance(Types.COMPONENT_IMPL_NAME);
 		adapter.dup();
 
 		Attribute attr;
 		// ComponentPage
 		adapter.visitVarInsn(Opcodes.ALOAD, 0);
-		adapter.checkCast(Types.COMPONENT_PAGE_IMPL);
+		bc.checkCast(Types.COMPONENT_PAGE_IMPL_NAME);
 
 		// !!! also check CFMLScriptTransformer.addMetaData if you do any change here !!!
 
@@ -1985,7 +1985,7 @@ public final class PageImpl extends BodyBase implements Page {
 		// adapter.visitVarInsn(Opcodes.ALOAD, 4);
 		createMetaDataStruct(bc, component.getAttributes(), component.getMetaData());
 
-		adapter.invokeConstructor(Types.COMPONENT_IMPL, CONSTR_COMPONENT_IMPL15);
+		bc.invokeConstructor(Types.COMPONENT_IMPL_NAME, CONSTR_COMPONENT_IMPL15);
 
 		adapter.storeLocal(comp);
 

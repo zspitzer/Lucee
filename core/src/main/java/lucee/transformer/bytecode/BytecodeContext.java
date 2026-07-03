@@ -25,6 +25,8 @@ import java.util.Stack;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.GeneratorAdapter;
 import org.objectweb.asm.commons.Method;
 
@@ -176,6 +178,69 @@ public class BytecodeContext implements Context {
 	 */
 	public void setAdapter(BytecodeContext bc) {
 		this.adapter = bc.getAdapter();
+	}
+
+	// ---------------------------------------------------------------------
+	// Zero-alloc emit helpers — bypass GeneratorAdapter + InstructionAdapter
+	// wrappers by writing directly to the underlying MethodVisitor via
+	// getDelegate(). Callers must pass pre-cached internal-name / descriptor
+	// Strings (see Types.*_INTERNAL / *_DESCRIPTOR constants) so ASM's
+	// SymbolTable hash lookup can hit the String.equals ==-fastpath.
+	//
+	// Bytecode identity: these produce the same visitMethodInsn/visitFieldInsn/
+	// visitTypeInsn calls the GeneratorAdapter path eventually makes -- the
+	// wrappers only allocate intermediate Strings/Type objects, they do not
+	// change the emitted bytes.
+	// ---------------------------------------------------------------------
+	public void invokeVirtual(String owner, Method m) {
+		adapter.getDelegate().visitMethodInsn(Opcodes.INVOKEVIRTUAL, owner, m.getName(), m.getDescriptor(), false);
+	}
+
+	public void invokeStatic(String owner, Method m) {
+		adapter.getDelegate().visitMethodInsn(Opcodes.INVOKESTATIC, owner, m.getName(), m.getDescriptor(), false);
+	}
+
+	public void invokeInterface(String owner, Method m) {
+		adapter.getDelegate().visitMethodInsn(Opcodes.INVOKEINTERFACE, owner, m.getName(), m.getDescriptor(), true);
+	}
+
+	public void invokeConstructor(String owner, Method m) {
+		adapter.getDelegate().visitMethodInsn(Opcodes.INVOKESPECIAL, owner, m.getName(), m.getDescriptor(), false);
+	}
+
+	public void getField(String owner, String name, String descriptor) {
+		adapter.getDelegate().visitFieldInsn(Opcodes.GETFIELD, owner, name, descriptor);
+	}
+
+	public void putField(String owner, String name, String descriptor) {
+		adapter.getDelegate().visitFieldInsn(Opcodes.PUTFIELD, owner, name, descriptor);
+	}
+
+	public void getStatic(String owner, String name, String descriptor) {
+		adapter.getDelegate().visitFieldInsn(Opcodes.GETSTATIC, owner, name, descriptor);
+	}
+
+	public void putStatic(String owner, String name, String descriptor) {
+		adapter.getDelegate().visitFieldInsn(Opcodes.PUTSTATIC, owner, name, descriptor);
+	}
+
+	public void newInstance(String owner) {
+		adapter.getDelegate().visitTypeInsn(Opcodes.NEW, owner);
+	}
+
+	public void checkCast(String owner) {
+		adapter.getDelegate().visitTypeInsn(Opcodes.CHECKCAST, owner);
+	}
+
+	public void instanceOf(String owner) {
+		adapter.getDelegate().visitTypeInsn(Opcodes.INSTANCEOF, owner);
+	}
+
+	// Reserved: MethodVisitor accessor for advanced callers that need to emit
+	// arbitrary raw ops (visitInsn / visitIntInsn / visitLdcInsn etc) without
+	// paying for the GeneratorAdapter wrappers.
+	public MethodVisitor getMv() {
+		return adapter.getDelegate();
 	}
 
 	/**
