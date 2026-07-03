@@ -384,6 +384,17 @@ public class SourceCode {
 	}
 
 	/**
+	 * Returns the identifier-run length at the current position (contiguous letters/digits/_/$).
+	 * Returns 0 if pos is on an operator, punctuation, whitespace char, or past EOF.
+	 * One array load — parsers can dispatch by length without inspecting charClass directly.
+	 */
+	public int getCurrentRunLength() {
+		if (pos >= len) return 0;
+		short cc = charClass[pos];
+		return cc > 0 ? (cc >> CC_RUN_SHIFT) : 0;
+	}
+
+	/**
 	 * is the current character (internal pointer) the same as the given
 	 */
 	public boolean isCurrent(char c) {

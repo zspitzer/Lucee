@@ -536,177 +536,178 @@ public abstract class AbstrCFMLExprTransformer {
 	private Expression decsionOp(Data data) throws TemplateException {
 
 		Expression expr = concatOp(data);
-		boolean hasChanged = false;
-		// Order: highest-frequency operators (==, !=, <, >) checked first so modern CFML expressions
-		// short-circuit early. Legacy keyword operators (eq/neq/gt/lt/is/contains/does) walk the tail.
+		boolean hasChanged;
+		// Length-shortcut dispatch: one charClass read at the top of each iteration picks the branch.
+		// runLen==0  -> operator char at pos, only ==, !=, <, > can start a decision op
+		// runLen>0   -> identifier at pos, first char + run length pin the candidate keyword
+		// No decision op at pos -> both switches fall through, hasChanged stays false, loop exits.
 		do {
 			hasChanged = false;
-			// ==
-			if (data.srcCode.forwardIfExact('=', '=')) {
-				if (data.srcCode.forwardIfCurrent('=')) expr = decisionOpCreate(data, Factory.OP_DEC_EEQ, expr);
-				else expr = decisionOpCreate(data, Factory.OP_DEC_EQ, expr);
-				hasChanged = true;
-			}
-			// !=
-			else if (data.srcCode.forwardIfExact('!', '=')) {
-				if (data.srcCode.forwardIfCurrent('=')) expr = decisionOpCreate(data, Factory.OP_DEC_NEEQ, expr);
-				else expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
-				hasChanged = true;
-			}
-			// <=/</<>
-			else if (data.srcCode.isCurrent('<')) {
-				hasChanged = true;
-				if (data.srcCode.isNext('=')) {
-					data.srcCode.next();
-					data.srcCode.next();
-					expr = decisionOpCreate(data, Factory.OP_DEC_LTE, expr);
-				}
-				else if (data.srcCode.isNext('>')) {
-					data.srcCode.next();
-					data.srcCode.next();
-					expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
-				}
-				else if (data.srcCode.isNext('/')) {
-					hasChanged = false;
-				}
-				else {
-					data.srcCode.next();
-					expr = decisionOpCreate(data, Factory.OP_DEC_LT, expr);
-				}
-			}
-			// >=/>
-			else if (data.allowLowerThan && data.srcCode.forwardIfCurrent('>')) {
-				if (data.srcCode.forwardIfCurrent('=')) expr = decisionOpCreate(data, Factory.OP_DEC_GTE, expr);
-				else expr = decisionOpCreate(data, Factory.OP_DEC_GT, expr);
-				hasChanged = true;
-			}
-
-			// equal, eq
-			else if (data.srcCode.isCurrent("eq") && !data.srcCode.isCurrent("eqv")) {
-				int plus = 2;
-				data.srcCode.setPos(data.srcCode.getPos() + 2);
-				if (data.srcCode.forwardIfCurrent("ual")) plus = 5;
-
-				if (data.srcCode.isCurrentVariableCharacter()) {
-					data.srcCode.setPos(data.srcCode.getPos() - plus);
-				}
-				else {
-					expr = decisionOpCreate(data, Factory.OP_DEC_EQ, expr);
-					hasChanged = true;
-				}
-
-			}
-
-			// neq, not equal, nct
-			else if (data.srcCode.isCurrent('n')) {
-				// Not Equal
-				if (data.srcCode.forwardIfCurrent("neq", false, true)) {
-					expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
-					hasChanged = true;
-				}
-				// Not Equal (Alias)
-				else if (data.srcCode.forwardIfCurrent("not", "equal", false, true)) {
-					expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
-					hasChanged = true;
-				}
-				// nct
-				else if (data.srcCode.forwardIfCurrent("nct", false, true)) {
-					expr = decisionOpCreate(data, Factory.OP_DEC_NCT, expr);
-					hasChanged = true;
-				}
-			}
-
-			// gt, gte, greater than or equal to, greater than
-			else if (data.srcCode.isCurrent('g')) {
-				if (data.srcCode.forwardIfCurrent("gt")) {
-					if (data.srcCode.forwardIfCurrentAndNoWordAfter("e")) {
-						if (data.srcCode.isCurrentVariableCharacter()) {
-							data.srcCode.setPos(data.srcCode.getPos() - 3);
-						}
-						else {
-							expr = decisionOpCreate(data, Factory.OP_DEC_GTE, expr);
+			if (!data.srcCode.isValidIndex()) break;
+			char c = data.srcCode.getCurrentLower();
+			int runLen = data.srcCode.getCurrentRunLength();
+			if (runLen == 0) {
+				// operator char
+				switch (c) {
+					case '=':
+						if (data.srcCode.forwardIfExact('=', '=')) {
+							if (data.srcCode.forwardIfCurrent('=')) expr = decisionOpCreate(data, Factory.OP_DEC_EEQ, expr);
+							else expr = decisionOpCreate(data, Factory.OP_DEC_EQ, expr);
 							hasChanged = true;
 						}
-					}
-					else {
-						if (data.srcCode.isCurrentVariableCharacter()) {
-							data.srcCode.setPos(data.srcCode.getPos() - 2);
-						}
-						else {
-							expr = decisionOpCreate(data, Factory.OP_DEC_GT, expr);
+						break;
+					case '!':
+						if (data.srcCode.forwardIfExact('!', '=')) {
+							if (data.srcCode.forwardIfCurrent('=')) expr = decisionOpCreate(data, Factory.OP_DEC_NEEQ, expr);
+							else expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
 							hasChanged = true;
 						}
-					}
-				}
-				else if (data.srcCode.forwardIfCurrent("greater", "than", false, true)) {
-					if (data.srcCode.forwardIfCurrent("or", "equal", "to", true, true)) expr = decisionOpCreate(data, Factory.OP_DEC_GTE, expr);
-					else expr = decisionOpCreate(data, Factory.OP_DEC_GT, expr);
-					hasChanged = true;
-				}
-				else if (data.srcCode.forwardIfCurrent("ge", false, true)) {
-					expr = decisionOpCreate(data, Factory.OP_DEC_GTE, expr);
-					hasChanged = true;
-				}
-			}
-
-			// lt, lte, less than, less than or equal to
-			else if (data.srcCode.isCurrent('l')) {
-				if (data.srcCode.forwardIfCurrent("lt")) {
-					if (data.srcCode.forwardIfCurrentAndNoWordAfter("e")) {
-						if (data.srcCode.isCurrentVariableCharacter()) {
-							data.srcCode.setPos(data.srcCode.getPos() - 3);
-						}
-						else {
+						break;
+					case '<':
+						if (data.srcCode.isNext('=')) {
+							data.srcCode.next();
+							data.srcCode.next();
 							expr = decisionOpCreate(data, Factory.OP_DEC_LTE, expr);
 							hasChanged = true;
 						}
-					}
-					else {
-						if (data.srcCode.isCurrentVariableCharacter()) {
-							data.srcCode.setPos(data.srcCode.getPos() - 2);
+						else if (data.srcCode.isNext('>')) {
+							data.srcCode.next();
+							data.srcCode.next();
+							expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
+							hasChanged = true;
+						}
+						else if (data.srcCode.isNext('/')) {
+							// tag close, not a decision op — exit loop with hasChanged=false
 						}
 						else {
+							data.srcCode.next();
 							expr = decisionOpCreate(data, Factory.OP_DEC_LT, expr);
 							hasChanged = true;
 						}
-					}
-				}
-				else if (data.srcCode.forwardIfCurrent("less", "than", false, true)) {
-					if (data.srcCode.forwardIfCurrent("or", "equal", "to", true, true)) expr = decisionOpCreate(data, Factory.OP_DEC_LTE, expr);
-					else expr = decisionOpCreate(data, Factory.OP_DEC_LT, expr);
-					hasChanged = true;
-				}
-				else if (data.srcCode.forwardIfCurrent("le", false, true)) {
-					expr = decisionOpCreate(data, Factory.OP_DEC_LTE, expr);
-					hasChanged = true;
+						break;
+					case '>':
+						if (data.allowLowerThan && data.srcCode.forwardIfCurrent('>')) {
+							if (data.srcCode.forwardIfCurrent('=')) expr = decisionOpCreate(data, Factory.OP_DEC_GTE, expr);
+							else expr = decisionOpCreate(data, Factory.OP_DEC_GT, expr);
+							hasChanged = true;
+						}
+						break;
 				}
 			}
-
-			// is, is not
-			else if (data.srcCode.forwardIfCurrent("is", false, true)) {
-				if (data.srcCode.forwardIfCurrent("not", true, true)) expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
-				else expr = decisionOpCreate(data, Factory.OP_DEC_EQ, expr);
-				hasChanged = true;
-			}
-
-			// ct, contains
-			else if (data.srcCode.isCurrent('c')) {
-				if (data.srcCode.forwardIfCurrent("ct", false, true)) {
-					expr = decisionOpCreate(data, Factory.OP_DEC_CT, expr);
-					hasChanged = true;
+			else {
+				// identifier at pos — first char + run length pin the candidate.
+				// runLen doubles as the word-boundary guarantee: the char at pos+runLen is not a var char.
+				switch (c) {
+					case 'e':
+						// eq (2), equal (5). eqv is runLen==3 so naturally excluded from this branch.
+						if (runLen == 2 && data.srcCode.isCurrent("eq")) {
+							data.srcCode.setPos(data.srcCode.getPos() + 2);
+							expr = decisionOpCreate(data, Factory.OP_DEC_EQ, expr);
+							hasChanged = true;
+						}
+						else if (runLen == 5 && data.srcCode.isCurrent("equal")) {
+							data.srcCode.setPos(data.srcCode.getPos() + 5);
+							expr = decisionOpCreate(data, Factory.OP_DEC_EQ, expr);
+							hasChanged = true;
+						}
+						break;
+					case 'n':
+						// runLen==3: neq / nct / "not" (start of "not equal")
+						if (runLen == 3) {
+							if (data.srcCode.forwardIfCurrent("neq", false, true)) {
+								expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
+								hasChanged = true;
+							}
+							else if (data.srcCode.forwardIfCurrent("not", "equal", false, true)) {
+								expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
+								hasChanged = true;
+							}
+							else if (data.srcCode.forwardIfCurrent("nct", false, true)) {
+								expr = decisionOpCreate(data, Factory.OP_DEC_NCT, expr);
+								hasChanged = true;
+							}
+						}
+						break;
+					case 'g':
+						// gt/ge (2), gte (3), greater (7 — start of "greater than [or equal to]")
+						if (runLen == 2) {
+							if (data.srcCode.forwardIfCurrent("gt")) {
+								expr = decisionOpCreate(data, Factory.OP_DEC_GT, expr);
+								hasChanged = true;
+							}
+							else if (data.srcCode.forwardIfCurrent("ge", false, true)) {
+								expr = decisionOpCreate(data, Factory.OP_DEC_GTE, expr);
+								hasChanged = true;
+							}
+						}
+						else if (runLen == 3) {
+							if (data.srcCode.forwardIfCurrent("gte", false, true)) {
+								expr = decisionOpCreate(data, Factory.OP_DEC_GTE, expr);
+								hasChanged = true;
+							}
+						}
+						else if (runLen == 7) {
+							if (data.srcCode.forwardIfCurrent("greater", "than", false, true)) {
+								if (data.srcCode.forwardIfCurrent("or", "equal", "to", true, true)) expr = decisionOpCreate(data, Factory.OP_DEC_GTE, expr);
+								else expr = decisionOpCreate(data, Factory.OP_DEC_GT, expr);
+								hasChanged = true;
+							}
+						}
+						break;
+					case 'l':
+						// lt/le (2), lte (3), less (4 — start of "less than [or equal to]")
+						if (runLen == 2) {
+							if (data.srcCode.forwardIfCurrent("lt")) {
+								expr = decisionOpCreate(data, Factory.OP_DEC_LT, expr);
+								hasChanged = true;
+							}
+							else if (data.srcCode.forwardIfCurrent("le", false, true)) {
+								expr = decisionOpCreate(data, Factory.OP_DEC_LTE, expr);
+								hasChanged = true;
+							}
+						}
+						else if (runLen == 3) {
+							if (data.srcCode.forwardIfCurrent("lte", false, true)) {
+								expr = decisionOpCreate(data, Factory.OP_DEC_LTE, expr);
+								hasChanged = true;
+							}
+						}
+						else if (runLen == 4) {
+							if (data.srcCode.forwardIfCurrent("less", "than", false, true)) {
+								if (data.srcCode.forwardIfCurrent("or", "equal", "to", true, true)) expr = decisionOpCreate(data, Factory.OP_DEC_LTE, expr);
+								else expr = decisionOpCreate(data, Factory.OP_DEC_LT, expr);
+								hasChanged = true;
+							}
+						}
+						break;
+					case 'i':
+						// is (2), possibly followed by " not"
+						if (runLen == 2 && data.srcCode.forwardIfCurrent("is", false, true)) {
+							if (data.srcCode.forwardIfCurrent("not", true, true)) expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
+							else expr = decisionOpCreate(data, Factory.OP_DEC_EQ, expr);
+							hasChanged = true;
+						}
+						break;
+					case 'c':
+						// ct (2), contains (8)
+						if (runLen == 2 && data.srcCode.forwardIfCurrent("ct", false, true)) {
+							expr = decisionOpCreate(data, Factory.OP_DEC_CT, expr);
+							hasChanged = true;
+						}
+						else if (runLen == 8 && data.srcCode.forwardIfCurrent("contains", false, true)) {
+							expr = decisionOpCreate(data, Factory.OP_DEC_CT, expr);
+							hasChanged = true;
+						}
+						break;
+					case 'd':
+						// does (4 — start of "does not contain")
+						if (runLen == 4 && data.srcCode.forwardIfCurrent("does", "not", "contain", false, true)) {
+							expr = decisionOpCreate(data, Factory.OP_DEC_NCT, expr);
+							hasChanged = true;
+						}
+						break;
 				}
-				else if (data.srcCode.forwardIfCurrent("contains", false, true)) {
-					expr = decisionOpCreate(data, Factory.OP_DEC_CT, expr);
-					hasChanged = true;
-				}
 			}
-
-			// does not contain
-			else if (data.srcCode.forwardIfCurrent("does", "not", "contain", false, true)) {
-				expr = decisionOpCreate(data, Factory.OP_DEC_NCT, expr);
-				hasChanged = true;
-			}
-
 		}
 		while (hasChanged);
 		return expr;
