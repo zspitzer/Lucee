@@ -1146,6 +1146,27 @@ public class SourceCode {
 	public boolean findTag(String... lowerTagNames) {
 		int n = lowerTagNames.length;
 		if (n == 0) return false;
+
+		// Fastpath: hop directly to the first '<' in the file and see if what follows is one of
+		// the tag names. Most CFCs open with the tag (either at pos 0 or right after a short
+		// license comment — the first '<' is always the interesting one). Uses the existing
+		// charClass-hopping indexOfNext + zero-alloc equalsLowerAt.
+		//   - No '<' anywhere → definitely a pure script CFC, no tags to find → return false
+		//     without any further work (the old full-file byte walk was pure waste for these).
+		//   - First '<' matches one of the tag openers → return true, skip the full scan.
+		//   - First '<' doesn't match → fall through to the safe byte-by-byte walk below so
+		//     tag openers preceded by a license comment / BOM / blank line still get found.
+		int firstLt = indexOfNext(0, '<');
+		if (firstLt < 0) return false;
+		int nameStart = firstLt + 1;
+		if (nameStart < len && (lcText[nameStart] & 0xFF) == '/') nameStart++;
+		if (nameStart < len) {
+			for (int t = 0; t < n; t++) {
+				String tag = lowerTagNames[t];
+				if (equalsLowerAt(nameStart, tag.length(), tag)) return true;
+			}
+		}
+
 		int i = 0;
 		while (i < len) {
 			short cc = charClass[i];
