@@ -345,7 +345,7 @@ public final class CFMLTransformer {
 				body(data, parent);
 
 				if (done || data.srcCode.isAfterLast()) break;
-				if (data.srcCode.forwardIfCurrent("</")) {
+				if (data.srcCode.forwardIfExact('<', '/')) {
 					int pos = data.srcCode.getPos();
 					TagLib tagLib = nameSpace(data);
 					if (tagLib == null) {
@@ -712,7 +712,7 @@ public final class CFMLTransformer {
 					tag.setBody(tdbt.transform(data, tagLibTag.getFullName()));
 
 					// get TagLib of end Tag
-					if (!data.srcCode.forwardIfCurrent("</")) {
+					if (!data.srcCode.forwardIfExact('<', '/')) {
 						// MUST this is a patch, do a more proper implementation
 						TemplateException te = new TemplateException(data.srcCode, "invalid construct");
 

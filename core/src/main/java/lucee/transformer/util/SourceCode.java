@@ -415,6 +415,33 @@ public class SourceCode {
 	}
 
 	/**
+	 * Char-array specialisation for exact-adjacent 2-char literals ("==", "!=", "||", "&&", "</",
+	 * "[]", "++", "--", "=>", "::"). Splits the JIT profile from the general String overload (whose
+	 * receiver spans both short operators and long keywords) into a monomorphic shape. Different from
+	 * {@link #forwardIfCurrent(char, char)} which is whitespace-tolerant (X ... Y).
+	 */
+	public boolean forwardIfExact(char c0, char c1) {
+		if (pos + 2 > len) return false;
+		if ((lcText[pos] & 0xFF) != c0) return false;
+		if ((lcText[pos + 1] & 0xFF) != c1) return false;
+		pos += 2;
+		return true;
+	}
+
+	/**
+	 * Char-array specialisation for exact-adjacent 3-char literals. See
+	 * {@link #forwardIfExact(char, char)} for the design rationale.
+	 */
+	public boolean forwardIfExact(char c0, char c1, char c2) {
+		if (pos + 3 > len) return false;
+		if ((lcText[pos] & 0xFF) != c0) return false;
+		if ((lcText[pos + 1] & 0xFF) != c1) return false;
+		if ((lcText[pos + 2] & 0xFF) != c2) return false;
+		pos += 3;
+		return true;
+	}
+
+	/**
 	 * forwards if the current character (internal pointer) and the following are the same as the given
 	 * input
 	 */
