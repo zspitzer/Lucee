@@ -51,6 +51,12 @@ public class SourceCode {
 
 	protected int pos = 0;
 	protected int currentLine = 1; // Track current line number (1-based)
+	// Companion state to currentLine — stashed line-boundary positions so the hint
+	// fast-path answers "still on this line?" and "column?" without touching lines[].
+	// Invariant when fresh: currentLinePrevPos < pos <= currentLineEndPos.
+	// Reconciled lazily inside nextLine() / getPosition(), same story as currentLine.
+	protected int currentLineEndPos;  // lines[currentLine - 1]; == len for the last line
+	protected int currentLinePrevPos = -1; // lines[currentLine - 2] when currentLine > 1, else -1
 
 	protected final char[] text;
 	/** Lowercased Latin-1 projection of text[0..len). Storing as byte[] halves memory vs char[].
@@ -106,6 +112,7 @@ public class SourceCode {
 		lcText = new byte[len];
 		charClass = new short[len];
 		this.lines = buildLcTextAndCharClass();
+		this.currentLineEndPos = lines[0]; // buildLcTextAndCharClass always appends len as sentinel, so lines[0] is safe
 		this.writeLog = writeLog;
 	}
 
@@ -122,6 +129,7 @@ public class SourceCode {
 		lcText = new byte[validLen];
 		charClass = new short[validLen];
 		this.lines = buildLcTextAndCharClass();
+		this.currentLineEndPos = lines[0];
 		this.writeLog = writeLog;
 	}
 
@@ -1053,12 +1061,24 @@ public class SourceCode {
 	 * @return true if another line follows.
 	 */
 	public boolean nextLine() {
-		while (currentLine < lines.length && pos > lines[currentLine - 1]) currentLine++;
-		while (currentLine > 1 && pos <= lines[currentLine - 2]) currentLine--;
+		// reconcile forward — stashed end-pos avoids the lines[] load in the loop body
+		while (currentLine < lines.length && pos > currentLineEndPos) {
+			currentLine++;
+			currentLinePrevPos = currentLineEndPos;
+			currentLineEndPos = lines[currentLine - 1];
+		}
+		// reconcile backward — same idea via stashed prev-pos
+		while (currentLine > 1 && pos <= currentLinePrevPos) {
+			currentLine--;
+			currentLineEndPos = currentLinePrevPos;
+			currentLinePrevPos = (currentLine > 1) ? lines[currentLine - 2] : -1;
+		}
 
 		if (currentLine >= lines.length) return false;
-		pos = lines[currentLine - 1] + 1;
+		pos = currentLineEndPos + 1;
 		currentLine++;
+		currentLinePrevPos = currentLineEndPos;
+		currentLineEndPos = lines[currentLine - 1];
 		return isValidIndex();
 	}
 
@@ -1300,34 +1320,43 @@ public class SourceCode {
 		}
 
 		int line;
-		// Use currentLine as hint when asking for current position
-		if (pos == this.pos && currentLine >= 1 && currentLine <= lines.length) {
-			int lineEnd = lines[currentLine - 1];
-			if (pos <= lineEnd && (currentLine == 1 || pos > lines[currentLine - 2])) {
-				// currentLine is still valid
+		int posAtStart;
+		// Hint fast-path — use stashed line boundaries when asking about the current pos.
+		// currentLinePrevPos / currentLineEndPos answer "which line" via two field loads
+		// and "column" via a single subtraction — zero lines[] loads on the hit case.
+		if (pos == this.pos) {
+			if (pos > currentLinePrevPos && pos <= currentLineEndPos) {
+				// still on the same line
 				line = currentLine;
 			}
-			else if (pos > lineEnd) {
-				// Moved forward past current line - scan forward (common case, usually 1-2 iterations)
-				line = currentLine;
-				while (line < lines.length && pos > lines[line - 1]) {
-					line++;
+			else if (pos > currentLineEndPos) {
+				// walked forward past this line — advance stash in lockstep
+				while (currentLine < lines.length && pos > currentLineEndPos) {
+					currentLine++;
+					currentLinePrevPos = currentLineEndPos;
+					currentLineEndPos = lines[currentLine - 1];
 				}
-				currentLine = line;  // Update cache
+				line = currentLine;
 			}
 			else {
-				// Moved backward — linear scan from stale hint
+				// walked backward — retreat stash in lockstep
+				while (currentLine > 1 && pos <= currentLinePrevPos) {
+					currentLine--;
+					currentLineEndPos = currentLinePrevPos;
+					currentLinePrevPos = (currentLine > 1) ? lines[currentLine - 2] : -1;
+				}
 				line = currentLine;
-				while (line > 1 && pos <= lines[line - 2]) line--;
-				currentLine = line;
 			}
+			// Preserve legacy line-1 column quirk: 0-based on line 1, 1-based on line 2+.
+			// Public API (astFromString / TransformerUtil dump / TemplateException messages) locks this in.
+			posAtStart = (line > 1) ? currentLinePrevPos : 0;
 		}
 		else {
-			// No hint available - binary search
+			// Non-current position — no hint applies, binary search.
 			line = getLine(pos);
+			posAtStart = (line > 1) ? lines[line - 2] : 0;
 		}
 
-		int posAtStart = (line > 1) ? lines[line - 2] : 0;
 		int column = pos - posAtStart;
 		Position position = new Position(line, column, pos);
 		// Cache this position
