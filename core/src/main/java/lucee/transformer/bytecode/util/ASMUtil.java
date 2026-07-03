@@ -28,6 +28,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.objectweb.asm.ByteVector;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
@@ -773,7 +774,92 @@ public final class ASMUtil {
 	}
 
 	public static ClassWriter getClassWriter() {
-		return new ClassWriter(CLASSWRITER_ARGS);
+		ClassWriter cw = new ClassWriter(CLASSWRITER_ARGS);
+		preSizeSymbolTable(cw);
+		return cw;
+	}
+
+	// ------------------------------------------------------------------------
+	// Reflection pre-sizing of ClassWriter.symbolTable internal buffers.
+	//
+	// ASM's SymbolTable starts with `entries = new Entry[256]` (resizes at 75%
+	// load, so typical Lucee Page @ 300-500 entries always triggers one resize)
+	// and `constantPool = new ByteVector()` (64B default, doubles on enlarge,
+	// so typical 4-16 KB Page pool goes through 6-8 Arrays.copyOf passes).
+	//
+	// No public ASM API pre-sizes these — verified across 9.9.1 → HEAD. So we
+	// reflect once at class-load, cache the Field handles, and swap the empty
+	// buffers immediately after ClassWriter construction. Output bytes are
+	// identical (buffer capacity does not affect what's written) — verified
+	// via BytecodeCompare.
+	//
+	// Silent no-op if reflection fails (e.g. ASM field rename in a future
+	// version): reflection setup catches Throwable and sets READY=false,
+	// preSizeSymbolTable() early-returns.
+	// ------------------------------------------------------------------------
+	private static final int PRESIZE_ENTRIES = 1024;   // was 256 (4x)
+	private static final int PRESIZE_POOL_BYTES = 8192; // was 64  (128x)
+
+	// MethodHandles (not raw java.lang.reflect.Field) so the JIT can inline
+	// the invokeExact call to a direct field access after warmup. Raw Field.get/set
+	// polymorphic dispatch would pollute the reflection framework's hot profile.
+	private static final java.lang.invoke.MethodHandle SYMBOL_TABLE_GET;
+	private static final java.lang.invoke.MethodHandle ENTRIES_SET;
+	private static final java.lang.invoke.MethodHandle CONSTANT_POOL_SET;
+	// Pre-allocated Entry[] template — Array.newInstance is cheap but reflected,
+	// so we resolve the class once and hand-roll the array creation in preSize().
+	private static final Class<?> ENTRY_CLASS;
+	private static final boolean PRESIZE_READY;
+
+	static {
+		java.lang.invoke.MethodHandle stGet = null, entriesSet = null, poolSet = null;
+		Class<?> entryClass = null;
+		boolean ready = false;
+		try {
+			java.lang.invoke.MethodHandles.Lookup lookup = java.lang.invoke.MethodHandles.lookup();
+			Field stField = ClassWriter.class.getDeclaredField("symbolTable");
+			stField.setAccessible(true);
+			stGet = lookup.unreflectGetter(stField);
+
+			Class<?> stClass = Class.forName("org.objectweb.asm.SymbolTable");
+			Field entriesField = stClass.getDeclaredField("entries");
+			entriesField.setAccessible(true);
+			entriesSet = lookup.unreflectSetter(entriesField);
+
+			Field poolField = stClass.getDeclaredField("constantPool");
+			poolField.setAccessible(true);
+			poolSet = lookup.unreflectSetter(poolField);
+
+			entryClass = Class.forName("org.objectweb.asm.SymbolTable$Entry");
+			ready = true;
+		}
+		catch (Throwable t) {
+			// ASM internals changed shape (field renamed / removed) — silently fall back to unsized.
+			// Output correctness is unaffected; only miss the buffer-resize optimisation.
+			// Diagnosable via JFR: if ByteVector.enlarge alloc events don't drop, reflection isn't active.
+		}
+		SYMBOL_TABLE_GET = stGet;
+		ENTRIES_SET = entriesSet;
+		CONSTANT_POOL_SET = poolSet;
+		ENTRY_CLASS = entryClass;
+		PRESIZE_READY = ready;
+	}
+
+	private static void preSizeSymbolTable(ClassWriter cw) {
+		if (!PRESIZE_READY) return;
+		try {
+			// SymbolTable's constructor sets entries and constantPool to empty (Entry[256] + ByteVector(64B)).
+			// Nothing is pre-populated at this point, so replacing them is a no-op semantically —
+			// only the initial capacity changes. Safe.
+			// Use invoke (not invokeExact) — call site takes Object receiver/args to keep the MH sig
+			// generic; JIT still inlines through invoke() when the MH target is a direct field accessor.
+			Object st = SYMBOL_TABLE_GET.invoke(cw);
+			ENTRIES_SET.invoke(st, java.lang.reflect.Array.newInstance(ENTRY_CLASS, PRESIZE_ENTRIES));
+			CONSTANT_POOL_SET.invoke(st, new ByteVector(PRESIZE_POOL_BYTES));
+		}
+		catch (Throwable ignore) {
+			// Per-CW failure is silent — output is still correct, just unsized.
+		}
 	}
 
 	public static String createOverfowMethod(String prefix, int id) { // pattern is used in function callstackget
