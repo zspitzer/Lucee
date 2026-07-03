@@ -468,7 +468,7 @@ public abstract class AbstrCFMLExprTransformer {
 	private Expression orOp(Data data) throws TemplateException {
 		Expression expr = andOp(data);
 
-		while (data.srcCode.forwardIfCurrent("||") || data.srcCode.forwardIfCurrentAndNoWordAfter("or")) {
+		while (data.srcCode.forwardIfExact('|', '|') || data.srcCode.forwardIfCurrentAndNoWordAfter("or")) {
 			comments(data);
 			expr = data.factory.opBool(expr, andOp(data), Factory.OP_BOOL_OR);
 		}
@@ -487,7 +487,7 @@ public abstract class AbstrCFMLExprTransformer {
 	private Expression andOp(Data data) throws TemplateException {
 		Expression expr = notOp(data);
 
-		while (data.srcCode.forwardIfCurrent("&&") || data.srcCode.forwardIfCurrentAndNoWordAfter("and")) {
+		while (data.srcCode.forwardIfExact('&', '&') || data.srcCode.forwardIfCurrentAndNoWordAfter("and")) {
 			comments(data);
 			expr = data.factory.opBool(expr, notOp(data), Factory.OP_BOOL_AND);
 		}
@@ -537,48 +537,18 @@ public abstract class AbstrCFMLExprTransformer {
 
 		Expression expr = concatOp(data);
 		boolean hasChanged = false;
-		// ct, contains
+		// Order: highest-frequency operators (==, !=, <, >) checked first so modern CFML expressions
+		// short-circuit early. Legacy keyword operators (eq/neq/gt/lt/is/contains/does) walk the tail.
 		do {
 			hasChanged = false;
-			if (data.srcCode.isCurrent('c')) {
-				if (data.srcCode.forwardIfCurrent("ct", false, true)) {
-					expr = decisionOpCreate(data, Factory.OP_DEC_CT, expr);
-					hasChanged = true;
-				}
-				else if (data.srcCode.forwardIfCurrent("contains", false, true)) {
-					expr = decisionOpCreate(data, Factory.OP_DEC_CT, expr);
-					hasChanged = true;
-				}
-			}
-			// does not contain
-			else if (data.srcCode.forwardIfCurrent("does", "not", "contain", false, true)) {
-				expr = decisionOpCreate(data, Factory.OP_DEC_NCT, expr);
-				hasChanged = true;
-			}
-
-			// equal, eq
-			else if (data.srcCode.isCurrent("eq") && !data.srcCode.isCurrent("eqv")) {
-				int plus = 2;
-				data.srcCode.setPos(data.srcCode.getPos() + 2);
-				if (data.srcCode.forwardIfCurrent("ual")) plus = 5;
-
-				if (data.srcCode.isCurrentVariableCharacter()) {
-					data.srcCode.setPos(data.srcCode.getPos() - plus);
-				}
-				else {
-					expr = decisionOpCreate(data, Factory.OP_DEC_EQ, expr);
-					hasChanged = true;
-				}
-
-			}
 			// ==
-			else if (data.srcCode.forwardIfCurrent("==")) {
+			if (data.srcCode.forwardIfExact('=', '=')) {
 				if (data.srcCode.forwardIfCurrent('=')) expr = decisionOpCreate(data, Factory.OP_DEC_EEQ, expr);
 				else expr = decisionOpCreate(data, Factory.OP_DEC_EQ, expr);
 				hasChanged = true;
 			}
 			// !=
-			else if (data.srcCode.forwardIfCurrent("!=")) {
+			else if (data.srcCode.forwardIfExact('!', '=')) {
 				if (data.srcCode.forwardIfCurrent('=')) expr = decisionOpCreate(data, Factory.OP_DEC_NEEQ, expr);
 				else expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
 				hasChanged = true;
@@ -609,6 +579,41 @@ public abstract class AbstrCFMLExprTransformer {
 				if (data.srcCode.forwardIfCurrent('=')) expr = decisionOpCreate(data, Factory.OP_DEC_GTE, expr);
 				else expr = decisionOpCreate(data, Factory.OP_DEC_GT, expr);
 				hasChanged = true;
+			}
+
+			// equal, eq
+			else if (data.srcCode.isCurrent("eq") && !data.srcCode.isCurrent("eqv")) {
+				int plus = 2;
+				data.srcCode.setPos(data.srcCode.getPos() + 2);
+				if (data.srcCode.forwardIfCurrent("ual")) plus = 5;
+
+				if (data.srcCode.isCurrentVariableCharacter()) {
+					data.srcCode.setPos(data.srcCode.getPos() - plus);
+				}
+				else {
+					expr = decisionOpCreate(data, Factory.OP_DEC_EQ, expr);
+					hasChanged = true;
+				}
+
+			}
+
+			// neq, not equal, nct
+			else if (data.srcCode.isCurrent('n')) {
+				// Not Equal
+				if (data.srcCode.forwardIfCurrent("neq", false, true)) {
+					expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
+					hasChanged = true;
+				}
+				// Not Equal (Alias)
+				else if (data.srcCode.forwardIfCurrent("not", "equal", false, true)) {
+					expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
+					hasChanged = true;
+				}
+				// nct
+				else if (data.srcCode.forwardIfCurrent("nct", false, true)) {
+					expr = decisionOpCreate(data, Factory.OP_DEC_NCT, expr);
+					hasChanged = true;
+				}
 			}
 
 			// gt, gte, greater than or equal to, greater than
@@ -644,13 +649,6 @@ public abstract class AbstrCFMLExprTransformer {
 				}
 			}
 
-			// is, is not
-			else if (data.srcCode.forwardIfCurrent("is", false, true)) {
-				if (data.srcCode.forwardIfCurrent("not", true, true)) expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
-				else expr = decisionOpCreate(data, Factory.OP_DEC_EQ, expr);
-				hasChanged = true;
-			}
-
 			// lt, lte, less than, less than or equal to
 			else if (data.srcCode.isCurrent('l')) {
 				if (data.srcCode.forwardIfCurrent("lt")) {
@@ -684,23 +682,29 @@ public abstract class AbstrCFMLExprTransformer {
 				}
 			}
 
-			// neq, not equal, nct
-			else if (data.srcCode.isCurrent('n')) {
-				// Not Equal
-				if (data.srcCode.forwardIfCurrent("neq", false, true)) {
-					expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
+			// is, is not
+			else if (data.srcCode.forwardIfCurrent("is", false, true)) {
+				if (data.srcCode.forwardIfCurrent("not", true, true)) expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
+				else expr = decisionOpCreate(data, Factory.OP_DEC_EQ, expr);
+				hasChanged = true;
+			}
+
+			// ct, contains
+			else if (data.srcCode.isCurrent('c')) {
+				if (data.srcCode.forwardIfCurrent("ct", false, true)) {
+					expr = decisionOpCreate(data, Factory.OP_DEC_CT, expr);
 					hasChanged = true;
 				}
-				// Not Equal (Alias)
-				else if (data.srcCode.forwardIfCurrent("not", "equal", false, true)) {
-					expr = decisionOpCreate(data, Factory.OP_DEC_NEQ, expr);
+				else if (data.srcCode.forwardIfCurrent("contains", false, true)) {
+					expr = decisionOpCreate(data, Factory.OP_DEC_CT, expr);
 					hasChanged = true;
 				}
-				// nct
-				else if (data.srcCode.forwardIfCurrent("nct", false, true)) {
-					expr = decisionOpCreate(data, Factory.OP_DEC_NCT, expr);
-					hasChanged = true;
-				}
+			}
+
+			// does not contain
+			else if (data.srcCode.forwardIfCurrent("does", "not", "contain", false, true)) {
+				expr = decisionOpCreate(data, Factory.OP_DEC_NCT, expr);
+				hasChanged = true;
 			}
 
 		}
@@ -890,9 +894,9 @@ public abstract class AbstrCFMLExprTransformer {
 		Expression expr = negatePlusMinusOp(data);
 
 		// Plus Operation
-		if (data.srcCode.forwardIfCurrent("++") && expr instanceof Variable) expr = _unaryOp(data, expr, Factory.OP_DBL_PLUS);
+		if (data.srcCode.forwardIfExact('+', '+') && expr instanceof Variable) expr = _unaryOp(data, expr, Factory.OP_DBL_PLUS);
 		// Minus Operation
-		else if (data.srcCode.forwardIfCurrent("--") && expr instanceof Variable) expr = _unaryOp(data, expr, Factory.OP_DBL_MINUS);
+		else if (data.srcCode.forwardIfExact('-', '-') && expr instanceof Variable) expr = _unaryOp(data, expr, Factory.OP_DBL_MINUS);
 		return expr;
 	}
 
@@ -1481,7 +1485,7 @@ public abstract class AbstrCFMLExprTransformer {
 		}
 
 		data.srcCode.removeSpace();
-		if (!data.srcCode.forwardIfCurrent("=>")) {
+		if (!data.srcCode.forwardIfExact('=', '>')) {
 			data.srcCode.setPos(pos);
 			return null;
 		}
@@ -1599,7 +1603,7 @@ public abstract class AbstrCFMLExprTransformer {
 	}
 
 	private Expression staticScope(Data data, Expression expr) throws TemplateException {
-		if (data.srcCode.forwardIfCurrent("::")) {
+		if (data.srcCode.forwardIfExact(':', ':')) {
 			if (!(expr instanceof Variable)) throw new TemplateException(data.srcCode, "Invalid syntax before [::]");
 
 			Variable old = (Variable) expr;
@@ -1608,7 +1612,7 @@ public abstract class AbstrCFMLExprTransformer {
 
 			// now we read the component path
 			ExprString componentPath = readComponentPath(data);
-			if (!data.srcCode.forwardIfCurrent("::")) throw new TemplateException(data.srcCode, "Invalid syntax before [::]" + data.srcCode.getCurrent());
+			if (!data.srcCode.forwardIfExact(':', ':')) throw new TemplateException(data.srcCode, "Invalid syntax before [::]" + data.srcCode.getCurrent());
 
 			comments(data);
 

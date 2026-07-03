@@ -1989,7 +1989,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 			data.srcCode.removeSpace();
 		}
 
-		while (data.srcCode.forwardIfCurrent("[]")) {
+		while (data.srcCode.forwardIfExact('[', ']')) {
 			data.srcCode.removeSpace();
 			rtn.append("[]");
 		}
