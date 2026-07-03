@@ -504,14 +504,19 @@ public abstract class AbstrCFMLExprTransformer {
 	 * @throws TemplateException
 	 */
 	private Expression notOp(Data data) throws TemplateException {
-		// And Operation
+		// Fast path: only '!' or 'n' (start of "not") can trigger negation. 99% of expression
+		// operands fall through to decsionOp without needing a Position alloc.
+		if (!data.srcCode.isValidIndex()) return decsionOp(data);
+		int c = data.srcCode.getCurrentLower();
+		if (c != '!' && c != 'n') return decsionOp(data);
+
 		Position line = data.srcCode.getPosition();
-		if (data.srcCode.isCurrent('!') && !data.srcCode.isCurrent("!=")) {
+		if (c == '!' && !data.srcCode.isCurrent("!=")) {
 			data.srcCode.next();
 			comments(data);
 			return data.factory.opNegate(notOp(data), line, data.srcCode.getPosition());
 		}
-		else if (data.srcCode.forwardIfCurrentAndNoWordAfter("not")) {
+		if (data.srcCode.forwardIfCurrentAndNoWordAfter("not")) {
 			comments(data);
 			return data.factory.opNegate(notOp(data), line, data.srcCode.getPosition());
 		}
@@ -910,7 +915,11 @@ public abstract class AbstrCFMLExprTransformer {
 	 * @throws TemplateException
 	 */
 	private Expression negatePlusMinusOp(Data data) throws TemplateException {
-		// And Operation
+		// Fast path: only '-' or '+' triggers negation/increment. 99% skips Position alloc.
+		if (!data.srcCode.isValidIndex()) return clip(data);
+		int c = data.srcCode.getCurrentLower();
+		if (c != '-' && c != '+') return clip(data);
+
 		Position line = data.srcCode.getPosition();
 		if (data.srcCode.forwardIfCurrent('-')) {
 			// pre increment
