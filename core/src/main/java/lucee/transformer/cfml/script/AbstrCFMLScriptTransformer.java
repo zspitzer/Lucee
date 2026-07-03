@@ -1435,7 +1435,12 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 		int pos = data.srcCode.getPos();
 		String type = tlt.getName();
 		String appendix = null;
-		if (data.srcCode.forwardIfCurrent(type)) {
+		// hasAppendix tags (custom-tag prefix "_") match a longer identifier at pos; keep the plain
+		// forwardIfCurrent for those. Everything else applies the run-length gate baked into
+		// forwardIfCurrentAndNoWordAfter — one array load short-circuits the char-by-char compare
+		// when the identifier at pos isn't the exact same length as the tag name.
+		boolean matched = tlt.hasAppendix() ? data.srcCode.forwardIfCurrent(type) : data.srcCode.forwardIfCurrentAndNoWordAfter(type);
+		if (matched) {
 
 			if (tlt.hasAppendix()) {
 				appendix = CFMLTransformer.identifier(data.srcCode, false, true);
@@ -2054,7 +2059,9 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 
 	private final Statement __singleAttrStatement(Body parent, Data data, TagLibTag tlt, boolean allowTwiceAttr) throws TemplateException {
 		String tagName = tlt.getName();
-		if (data.srcCode.forwardIfCurrent(tagName)) {
+		// Run-length gate via forwardIfCurrentAndNoWordAfter — one array load rejects the char-by-char
+		// compare when the identifier at pos isn't exactly tagName.length().
+		if (data.srcCode.forwardIfCurrentAndNoWordAfter(tagName)) {
 			if (!data.srcCode.isCurrent(' ') && !data.srcCode.isCurrent(';')) {
 				data.srcCode.setPos(data.srcCode.getPos() - tagName.length());
 				return null;
