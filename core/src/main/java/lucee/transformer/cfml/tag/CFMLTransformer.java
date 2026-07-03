@@ -1006,7 +1006,6 @@ public final class CFMLTransformer {
 				}
 			}
 			catch (TemplateException te) {
-				lucee.aprint.o(te);
 				data.srcCode.setPos(start);
 				// if the tag supports a non name attribute try this
 				TagLibTagAttr sa = tag.getSingleAttr();
