@@ -1109,17 +1109,14 @@ public abstract class AbstrCFMLExprTransformer {
 		StringBuilder sb = null; // lazy — only allocated when we hit ## or escaped quote
 		Expression expr = null;
 
-		while (data.srcCode.isValidIndex()) {
-			data.srcCode.scanStringSegment(quoter);
-
-			if (!data.srcCode.isValidIndex()) break;
-			char c = data.srcCode.getCurrentLower();
+		while (data.srcCode.forwardToCharOrHash(quoter)) {
+			char c = data.srcCode.getCurrent();
 
 			if (c == '#') {
 				if (data.srcCode.isNext('#')) {
 					// escaped ## → literal #
 					if (sb == null) sb = new StringBuilder();
-					data.srcCode.appendSegmentTo(sb, segStart, data.srcCode.getPos());
+					data.srcCode.appendSegmentTo(sb, segStart);
 					sb.append('#');
 					data.srcCode.next();
 					data.srcCode.next();
@@ -1129,7 +1126,7 @@ public abstract class AbstrCFMLExprTransformer {
 					// #expr# interpolation — flush pending segment
 					String seg;
 					if (sb != null) {
-						data.srcCode.appendSegmentTo(sb, segStart, data.srcCode.getPos());
+						data.srcCode.appendSegmentTo(sb, segStart);
 						seg = sb.toString();
 						sb = null;
 					}
@@ -1156,7 +1153,7 @@ public abstract class AbstrCFMLExprTransformer {
 				if (data.srcCode.isNext(quoter)) {
 					// escaped quote
 					if (sb == null) sb = new StringBuilder();
-					data.srcCode.appendSegmentTo(sb, segStart, data.srcCode.getPos());
+					data.srcCode.appendSegmentTo(sb, segStart);
 					sb.append(quoter);
 					data.srcCode.next();
 					data.srcCode.next();

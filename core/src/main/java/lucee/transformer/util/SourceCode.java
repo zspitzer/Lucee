@@ -173,7 +173,7 @@ public class SourceCode {
 			else {
 				lc = raw;
 			}
-			lcText[i] = (byte) lc;
+			lcText[i] = lc < 0x100 ? (byte) lc : 0;
 
 			if (lc == ' ') {
 				int dist = nextNonSpace - i;
@@ -1268,22 +1268,23 @@ public class SourceCode {
 	}
 
 	/**
-	 * Advances pos to the next '#', quoter, or end of input using charClass hops.
-	 * Var-char runs (CC_LETTER, CC_DIGIT) provably contain no '#' or quote — hop them.
-	 * Operator/punctuation chars that are not the sentinel advance by 1.
+	 * Advances pos forward until the next '#' or c is found (or EOF).
+	 * Var-char runs (CC_LETTER, CC_DIGIT) provably contain no '#' or non-word char — hop them.
+	 * @return true if a sentinel was found and pos is now at it; false if EOF was reached
 	 */
-	public void scanStringSegment(char quoter) {
+	public boolean forwardToCharOrHash(char c) {
 		while (pos < len) {
 			short v = charClass[pos];
 			if (v > 0 && (v & 3) != 0) {
 				pos += v >> CC_RUN_SHIFT;
 			}
 			else {
-				int c = lcText[pos] & 0xFF;
-				if (c == '#' || c == quoter) break;
+				int ch = lcText[pos] & 0xFF;
+				if (ch == '#' || ch == c) return true;
 				pos++;
 			}
 		}
+		return false;
 	}
 
 	/**
@@ -1291,6 +1292,13 @@ public class SourceCode {
 	 */
 	public void appendSegmentTo(StringBuilder sb, int from, int to) {
 		sb.append(text, from, to - from);
+	}
+
+	/**
+	 * Appends text[from..pos) to sb — implicit-end overload using the current pos.
+	 */
+	public void appendSegmentTo(StringBuilder sb, int from) {
+		sb.append(text, from, pos - from);
 	}
 
 	/**
