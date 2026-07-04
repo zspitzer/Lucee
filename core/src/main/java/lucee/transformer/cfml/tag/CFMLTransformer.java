@@ -722,10 +722,9 @@ public final class CFMLTransformer {
 						throw te;
 					}
 
-					TagLib tagLibEnd = nameSpace(data);
-					// same NameSpace
-					if (!(tagLibEnd != null && tagLibEnd.getNameSpaceAndSeparator().equals(tagLib.getNameSpaceAndSeparator())))
-						throw new TemplateException(data.srcCode, "invalid construct");
+					// direct prefix probe — tag-dependent close MUST match opener's namespace; wrong = hard error
+					if (!matchTagLibPrefix(data, tagLib)) throw new TemplateException(data.srcCode, "invalid construct");
+					TagLib tagLibEnd = tagLib;
 					// get end Tag
 					String strNameEnd = identifier(data.srcCode, true, true).toLowerCase();
 
@@ -782,7 +781,10 @@ public final class CFMLTransformer {
 
 						// get TagLib of end Tag
 						int _start = data.srcCode.getPos();
-						TagLib tagLibEnd = nameSpace(data);
+						// fast probe: does source at pos match this tag's own namespace? Common case
+						// on matching-close-tag. On miss, fall back to nameSpace() slow scan so the
+						// cross-taglib ignoreUnknowTags branch below can still resolve tagLibEnd.
+						TagLib tagLibEnd = matchTagLibPrefix(data, tagLib) ? tagLib : nameSpace(data);
 
 						// same NameSpace
 						if (tagLibEnd != null) {
@@ -848,6 +850,10 @@ public final class CFMLTransformer {
 			try {
 				TagLib lib = tagLibTag.getEvaluator().execute(data.config, tag, tagLibTag, data.flibs, data);
 				if (lib != null) {
+					// any evaluator returning a taglib mutates tlibs[TAG_LIB_PAGE] — invalidate
+					// the nameSpace() fast-path so subsequent calls resume slow-path with PAGE-first
+					// priority. One-way flip; no re-optimization mid-file.
+					data.nsFast = false;
 					// set
 					for (int i = 0; i < data.tlibs[TAG_LIB_PAGE].length; i++) {
 						if (data.tlibs[TAG_LIB_PAGE][i].getNameSpaceAndSeparator().equalsIgnoreCase(lib.getNameSpaceAndSeparator())) {
@@ -887,10 +893,23 @@ public final class CFMLTransformer {
 	 * zurueck falls eine passt, ansonsten null. <br />
 	 * EBNF:<br />
 	 * <code>&lt; tagLib[].getNameSpaceAndSeperator() &gt;(* Vergleicht Zeichen mit den Namespacedefinitionen der Tag Libraries. *) </code>
-	 * 
+	 *
+	 * Fast-path: when Data was constructed with the common shape (empty TAG_LIB_PAGE + single
+	 * TAG_LIB_GLOBAL taglib with 2-char prefix, i.e. the core "cf" case), collapse the nested
+	 * for-loop scan to one forwardIfExact call. cfimport-driven mutations invalidate nsFast via
+	 * executeEvaluator so the slow path resumes for the rest of the compile.
+	 *
 	 * @return TagLib Passende Tag Lirary oder null.
 	 */
 	public static TagLib nameSpace(Data data) {
+		if (data.nsFast) {
+			if (data.srcCode.forwardIfExact(data.nsFastC0, data.nsFastC1)) return data.nsFastLib;
+			return null;
+		}
+		return nameSpaceSlow(data);
+	}
+
+	private static TagLib nameSpaceSlow(Data data) {
 		boolean hasTag = false;
 		int start = data.srcCode.getPos();
 		TagLib tagLib = null;
@@ -917,6 +936,24 @@ public final class CFMLTransformer {
 			// if(hasTag) return tagLib;
 		}
 		return null;
+	}
+
+	/**
+	 * End-tag verify: probe whether the source at pos matches the given taglib's namespace+separator.
+	 * When it matches, advances pos past the prefix and returns true. When it doesn't match, pos
+	 * stays put and returns false — caller decides whether to fall back to nameSpace() (which scans
+	 * all tlibs, needed for cross-taglib close-tag detection) or hard-error.
+	 *
+	 * Bypasses the nested-loop scan in nameSpace() for the common case where the closing tag's
+	 * namespace matches its opener's. Called from tag() end-tag verification sites (tag-dependent
+	 * body + regular body).
+	 */
+	private static boolean matchTagLibPrefix(Data data, TagLib tagLib) {
+		char[] c = tagLib.getNameSpaceAndSeperatorAsCharArray();
+		if (c.length == 2) return data.srcCode.forwardIfExact(c[0], c[1]);
+		if (c.length == 3) return data.srcCode.forwardIfExact(c[0], c[1], c[2]);
+		// long prefix (uncommon — imported taglibs with prefix >= 3 chars)
+		return data.srcCode.forwardIfCurrent(tagLib.getNameSpaceAndSeparator());
 	}
 
 	/**

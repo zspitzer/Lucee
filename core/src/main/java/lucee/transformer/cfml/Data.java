@@ -69,6 +69,14 @@ public final class Data {
 	public boolean hasCharset;
 	public boolean ast;
 
+	// Namespace fast-path cache — populated at construction, invalidated by
+	// CFMLTransformer.executeEvaluator on cfimport-driven tlibs[TAG_LIB_PAGE] mutation.
+	// See tag-parsing-modernisation.md and CFMLTransformer.nameSpace.
+	public boolean nsFast;
+	public TagLib nsFastLib;
+	public char nsFastC0;
+	public char nsFastC1;
+
 	public Data(Factory factory, Config config, Page page, SourceCode srcCode, EvaluatorPool ep, TransfomerSettings settings, TagLib[][] tlibs, FunctionLib flibs,
 			TagLibTag[] scriptTags, boolean allowLowerThan, boolean hasWriteLog, boolean hasUpper, boolean hasCharset, boolean ast) {
 		this.page = page;
@@ -85,6 +93,26 @@ public final class Data {
 		this.hasUpper = hasUpper;
 		this.hasCharset = hasCharset;
 		this.ast = ast;
+		initNsFast();
+	}
+
+	// 99% of CFML files: no cfimport, single global "cf"-prefix taglib, 2-char match.
+	// If the initial tlibs shape fits that mould, cache the two chars + taglib ref so
+	// CFMLTransformer.nameSpace can dispatch via one forwardIfExact(char, char) call.
+	// Any cfimport during compile calls executeEvaluator, which clears nsFast (one-way).
+	private void initNsFast() {
+		if (tlibs == null || tlibs.length < 2) return;
+		TagLib[] page = tlibs[1];   // TAG_LIB_PAGE
+		TagLib[] global = tlibs[0]; // TAG_LIB_GLOBAL
+		if (page == null || page.length != 0) return;
+		if (global == null || global.length != 1) return;
+		TagLib lib = global[0];
+		char[] c = lib.getNameSpaceAndSeperatorAsCharArray();
+		if (c.length != 2) return;
+		nsFast = true;
+		nsFastLib = lib;
+		nsFastC0 = c[0];
+		nsFastC1 = c[1];
 	}
 
 	public SimpleExprTransformer getSimpleExprTransformer() {
