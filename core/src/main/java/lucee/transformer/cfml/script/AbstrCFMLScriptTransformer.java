@@ -227,33 +227,113 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 		short prior = data.context;
 		data.context = context;
 		comments(data);
-		Statement child = null;
 		if (data.srcCode.forwardIfCurrent(';')) {
 			return true;
 		}
-		else if ((child = ifStatement(data)) != null) parent.addStatement(child);
-		else if ((child = propertyStatement(data, parent)) != null) parent.addStatement(child);
-		else if ((child = paramStatement(data, parent)) != null) parent.addStatement(child);
-		else if ((child = funcStatement(data, parent)) != null) parent.addStatement(child);
-		else if ((child = whileStatement(data)) != null) parent.addStatement(child);
-		else if ((child = doStatement(data)) != null) parent.addStatement(child);
-		else if ((child = forStatement(data)) != null) parent.addStatement(child);
-		else if ((child = returnStatement(data)) != null) parent.addStatement(child);
-		else if ((child = switchStatement(data)) != null) parent.addStatement(child);
-		else if ((child = tryStatement(data)) != null) parent.addStatement(child);
-		else if (islandStatement(data, parent)) {}
-		// else if(staticStatement(data,parent)) ; // do nothing, happen already inside the method
-		else if ((child = staticStatement(data, parent)) != null) parent.addStatement(child);
-		else if ((child = componentStatement(data, parent)) != null) parent.addStatement(child);
-		else if ((child = tagStatement(data, parent)) != null) parent.addStatement(child);
-		else if ((child = cftagStatement(data, parent)) != null) parent.addStatement(child);
-		else if (block(data, parent)) {}
 
+		Statement child = null;
+		final int runLen = data.srcCode.getCurrentRunLength();
+
+		if (runLen == 0) {
+			// backtick island fence / block / expression fallback — runLen==0 means we're not on an identifier
+			if (data.srcCode.isCurrent('`') && islandStatement(data, parent)) {
+				// island handled inline
+			}
+			else if (block(data, parent)) {
+				// block handled inline
+			}
+			else parent.addStatement(expressionStatement(data, parent));
+			data.clearDocComment();
+			data.context = prior;
+			return false;
+		}
+
+		final char c0 = data.srcCode.getCurrentLower();
+
+		// cf-prefix carve-out — runLen>=3 && [cC][fF]... goes straight to cftagStatement.
+		// Unknown cf<name> falls through to expression (same as current chain).
+		if (runLen >= 3 && c0 == 'c' && data.srcCode.charAtLower(data.srcCode.getPos() + 1) == 'f') {
+			child = cftagStatement(data, parent);
+		}
+
+		// Keyword dispatch — one branch per (runLen, c0). Every collision resolves on
+		// 2nd char or trailing punctuation inside the callee's existing gate.
+		if (child == null) {
+			switch (runLen) {
+				case 2:
+					if (c0 == 'i') child = ifStatement(data);            // if(
+					else if (c0 == 'd') child = doStatement(data);       // do{/do /do/
+					break;
+				case 3:
+					if (c0 == 'f') child = forStatement(data);           // for(
+					else if (c0 == 't') child = tryStatement(data);      // try{/try /try/
+					break;
+				case 5:
+					if (c0 == 'w') child = whileStatement(data);         // while(
+					else if (c0 == 'p') child = paramStatement(data, parent);  // param<space>
+					break;
+				case 6:
+					if (c0 == 'r') child = returnStatement(data);        // return
+					else if (c0 == 's') {
+						// switch vs static — discriminate on 2nd char
+						char c1 = data.srcCode.charAtLower(data.srcCode.getPos() + 1);
+						if (c1 == 'w') child = switchStatement(data);
+						else if (c1 == 't') child = staticStatement(data, parent);
+						// static function foo(){} falls through to modifier preflight — staticStatement returns null when there's no trailing '{'
+					}
+					break;
+				case 8:
+					if (c0 == 'p') child = propertyStatement(data, parent);  // property<space>, CTX_CFC only (gated internally)
+					else if (c0 == 'f') child = funcStatement(data, parent); // function
+					break;
+				case 9:
+					if (c0 == 'c') child = componentStatement(data, parent); // component
+					break;
+			}
+		}
+
+		// Modifier / label / return-type preflight — the rare paths.
+		// isFunctionCallLookahead rejects `foo(...)`, `foo[...]`, `foo.bar`, `foo=...` shapes
+		// BEFORE any variableDec/identifier read — this is where the wasted-preflight cost dies.
+		if (child == null && !isFunctionCallLookahead(data)) {
+			if ((child = funcStatement(data, parent)) == null) {
+				if ((child = componentStatement(data, parent)) == null && isLabeledLoopStart(data)) {
+					if ((child = whileStatement(data)) == null) {
+						if ((child = doStatement(data)) == null) {
+							child = forStatement(data);
+						}
+					}
+				}
+			}
+		}
+
+		if (child == null) child = tagStatement(data, parent);
+
+		if (child != null) parent.addStatement(child);
 		else parent.addStatement(expressionStatement(data, parent));
+
 		data.clearDocComment();
 		data.context = prior;
-
 		return false;
+	}
+
+	private static boolean isFunctionCallLookahead(Data data) {
+		// identifier immediately followed by '(' / '[' / '=' is expression/assign shape, not a decl.
+		// '.' is deliberately NOT here — `foo.bar` could be member access (expression) OR a qualified
+		// return-type name like `com.example.MyType function foo()`. Route both through preflight;
+		// funcStatement's tokens[1]=null lookup at '.' bails fast for the member-access case.
+		int probe = data.srcCode.getPos() + data.srcCode.getCurrentRunLength();
+		if (probe >= data.srcCode.length()) return false;
+		char c = data.srcCode.charAt(probe);
+		return c == '(' || c == '[' || c == '=';
+	}
+
+	private static boolean isLabeledLoopStart(Data data) {
+		// identifier followed by (optional space) ':' — labeled loop prefix
+		int probe = data.srcCode.getPos() + data.srcCode.getCurrentRunLength();
+		int len = data.srcCode.length();
+		while (probe < len && data.srcCode.charAt(probe) == ' ') probe++;
+		return probe < len && data.srcCode.charAt(probe) == ':';
 	}
 
 	/**
