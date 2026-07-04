@@ -982,6 +982,22 @@ public final class CFMLTransformer {
 		int start = data.srcCode.getPos();
 		// Tag with attribute names
 		if (type != TagLibTag.ATTRIBUTE_TYPE_NONAME) {
+			// Peek: if the tag also supports a positional (noname) attribute AND the source at pos
+			// doesn't look like `name=`, dispatch straight to attrNoName instead of speculating through
+			// the named-attr loop. Without this, expression-valued positional attrs like
+			// `<cfwhile fileExists(target)>` throw "Attribute [fileexists] is not allowed" inside
+			// attributeName(), get caught below, pos reset, and re-parsed as noname anyway — 428
+			// throws/compile of exception-driven backtrack. See exception-based-parser-fallback.md.
+			TagLibTagAttr peekSa = tag.getSingleAttr();
+			if (peekSa != null) {
+				int peekSaved = data.srcCode.getPos();
+				data.srcCode.removeSpace();
+				if (!data.srcCode.isCurrent('/') && !data.srcCode.isCurrent('>') && !looksLikeNamedAttr(data.srcCode)) {
+					attrNoName(parent, tag, data, peekSa);
+					return;
+				}
+				data.srcCode.setPos(peekSaved);
+			}
 			try {
 				int min = tag.getMin();
 				int max = tag.getMax();
@@ -1074,6 +1090,27 @@ public final class CFMLTransformer {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Peek — does the current position look like a named-attribute name (identifier followed by
+	 * optional whitespace + `=`)? One charClass array load for the identifier run + a short whitespace
+	 * hop + one char compare. Non-mutating: caller-visible pos is unchanged. Used by attributes() to
+	 * skip the throw-driven named-attr fallback for expression-valued positional attrs like
+	 * `<cfwhile fileExists(target)>`.
+	 */
+	private static boolean looksLikeNamedAttr(SourceCode cfml) {
+		int savedPos = cfml.getPos();
+		try {
+			int runLen = cfml.getCurrentRunLength();
+			if (runLen <= 0) return false;
+			cfml.setPos(savedPos + runLen);
+			while (cfml.isValidIndex() && cfml.isCurrent(' ')) cfml.next();
+			return cfml.isValidIndex() && cfml.isCurrent('=');
+		}
+		finally {
+			cfml.setPos(savedPos);
+		}
 	}
 
 	private static void attrNoName(Tag parent, TagLibTag tag, Data data, TagLibTagAttr attr) throws TemplateException {
