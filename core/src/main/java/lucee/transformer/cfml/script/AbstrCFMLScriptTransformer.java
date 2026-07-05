@@ -227,6 +227,9 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 		short prior = data.context;
 		data.context = context;
 		comments(data);
+		// Anchor for lazy doc-comment discovery: parser sits at first non-ws/non-comment char,
+		// so findPrecedingComment can walk back through the intervening whitespace to the /** */.
+		data.docCommentAnchor = data.srcCode.getPos();
 		if (data.srcCode.forwardIfCurrent(';')) {
 			return true;
 		}

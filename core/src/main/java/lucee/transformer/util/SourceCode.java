@@ -1112,7 +1112,11 @@ public class SourceCode {
 			currentLinePrevPos = (currentLine > 1) ? lines[currentLine - 2] : -1;
 		}
 
-		if (currentLine >= lines.length) return false;
+		if (currentLine >= lines.length) {
+			// no more line terminators — consume to EOF so `//` on the final line lands pos at len
+			pos = len;
+			return false;
+		}
 		pos = currentLineEndPos + 1;
 		currentLine++;
 		currentLinePrevPos = currentLineEndPos;

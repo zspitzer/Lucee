@@ -2135,15 +2135,17 @@ public abstract class AbstrCFMLExprTransformer {
 
 	/**
 	 * Lazy doc-comment discovery via {@link SourceCode#findPrecedingComment}. Walks backward from
-	 * the current parser position past whitespace to find an immediately-preceding block comment;
-	 * if that comment starts with {@code /**}, extracts it via {@link DocCommentTransformer}.
-	 * No-op if already materialized or no preceding comment.
+	 * {@code data.docCommentAnchor} (position captured at statement dispatch, right after
+	 * {@code comments(data)} consumed any preceding /** *&#47; block) past whitespace to locate the
+	 * comment. If it starts with {@code /**}, extracts via {@link DocCommentTransformer}.
+	 * No-op if already materialized, no anchor set, or no preceding comment.
 	 */
 	protected void materializeDocComment(Data data) {
 		if (data.docComment != null) return;
 		if (data.insideFunction) return;
+		if (data.docCommentAnchor < 0) return;
 		SourceCode sc = data.srcCode;
-		int start = sc.findPrecedingComment(sc.getPos());
+		int start = sc.findPrecedingComment(data.docCommentAnchor);
 		if (start < 0) return;
 		if (!sc.isCharAt(start + 2, '*')) return;
 		data.docComment = docCommentTransformer.transform(data.factory, sc, start);
