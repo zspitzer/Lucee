@@ -1293,77 +1293,102 @@ public abstract class AbstrCFMLExprTransformer {
 	 * @return CFXD Element
 	 * @throws TemplateException
 	 */
+	/**
+	 * Parses the head of a variable/keyword expression. Fast-path (variable) is inlinable; keyword
+	 * verification (equalsLowerAt against `true`/`false`/`null` etc.) sits in {@link #dynamicKeyword},
+	 * only entered when {@link #looksLikeKeyword}'s (idLen, c0) gate matches a keyword slot.
+	 */
 	private Expression dynamic(Data data, boolean checkPrefix) throws TemplateException {
-		// Die Implementation weicht ein wenig von der Grammatik ab,
-		// aber nicht in der Logik sondern rein wie es umgesetzt wurde.
-
-		// get First Element of the Variable
 		Position line = data.srcCode.getPosition();
 		SourceCode src = data.srcCode;
 
-		// parse identifier char range without allocating an Identifier — we may not need one
-		// (scope/keyword paths return early). If it turns out we do (function-call / DataMember),
-		// startElement builds it from the range.
 		int idStart = src.getPos();
 		if (!src.isCurrentLetter()) {
+			// `(expr)` sub-expression — anything else is null so the outer expression cascade tries the next handler.
 			if (!src.forwardIfCurrent('(')) return null;
 			comments(data);
 			Expression expr = assignOp(data);
-
 			if (!src.forwardIfCurrent(')')) throw new TemplateException(src, "Invalid Syntax Closing [)] not found");
 			comments(data);
 			return expr;
 		}
-		src.forwardVarCharRun();
-		int idLen = src.getPos() - idStart;
-		Position idEndPos = src.getPosition();
 
+		final int idLen = src.getCurrentRunLength();
+		final char c0 = src.getCurrentLower();
+		src.forwardVarCharRun();
 		comments(data);
 
-		// Check for keywords via lcText[] compare — zero alloc: TRUE(4), FALSE(5), NULL(4), JAVA(4), CLASS(5), CFML(4), CFC(3)
-		if (idLen >= 3 && idLen <= 5) {
-			if (idLen == 4) {
-				if (src.equalsLowerAt(idStart, 4, "true")) {
-					comments(data);
-					return data.factory.createLitBoolean(true, line, src.getPosition());
-				}
-				else if (src.equalsLowerAt(idStart, 4, "null") && !src.isCurrent('.') && !src.isCurrent('[')) {
-					comments(data);
-					return data.factory.createNullConstant(line, src.getPosition());
-				}
-				else if (checkPrefix && src.forwardIfCurrent(':')) {
-					if (src.equalsLowerAt(idStart, 4, "java")) {
-						comments(data);
-						return data.factory.createLitString("saklsdjasklfhnsalkfddsf:java");
-					}
-					else if (src.equalsLowerAt(idStart, 4, "cfml")) {
-						comments(data);
-						return data.factory.createLitString("saklsdjasklfhnsalkfddsf:cfml");
-					}
-					src.previous();
-				}
-			}
-			else if (idLen == 5) {
-				if (src.equalsLowerAt(idStart, 5, "false")) {
-					comments(data);
-					return data.factory.createLitBoolean(false, line, src.getPosition());
-				}
-				else if (checkPrefix && src.equalsLowerAt(idStart, 5, "class") && src.forwardIfCurrent(':')) {
-					comments(data);
-					return data.factory.createLitString("saklsdjasklfhnsalkfddsf:java");
-				}
-			}
-			else if (idLen == 3 && checkPrefix && src.equalsLowerAt(idStart, 3, "cfc") && src.forwardIfCurrent(':')) {
-				comments(data);
-				return data.factory.createLitString("saklsdjasklfhnsalkfddsf:cfml");
-			}
+		if (looksLikeKeyword(idLen, c0, checkPrefix)) {
+			Expression kw = dynamicKeyword(data, line, idStart, idLen, c0, checkPrefix);
+			if (kw != null) return kw;
 		}
 
-		// Extract Scope from the Variable — Identifier only allocated inside startElement if needed
+		Position idEndPos = src.getPosition();
 		Variable var = startElement(data, idStart, idLen, line, idEndPos, line);
 		var.setStart(line);
 		var.setEnd(src.getPosition());
 		return var;
+	}
+
+	// Keyword slots (idLen, c0): TRUE(4,t), NULL(4,n), FALSE(5,f), JAVA(4,j), CFML(4,c), CFC(3,c), CLASS(5,c).
+	private static boolean looksLikeKeyword(int idLen, char c0, boolean checkPrefix) {
+		switch (idLen) {
+			case 3: return checkPrefix && c0 == 'c';
+			case 4: return c0 == 't' || c0 == 'n' || (checkPrefix && (c0 == 'j' || c0 == 'c'));
+			case 5: return c0 == 'f' || (checkPrefix && c0 == 'c');
+			default: return false;
+		}
+	}
+
+	// Returns null when the shape matched a keyword slot but bytes didn't verify — caller falls through to variable emission.
+	private Expression dynamicKeyword(Data data, Position line, int idStart, int idLen, char c0, boolean checkPrefix) throws TemplateException {
+		SourceCode src = data.srcCode;
+
+		if (idLen == 4) {
+			if (c0 == 't') {
+				if (src.equalsLowerAt(idStart, 4, "true")) {
+					comments(data);
+					return data.factory.createLitBoolean(true, line, src.getPosition());
+				}
+			}
+			else if (c0 == 'n') {
+				// `null` followed by `.` or `[` is a shadowed identifier (`variables.null = ...` then deref), not the literal.
+				if (src.equalsLowerAt(idStart, 4, "null") && !src.isCurrent('.') && !src.isCurrent('[')) {
+					comments(data);
+					return data.factory.createNullConstant(line, src.getPosition());
+				}
+			}
+			else if (checkPrefix && (c0 == 'j' || c0 == 'c') && src.forwardIfCurrent(':')) {
+				// `:` consumed speculatively — `previous()` reverts it on miss so variable path sees same input.
+				if (c0 == 'j' && src.equalsLowerAt(idStart, 4, "java")) {
+					comments(data);
+					return data.factory.createLitString("saklsdjasklfhnsalkfddsf:java");
+				}
+				if (c0 == 'c' && src.equalsLowerAt(idStart, 4, "cfml")) {
+					comments(data);
+					return data.factory.createLitString("saklsdjasklfhnsalkfddsf:cfml");
+				}
+				src.previous();
+			}
+		}
+		else if (idLen == 5) {
+			if (c0 == 'f') {
+				if (src.equalsLowerAt(idStart, 5, "false")) {
+					comments(data);
+					return data.factory.createLitBoolean(false, line, src.getPosition());
+				}
+			}
+			else if (c0 == 'c' && checkPrefix && src.equalsLowerAt(idStart, 5, "class") && src.forwardIfCurrent(':')) {
+				comments(data);
+				return data.factory.createLitString("saklsdjasklfhnsalkfddsf:java");
+			}
+		}
+		else if (idLen == 3 && c0 == 'c' && checkPrefix && src.equalsLowerAt(idStart, 3, "cfc") && src.forwardIfCurrent(':')) {
+			comments(data);
+			return data.factory.createLitString("saklsdjasklfhnsalkfddsf:cfml");
+		}
+
+		return null;
 	}
 
 	protected Expression json(Data data, FunctionLibFunction flf, char start, char end) throws TemplateException {
@@ -1503,8 +1528,36 @@ public abstract class AbstrCFMLExprTransformer {
 		return data.flibs.getFunction(name);
 	}
 
+	/**
+	 * Handles the chain that follows a dynamic() head. Fast-path: no chain opener → straight to
+	 * {@link #subDynamicTail}. Loop body (nested `.` / `[` / `?.` access) lives in {@link #subDynamicChain}.
+	 */
 	private Expression subDynamic(Data data, Expression expr, boolean tryStatic, boolean isStaticChild) throws TemplateException {
+		if (!isStaticChild) {
+			int b = data.srcCode.skipSpaceReturnCurrent();
+			if (b != '.' && b != '[' && b != '?') return subDynamicTail(data, expr, tryStatic);
+		}
+		return subDynamicChain(data, expr, tryStatic, isStaticChild);
+	}
 
+	// Static-scope `::` call + listener attachment for `foo(...):listener`. Shared by fast-path and slow-path.
+	private Expression subDynamicTail(Data data, Expression expr, boolean tryStatic) throws TemplateException {
+		if (tryStatic) {
+			comments(data);
+			Expression staticCall = staticScope(data, expr);
+			if (staticCall != null) return staticCall;
+		}
+		if (expr instanceof Invoker) {
+			List<Member> members = ((Invoker) expr).getMembers();
+			if (!members.isEmpty() && members.get(members.size() - 1) instanceof FunctionMember) {
+				Expression listener = getListener(data);
+				if (listener != null) ((Invoker) expr).addListener(listener);
+			}
+		}
+		return expr;
+	}
+
+	private Expression subDynamicChain(Data data, Expression expr, boolean tryStatic, boolean isStaticChild) throws TemplateException {
 		String name = null;
 		Invoker invoker = null;
 		// Loop over nested Variables
@@ -1574,30 +1627,7 @@ public abstract class AbstrCFMLExprTransformer {
 			}
 		}
 
-		// STATIC SCOPE CALL
-		if (tryStatic) {
-			comments(data);
-			Expression staticCall = staticScope(data, expr);
-			if (staticCall != null) {
-				return staticCall;
-			}
-		}
-
-		if (expr instanceof Invoker) {
-			List<Member> members = ((Invoker) expr).getMembers();
-			if (members.size() > 0) {
-				Member last = members.get(members.size() - 1);
-				if (last instanceof FunctionMember) {
-					Expression listener = getListener(data);
-					if (listener != null) {
-						((Invoker) expr).addListener(listener);
-					}
-				}
-			}
-
-		}
-
-		return expr;
+		return subDynamicTail(data, expr, tryStatic);
 	}
 
 	private Expression staticScope(Data data, Expression expr) throws TemplateException {
