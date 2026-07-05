@@ -49,6 +49,12 @@ public class SourceCode {
 	private static final int  CC_MAX_RUN     = Short.MAX_VALUE >> CC_RUN_SHIFT; // 2047 — effectively uncapped
 	private static final int  CC_SPACE_MAX   = Short.MAX_VALUE; // 32767 — one hop covers any whitespace/comment run
 
+	// EOF sentinel value written to charClass[len..len+3]. Kind nibble = 0xC (bits 2+3 set), so it
+	// doesn't match CC_LETTER(1)/CC_DIGIT(2)/CC_QUOTE(4)/CC_COMMENT_END(8). runLen = 0. Positive so
+	// it's not read as a whitespace hop. All isCurrent*/getCurrentRunLength predicates naturally
+	// return false/0 at EOF without needing a `pos < len` guard.
+	private static final short CC_EOF_SENTINEL = 0x000C;
+
 	protected int pos = 0;
 	protected int currentLine = 1; // Track current line number (1-based)
 	// Companion state to currentLine — stashed line-boundary positions so the hint
@@ -109,9 +115,10 @@ public class SourceCode {
 		this.parent = parent;
 		this.text = strText.toCharArray();
 		this.len = this.text.length;
-		lcText = new byte[len];
-		charClass = new short[len];
+		lcText = new byte[len + 4];
+		charClass = new short[len + 4];
 		this.lines = buildLcTextAndCharClass();
+		fillEofSentinel();
 		this.currentLineEndPos = lines[0]; // buildLcTextAndCharClass always appends len as sentinel, so lines[0] is safe
 		this.writeLog = writeLog;
 	}
@@ -126,11 +133,25 @@ public class SourceCode {
 		this.parent = parent;
 		this.text = textBuf.length == validLen ? textBuf : Arrays.copyOf(textBuf, validLen);
 		this.len = validLen;
-		lcText = new byte[validLen];
-		charClass = new short[validLen];
+		// 4-byte sentinel padding: lookahead primitives (forwardIfExact 2/3-char, isNext+peek) can
+		// read past `len` without a bounds check because lcText[len..len+3] = 0 (Java default init
+		// — no valid CFML operator or letter is 0). charClass gets CC_EOF_SENTINEL below — a value
+		// no real content produces (positive but low nibble 0xF doesn't match any CC_* kind, so
+		// isCurrentLetter/Number/Quote/OperatorChar all correctly return false at EOF).
+		lcText = new byte[validLen + 4];
+		charClass = new short[validLen + 4];
 		this.lines = buildLcTextAndCharClass();
+		fillEofSentinel();
 		this.currentLineEndPos = lines[0];
 		this.writeLog = writeLog;
+	}
+
+	// Sentinel fill for the 4-byte EOF tail. lcText already 0 by Java default init.
+	private void fillEofSentinel() {
+		charClass[len]     = CC_EOF_SENTINEL;
+		charClass[len + 1] = CC_EOF_SENTINEL;
+		charClass[len + 2] = CC_EOF_SENTINEL;
+		charClass[len + 3] = CC_EOF_SENTINEL;
 	}
 
 	private int[] buildLcTextAndCharClass() {
@@ -294,24 +315,22 @@ public class SourceCode {
 	 * is the character at the next position the same as the character provided by the input parameter
 	 */
 	public boolean isNext(char c) {
-		if (!hasNext()) return false;
+		// Sentinel padding makes lcText[pos+1] safe past EOF (reads 0, no real char matches).
 		return (lcText[pos + 1] & 0xFF) == c;
 	}
 
 	public boolean isNext(char a, char b) {
-		if (!hasNextNext()) return false;
 		return (lcText[pos + 1] & 0xFF) == a && (lcText[pos + 2] & 0xFF) == b;
 	}
 
 	/**
 	 * is the character at the current position (internal pointer) in the range of the given input
 	 * characters?
-	 * 
+	 *
 	 * @param left lower value.
 	 * @param right upper value.
 	 */
 	public boolean isCurrentBetween(char left, char right) {
-		if (pos >= len) return false;
 		int c = lcText[pos] & 0xFF;
 		return c >= left && c <= right;
 	}
@@ -320,7 +339,7 @@ public class SourceCode {
 	 * returns if the character at the current position (internal pointer) is a valid variable character
 	 */
 	public boolean isCurrentVariableCharacter() {
-		if (pos >= len) return false;
+		// Sentinel 0x000C has (v & 3) == 0 → predicate returns false at EOF cleanly.
 		short v = charClass[pos];
 		return v > 0 && (v & 3) != 0;
 	}
@@ -331,7 +350,7 @@ public class SourceCode {
 	 * @return is a letter
 	 */
 	public boolean isCurrentLetter() {
-		if (pos >= len) return false;
+		// Sentinel charClass = CC_EOF_SENTINEL has low nibble 0xF; CC_LETTER=1, so mask fails → false.
 		short v = charClass[pos];
 		return v > 0 && (v & 0xF) == CC_LETTER;
 	}
@@ -342,23 +361,22 @@ public class SourceCode {
 	 * @return is a number
 	 */
 	public boolean isCurrentNumber() {
-		if (pos >= len) return false;
 		short v = charClass[pos];
 		return v > 0 && (v & 0xF) == CC_DIGIT;
 	}
 
 	public boolean isCurrentQuote() {
-		if (pos >= len) return false;
 		short v = charClass[pos];
 		return v > 0 && (v & 0xF) == CC_QUOTE;
 	}
 
 	public boolean isCurrentHash() {
-		return pos < len && (lcText[pos] & 0xFF) == '#';
+		return (lcText[pos] & 0xFF) == '#';
 	}
 
 	public boolean isCurrentOperatorChar() {
-		return pos < len && charClass[pos] == 0;
+		// Sentinel charClass = CC_EOF_SENTINEL, not 0 — safe.
+		return charClass[pos] == 0;
 	}
 
 	/**
@@ -389,7 +407,7 @@ public class SourceCode {
 	 * One array load — parsers can dispatch by length without inspecting charClass directly.
 	 */
 	public int getCurrentRunLength() {
-		if (pos >= len) return 0;
+		// Sentinel charClass[len..] = 0x000C — runLen bits are 0, so `cc >> CC_RUN_SHIFT` is 0.
 		short cc = charClass[pos];
 		return cc > 0 ? (cc >> CC_RUN_SHIFT) : 0;
 	}
@@ -398,7 +416,7 @@ public class SourceCode {
 	 * is the current character (internal pointer) the same as the given
 	 */
 	public boolean isCurrent(char c) {
-		if (!isValidIndex()) return false;
+		// Sentinel padding — lcText[pos] safe at EOF (reads 0, no real char matches).
 		return (lcText[pos] & 0xFF) == c;
 	}
 
@@ -432,7 +450,8 @@ public class SourceCode {
 	 * {@link #forwardIfCurrent(char, char)} which is whitespace-tolerant (X ... Y).
 	 */
 	public boolean forwardIfExact(char c0, char c1) {
-		if (pos + 2 > len) return false;
+		// Sentinel padding at lcText[len..len+3] = 0 is guaranteed not to match any real ASCII
+		// operator, so both char checks passing implies pos+2 <= len — no bounds check needed.
 		if ((lcText[pos] & 0xFF) != c0) return false;
 		if ((lcText[pos + 1] & 0xFF) != c1) return false;
 		pos += 2;
@@ -444,7 +463,6 @@ public class SourceCode {
 	 * {@link #forwardIfExact(char, char)} for the design rationale.
 	 */
 	public boolean forwardIfExact(char c0, char c1, char c2) {
-		if (pos + 3 > len) return false;
 		if ((lcText[pos] & 0xFF) != c0) return false;
 		if ((lcText[pos + 1] & 0xFF) != c1) return false;
 		if ((lcText[pos + 2] & 0xFF) != c2) return false;
@@ -506,7 +524,8 @@ public class SourceCode {
 		// exactly str.length() — longer means the identifier continues past str (word-boundary fails),
 		// shorter or negative means str can't fully match. One array load replaces both the string
 		// compare and the followedByNoVariableCharacter check for the common non-match case.
-		if (followedByNoVariableCharacter && (pos >= len || (charClass[pos] >> CC_RUN_SHIFT) != str.length())) {
+		// Sentinel charClass[len..] has runLen=0 → mismatches str.length() (>0), so `pos >= len` guard is redundant.
+		if (followedByNoVariableCharacter && (charClass[pos] >> CC_RUN_SHIFT) != str.length()) {
 			pos = start;
 			return false;
 		}
@@ -527,7 +546,7 @@ public class SourceCode {
 	 * input, followed by a none word character
 	 */
 	public boolean forwardIfCurrentAndNoWordAfter(String str) {
-		if (pos >= len || (charClass[pos] >> CC_RUN_SHIFT) != str.length()) return false;
+		if ((charClass[pos] >> CC_RUN_SHIFT) != str.length()) return false;
 		int c = pos;
 		if (forwardIfCurrentKeyword(str)) {
 			if (!isCurrentLetter() && !isCurrent('_')) return true;
@@ -817,7 +836,7 @@ public class SourceCode {
 	 * @return Gibt zurueck ob der Zeiger innerhalb von Leerzeichen war oder nicht.
 	 */
 	public boolean removeSpace() {
-		if (pos >= len) return false;
+		// Sentinel charClass[len..] = 0x000C (positive) → `v >= 0` fires and returns false at EOF.
 		short v = charClass[pos];
 		if (v >= 0) return false;
 		pos -= v;
@@ -1061,7 +1080,7 @@ public class SourceCode {
 		while (true) {
 			int b = skipSpaceReturnCurrent();
 			if (b != '/' && b != '<') return;
-			if (pos + 1 >= len) return;
+			// Sentinel byte lcText[len]=0 makes lcText[pos+1] safe — b2 will be 0 at EOF, no '/' '*' '!' match.
 			int b2 = lcText[pos + 1] & 0xFF;
 			if (b == '/') {
 				if (b2 == '/') { singleLineComment(); continue; }
@@ -1082,7 +1101,8 @@ public class SourceCode {
 
 	public String removeAndGetSpace() {
 		int start = pos;
-		while (pos < len && (lcText[pos] & 0xFF) == ' ') {
+		// Sentinel byte 0 at lcText[len..] never matches ' ' (0x20), so the pos<len guard is redundant.
+		while ((lcText[pos] & 0xFF) == ' ') {
 			pos++;
 		}
 		return substring(start, pos - start);

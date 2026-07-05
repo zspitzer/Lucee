@@ -505,8 +505,8 @@ public abstract class AbstrCFMLExprTransformer {
 	 */
 	private Expression notOp(Data data) throws TemplateException {
 		// Fast path: only '!' or 'n' (start of "not") can trigger negation. 99% of expression
-		// operands fall through to decsionOp without needing a Position alloc.
-		if (!data.srcCode.isValidIndex()) return decsionOp(data);
+		// operands fall through to decsionOp without needing a Position alloc. Sentinel byte at
+		// lcText[len] makes getCurrentLower() safe at EOF — returns 0, no match.
 		int c = data.srcCode.getCurrentLower();
 		if (c != '!' && c != 'n') return decsionOp(data);
 
@@ -543,7 +543,7 @@ public abstract class AbstrCFMLExprTransformer {
 		// No decision op at pos -> both switches fall through, hasChanged stays false, loop exits.
 		do {
 			hasChanged = false;
-			if (!data.srcCode.isValidIndex()) break;
+			// Sentinel makes getCurrentLower/getCurrentRunLength safe at EOF; both return 0, no case matches, loop exits.
 			char c = data.srcCode.getCurrentLower();
 			int runLen = data.srcCode.getCurrentRunLength();
 			if (runLen == 0) {
@@ -920,8 +920,8 @@ public abstract class AbstrCFMLExprTransformer {
 	 * @throws TemplateException
 	 */
 	private Expression negatePlusMinusOp(Data data) throws TemplateException {
-		// Fast path: only '-' or '+' triggers negation/increment. 99% skips Position alloc.
-		if (!data.srcCode.isValidIndex()) return clip(data);
+		// Fast path: only '-' or '+' triggers negation/increment. Sentinel byte at lcText[len]
+		// makes getCurrentLower() safe at EOF (returns 0, no operator matches).
 		int c = data.srcCode.getCurrentLower();
 		if (c != '-' && c != '+') return clip(data);
 
@@ -1276,7 +1276,7 @@ public abstract class AbstrCFMLExprTransformer {
 	 */
 	private String digit(Data data) {
 		int start = data.srcCode.getPos();
-		while (data.srcCode.isValidIndex() && data.srcCode.isCurrentNumber())
+		while (data.srcCode.isCurrentNumber())
 			data.srcCode.next();
 		return data.srcCode.substring(start, data.srcCode.getPos() - start);
 	}
@@ -1547,7 +1547,9 @@ public abstract class AbstrCFMLExprTransformer {
 			Expression staticCall = staticScope(data, expr);
 			if (staticCall != null) return staticCall;
 		}
-		if (expr instanceof Invoker) {
+		// `instanceof Invoker` is a one-opcode check that short-circuits keyword-literal returns
+		// (LitBoolean, NullConstant, etc.) before we do the byte-scan in isListenerHead.
+		if (expr instanceof Invoker && isListenerHead(data)) {
 			List<Member> members = ((Invoker) expr).getMembers();
 			if (!members.isEmpty() && members.get(members.size() - 1) instanceof FunctionMember) {
 				Expression listener = getListener(data);
@@ -1560,9 +1562,9 @@ public abstract class AbstrCFMLExprTransformer {
 	private Expression subDynamicChain(Data data, Expression expr, boolean tryStatic, boolean isStaticChild) throws TemplateException {
 		String name = null;
 		Invoker invoker = null;
-		// Loop over nested Variables
+		// Loop over nested Variables — sentinel-safe: at EOF the else-break at line ~1594 fires.
 		boolean safeNavigation;
-		while (data.srcCode.isValidIndex()) {
+		while (true) {
 			safeNavigation = false;
 			ExprString nameProp = null, namePropUC = null;
 			// []
@@ -1718,8 +1720,8 @@ public abstract class AbstrCFMLExprTransformer {
 		if (name != null) {
 			StringBuilder fullName = new StringBuilder();
 			fullName.append(name);
-			// Loop over additional identifier
-			while (data.srcCode.isValidIndex()) {
+			// Loop over additional identifier — sentinel-safe: forwardIfCurrent('.') is false at EOF, else-break fires.
+			while (true) {
 				if (data.srcCode.forwardIfCurrent('.')) {
 					comments(data);
 					name = identifier(data, true);
@@ -2027,8 +2029,14 @@ public abstract class AbstrCFMLExprTransformer {
 		return fm;
 	}
 
+	// Cheap gate — hoists the fast-fail path out of getListener so JIT can inline the outer check
+	// into subDynamicTail. Non-mutating; getListener still does the forwardIfCurrent(':') consume.
+	private static boolean isListenerHead(Data data) {
+		return !data.insideCase && !data.insideTenaryMiddle && data.srcCode.isPreviousIgnoreSpace(')');
+	}
+
 	private Expression getListener(Data data) throws TemplateException {
-		if (!data.insideCase && !data.insideTenaryMiddle && data.srcCode.isPreviousIgnoreSpace(')') && data.srcCode.forwardIfCurrent(':')) {
+		if (isListenerHead(data) && data.srcCode.forwardIfCurrent(':')) {
 			int pos = data.srcCode.getPos();
 			comments(data);
 			Expression expr = assignOp(data);

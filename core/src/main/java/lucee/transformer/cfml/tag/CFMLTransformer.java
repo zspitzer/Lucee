@@ -922,7 +922,8 @@ public final class CFMLTransformer {
 				// Loop over char of NameSpace and Sepearator
 				hasTag = true;
 				for (int y = 0; y < c.length; y++) {
-					if (!(data.srcCode.isValidIndex() && c[y] == data.srcCode.getCurrentLower())) {
+					// Sentinel: getCurrentLower() returns 0 at EOF; c[y] is a real namespace char (non-zero) → mismatch drops us out.
+					if (c[y] != data.srcCode.getCurrentLower()) {
 						// hasTag=true;
 						// } else {
 						hasTag = false;
@@ -1105,8 +1106,8 @@ public final class CFMLTransformer {
 			int runLen = cfml.getCurrentRunLength();
 			if (runLen <= 0) return false;
 			cfml.setPos(savedPos + runLen);
-			while (cfml.isValidIndex() && cfml.isCurrent(' ')) cfml.next();
-			return cfml.isValidIndex() && cfml.isCurrent('=');
+			while (cfml.isCurrent(' ')) cfml.next();
+			return cfml.isCurrent('=');
 		}
 		finally {
 			cfml.setPos(savedPos);
@@ -1339,7 +1340,8 @@ public final class CFMLTransformer {
 		// After forwardVarCharRun terminates, pos is guaranteed non-var-char, so one lcText[] read
 		// via getCurrentLower() replaces the two isCurrent(char) method calls per iteration and
 		// tightens the JIT profile (the ':' / '-' bimodal was tripping unstable_if/reinterpret).
-		while (cfml.isValidIndex()) {
+		// Sentinel-safe: getCurrentLower() returns 0 at EOF, else-break fires immediately.
+		while (true) {
 			char c = cfml.getCurrentLower();
 			if (c == '-' || (allowColon && c == ':')) {
 				cfml.next();
