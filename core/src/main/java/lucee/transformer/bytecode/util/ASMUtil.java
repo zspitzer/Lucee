@@ -61,7 +61,6 @@ import lucee.runtime.exp.PageException;
 import lucee.runtime.exp.PageRuntimeException;
 import lucee.runtime.op.Caster;
 import lucee.runtime.op.Decision;
-import lucee.runtime.reflection.Reflector;
 import lucee.runtime.type.Array;
 import lucee.runtime.type.Query;
 import lucee.runtime.type.Struct;
@@ -1266,12 +1265,17 @@ public final class ASMUtil {
 	}
 
 	public static boolean isFirstArgumentPageContext(BytecodeContext bc) {
+		// Lazy-cached on BytecodeContext — method signature doesn't change during emit of a given method,
+		// so the compute (m.getArgumentTypes() allocs a fresh Type[] every call) is amortized to once per BC.
+		Boolean cached = bc.getFirstArgumentIsPageContext();
+		if (cached != null) return cached;
 		boolean firstIsPC = false;
 		Method m = bc.getMethod();
 		Type[] types;
 		if (m != null && (types = m.getArgumentTypes()) != null && types.length > 0) {
-			firstIsPC = Reflector.isInstaneOf(ASMUtil.getClassName(types[0]), PageContext.class);
+			firstIsPC = Types.PAGE_CONTEXT.equals(types[0]);
 		}
+		bc.setFirstArgumentIsPageContext(firstIsPC);
 		return firstIsPC;
 	}
 

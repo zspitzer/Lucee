@@ -72,6 +72,11 @@ public final class DynamicInvoker {
 	private Log _log;
 	private static final Object token = new SerializableObject();
 
+	// Sort-indexed lookups for primitive unbox emit — avoids per-emit String concats
+	// (getClassName(type) + "Value", "()" + getDescriptor(type)). Indices match ASM Type.getSort().
+	private static final String[] UNBOX_NAMES = { null, "booleanValue", "charValue", "byteValue", "shortValue", "intValue", "floatValue", "longValue", "doubleValue" };
+	private static final String[] UNBOX_DESCS = { null, "()Z", "()C", "()B", "()S", "()I", "()F", "()J", "()D" };
+
 	private static Map<String, AtomicInteger> observer = new ConcurrentHashMap<>();
 
 	public DynamicInvoker(Resource configDir) {
@@ -254,9 +259,9 @@ public final class DynamicInvoker {
 						Type type = Type.getType(argType);
 						Class<?> wrapperType = Reflector.toReferenceClass(argType);
 
+						int sort = type.getSort();
 						mv.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(wrapperType)); // Cast to wrapper type
-						mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(wrapperType), ASMUtil.getClassName(type) + "Value", "()" + ASMUtil.getDescriptor(type),
-								false); // Unbox
+						mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(wrapperType), UNBOX_NAMES[sort], UNBOX_DESCS[sort], false); // Unbox
 					}
 					else {
 						mv.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(argType)); // Cast to correct type

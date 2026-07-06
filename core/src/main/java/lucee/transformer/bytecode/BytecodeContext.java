@@ -64,6 +64,7 @@ public class BytecodeContext implements Context {
 	private Boolean isLineBased; // cached value, null = not yet calculated
 	protected BitSet executableLines; // lazy init
 	private int lastEmittedLine = -1; // per-BC line-emit debounce (replaces ExpressionUtil.last HashMap)
+	private Boolean firstArgumentIsPageContext; // lazy — null=uncomputed; set by ASMUtil.isFirstArgumentPageContext
 	private int rtn = -1;
 	private final boolean returnValue;
 
@@ -302,6 +303,15 @@ public class BytecodeContext implements Context {
 
 	public void setLastEmittedLine(int line) {
 		this.lastEmittedLine = line;
+	}
+
+	/** Lazy cache for ASMUtil.isFirstArgumentPageContext — computed once per BytecodeContext. */
+	public Boolean getFirstArgumentIsPageContext() {
+		return firstArgumentIsPageContext;
+	}
+
+	public void setFirstArgumentIsPageContext(boolean v) {
+		this.firstArgumentIsPageContext = v;
 	}
 
 	public int[] getExecutableLines() {

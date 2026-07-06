@@ -424,34 +424,22 @@ public final class Types {
 	 * @return
 	 */
 	public static boolean isPrimitiveType(Type type) {
-		String className = ASMUtil.getClassName(type);
-		if (className.indexOf('.') != -1) return false;
-
-		if ("boolean".equals(className)) return true;
-		if ("short".equals(className)) return true;
-		if ("float".equals(className)) return true;
-		if ("long".equals(className)) return true;
-		if ("double".equals(className)) return true;
-		if ("char".equals(className)) return true;
-		if ("int".equals(className)) return true;
-		if ("byte".equals(className)) return true;
-
-		return false;
+		int sort = type.getSort();
+		return sort >= Type.BOOLEAN && sort <= Type.DOUBLE;
 	}
 
 	public static Type toRefType(Type type) {
-		String className = ASMUtil.getClassName(type);
-		if (className.indexOf('.') != -1) return type;
-
-		if ("boolean".equals(className)) return BOOLEAN;
-		if ("short".equals(className)) return SHORT;
-		if ("float".equals(className)) return FLOAT;
-		if ("long".equals(className)) return LONG;
-		if ("double".equals(className)) return DOUBLE;
-		if ("char".equals(className)) return CHARACTER;
-		if ("int".equals(className)) return INT_VALUE;
-		if ("byte".equals(className)) return BYTE;
-		return type;
+		switch (type.getSort()) {
+			case Type.BOOLEAN: return BOOLEAN;
+			case Type.CHAR:    return CHARACTER;
+			case Type.BYTE:    return BYTE;
+			case Type.SHORT:   return SHORT;
+			case Type.INT:     return INT_VALUE;
+			case Type.FLOAT:   return FLOAT;
+			case Type.LONG:    return LONG;
+			case Type.DOUBLE:  return DOUBLE;
+			default:           return type;
+		}
 	}
 
 	public static Class toClass(Type type) throws ClassException {
