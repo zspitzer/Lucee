@@ -177,7 +177,7 @@ public final class TagTry extends TagBase implements FlowControlRetry {
 			type = bc.getFactory().createLitString("any");
 			if (attrType != null) type = attrType.getValue();
 
-			if (type instanceof LitString && ((LitString) type).getString().equalsIgnoreCase("any")) {
+			if (type instanceof LitString && ((LitString) type).equalsLowerAscii("any")) {
 				tagElse = tag;
 				continue;
 			}

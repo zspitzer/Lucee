@@ -1172,7 +1172,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 			// check type
 			if ("type".equalsIgnoreCase(attr.getName())) {
 				if (attr.getValue() instanceof LitString) {
-					if (((LitString) attr.getValue()).getString().equalsIgnoreCase("java")) isJava = true;
+					if (((LitString) attr.getValue()).equalsLowerAscii("java")) isJava = true;
 				}
 				else throw new TemplateException(data.srcCode, "attribute type must be a literal string, ");
 			}

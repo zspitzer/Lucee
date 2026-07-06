@@ -19,6 +19,7 @@ package lucee.transformer.bytecode.expression.var;
 
 import lucee.transformer.expression.ExprString;
 import lucee.transformer.expression.Expression;
+import lucee.transformer.expression.literal.LitString;
 import lucee.transformer.expression.var.DataMember;
 import lucee.transformer.expression.var.Variable;
 
@@ -27,9 +28,29 @@ public final class DataMemberImpl implements DataMember {
 	private Variable parent;
 	private boolean safeNavigated;
 	private Expression safeNavigatedValue;
+	private final byte reservedProp;
 
 	public DataMemberImpl(ExprString name) {
 		this.name = name;
+		this.reservedProp = classifyReservedProp(name);
+	}
+
+	private static byte classifyReservedProp(ExprString name) {
+		if (!(name instanceof LitString)) return QP_NONE;
+		LitString ls = (LitString) name;
+		if (ls.fromBracket()) return QP_NONE;
+		int len = ls.getString().length();
+		if (len == 10) {
+			if (ls.equalsLowerAscii("currentrow")) return QP_CURRENTROW;
+			if (ls.equalsLowerAscii("columnlist")) return QP_COLUMNLIST;
+		}
+		else if (len == 11 && ls.equalsLowerAscii("recordcount")) return QP_RECORDCOUNT;
+		return QP_NONE;
+	}
+
+	@Override
+	public byte getReservedProp() {
+		return reservedProp;
 	}
 
 	public void setParent(Variable parent) {

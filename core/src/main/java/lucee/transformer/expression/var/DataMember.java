@@ -19,4 +19,14 @@ package lucee.transformer.expression.var;
 
 public interface DataMember extends NamedMember {
 
+	// Trailing dot-key classification: set once at construction from the name.
+	// Non-LitString names, bracket-access names, and names that don't match one of the three Query
+	// polymorphic props all resolve to QP_NONE. VariableImpl only cares about the trailing member's
+	// value — this field is computed for every DataMember so no member-position check is needed.
+	byte QP_NONE = 0;
+	byte QP_RECORDCOUNT = 1;
+	byte QP_CURRENTROW = 2;
+	byte QP_COLUMNLIST = 3;
+
+	byte getReservedProp();
 }

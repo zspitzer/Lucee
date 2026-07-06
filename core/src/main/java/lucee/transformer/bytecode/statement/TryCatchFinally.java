@@ -237,7 +237,7 @@ public final class TryCatchFinally extends StatementBase implements Opcodes, Has
 		while (it.hasNext()) {
 			Catch ct = it.next();
 			// store any for else
-			if (ct.type != null && ct.type instanceof LitString && ((LitString) ct.type).getString().equalsIgnoreCase("any")) {
+			if (ct.type != null && ct.type instanceof LitString && ((LitString) ct.type).equalsLowerAscii("any")) {
 				ctElse = ct;
 				continue;
 			}

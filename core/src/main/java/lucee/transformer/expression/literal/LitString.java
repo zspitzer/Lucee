@@ -32,4 +32,8 @@ public interface LitString extends Literal, ExprString {
 
 	public boolean fromBracket();
 
+	// Zero-alloc case-insensitive compare against a lowercase ASCII literal.
+	// The target MUST be lowercase; each source char is folded via `| 0x20` (ASCII-only).
+	public boolean equalsLowerAscii(String lowerTarget);
+
 }

@@ -340,19 +340,7 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 					}
 					//
 
-					ExprString name = ((DataMember) member).getName();
-					if (last && ASMUtil.isDotKey(name)) {
-						LitString ls = (LitString) name;
-						if (ls.getString().equalsIgnoreCase("RECORDCOUNT")) {
-							break outer;
-						}
-						else if (ls.getString().equalsIgnoreCase("CURRENTROW")) {
-							break outer;
-						}
-						else if (ls.getString().equalsIgnoreCase("COLUMNLIST")) {
-							break outer;
-						}
-					}
+					if (last && ((DataMember) member).getReservedProp() != DataMember.QP_NONE) break outer;
 
 				}
 			}
@@ -393,31 +381,13 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 
 			// Data Member
 			if (member instanceof DataMember) {
-				ExprString name = ((DataMember) member).getName();
-				if (last && ASMUtil.isDotKey(name)) {
-					LitString ls = (LitString) name;
-					if (ls.getString().equalsIgnoreCase("RECORDCOUNT")) {
-						adapter.invokeStatic(Types.VARIABLE_UTIL_IMPL, RECORDCOUNT);
-					}
-					else if (ls.getString().equalsIgnoreCase("CURRENTROW")) {
-						adapter.invokeStatic(Types.VARIABLE_UTIL_IMPL, CURRENTROW);
-					}
-					else if (ls.getString().equalsIgnoreCase("COLUMNLIST")) {
-						adapter.invokeStatic(Types.VARIABLE_UTIL_IMPL, COLUMNLIST);
-					}
-					else {
-						getFactory().registerKey(bc, name, false);
-						// safe nav
-						int type;
-						if (member.getSafeNavigated()) {
-							Expression val = member.getSafeNavigatedValue();
-							if (val == null) ASMConstants.NULL(adapter);
-							else val.writeOut(bc, Expression.MODE_REF);
-							type = THREE;
-						}
-						else type = TWO;
-						adapter.invokeVirtual(Types.PAGE_CONTEXT, asCollection(asCollection, last) ? GET_COLLECTION[type] : GET[type]);
-					}
+				DataMember dm = (DataMember) member;
+				ExprString name = dm.getName();
+				byte qp = last ? dm.getReservedProp() : DataMember.QP_NONE;
+				if (qp != DataMember.QP_NONE) {
+					if (qp == DataMember.QP_RECORDCOUNT) adapter.invokeStatic(Types.VARIABLE_UTIL_IMPL, RECORDCOUNT);
+					else if (qp == DataMember.QP_CURRENTROW) adapter.invokeStatic(Types.VARIABLE_UTIL_IMPL, CURRENTROW);
+					else adapter.invokeStatic(Types.VARIABLE_UTIL_IMPL, COLUMNLIST);
 				}
 				else {
 					getFactory().registerKey(bc, name, false);
@@ -858,7 +828,7 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 				LitString ls = (LitString) name;
 
 				// THIS
-				if (ls.getString().equalsIgnoreCase("THIS")) {
+				if (ls.equalsLowerAscii("this")) {
 					if (startIndex != null) startIndex.setValue(1);
 					adapter.loadArg(0);
 					adapter.checkCast(Types.PAGE_CONTEXT_IMPL);
@@ -870,7 +840,7 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 					return Types.OBJECT;
 				}
 				// STATIC
-				if (ls.getString().equalsIgnoreCase("STATIC")) {
+				if (ls.equalsLowerAscii("static")) {
 					if (startIndex != null) startIndex.setValue(1);
 					adapter.loadArg(0);
 					adapter.checkCast(Types.PAGE_CONTEXT_IMPL);

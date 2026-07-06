@@ -187,6 +187,16 @@ public class LitStringImpl extends ExpressionBase implements LitString, ExprStri
 	}
 
 	@Override
+	public boolean equalsLowerAscii(String lowerTarget) {
+		int n = lowerTarget.length();
+		if (str.length() != n) return false;
+		for (int i = 0; i < n; i++) {
+			if ((str.charAt(i) | 0x20) != lowerTarget.charAt(i)) return false;
+		}
+		return true;
+	}
+
+	@Override
 	public LitString duplicate() {
 		return new LitStringImpl(getFactory(), str, getStart(), getEnd());
 	}
