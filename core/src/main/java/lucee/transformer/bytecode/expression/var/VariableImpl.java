@@ -557,6 +557,7 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 
 	static Type _writeOutFirstBIF(BytecodeContext bc, BIF bif, int mode, boolean last, Position line) throws TransformerException {
 		GeneratorAdapter adapter = bc.getAdapter();
+		FunctionLibFunction flf = bif.getFlf();
 		adapter.loadArg(0);
 		// class
 		ClassDefinition bifCD = bif.getClassDefinition();
@@ -574,27 +575,18 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 		// arguments
 		Argument[] args = bif.getArguments();
 		Type[] argTypes;
-		boolean core = bif.getFlf().isCore();
+		boolean core = flf.isCore();
 		if (core) {
 			try {
 				if (clazzz.getMethods("call", true, -1).size() == 0) core = false;
 			}
 			catch (Exception e) {}
 		}
-		// load method
-		List<lucee.transformer.dynamic.meta.Method> methods = null;
-		if (core) {
-			try {
-				methods = clazzz.getMethods("call", true, args.length + 1);
-				if (methods != null && methods.size() == 0) methods = null;
-			}
-			catch (Exception e) {}
-		}
 
-		if (bif.getArgType() == FunctionLibFunction.ARG_FIX && !bifCD.isBundle() && core) {
+		if (core && bif.getArgType() == FunctionLibFunction.ARG_FIX && !bifCD.isBundle()) {
 
 			// named arguments
-			if (isNamed(bc, bif.getFlf().getName(), args)) {
+			if (isNamed(bc, flf.getName(), args)) {
 				NamedArgument[] nargs = toNamedArguments(args);
 
 				String[] names = new String[nargs.length];
@@ -602,7 +594,7 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 				for (int i = 0; i < nargs.length; i++) {
 					names[i] = getName(bc, nargs[i].getName());
 				}
-				ArrayList<FunctionLibFunctionArg> list = bif.getFlf().getArg();
+				ArrayList<FunctionLibFunctionArg> list = flf.getArg();
 				lucee.transformer.dynamic.meta.Method method = getMethod(clazzz, list, rtnType, bc, line);
 				if (method == null) {
 					throw new TransformerException(bc, "not matching method found for function [" + bif.getName() + "] in class [" + clazzz.getDeclaringClass().getName()
@@ -628,9 +620,9 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 				}
 				for (int y = 0; y < names.length; y++) {
 					if (names[y] != null) {
-						TransformerException bce = new TransformerException(bc, "argument [" + names[y] + "] is not allowed for function [" + bif.getFlf().getName() + "]",
+						TransformerException bce = new TransformerException(bc, "argument [" + names[y] + "] is not allowed for function [" + flf.getName() + "]",
 								args[y].getStart());
-						UDFUtil.addFunctionDoc(bce, bif.getFlf());
+						UDFUtil.addFunctionDoc(bce, flf);
 						throw bce;
 					}
 				}
@@ -652,7 +644,7 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 				// if no method exists for the exact match of arguments, call the method with all arguments (when
 				// exists)
 				else {
-					ArrayList<FunctionLibFunctionArg> fargs = bif.getFlf().getArg();
+					ArrayList<FunctionLibFunctionArg> fargs = flf.getArg();
 					m = getMethod(clazzz, fargs, rtnType, bc, line);
 					if (m == null) {
 
@@ -687,10 +679,10 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 		else {
 			///////////////////////////////////////////////////////////////
 			if (bif.getArgType() == FunctionLibFunction.ARG_FIX) {
-				if (isNamed(bc, bif.getFlf().getName(), args)) {
+				if (isNamed(bc, flf.getName(), args)) {
 					NamedArgument[] nargs = toNamedArguments(args);
 					String[] names = getNames(bc, nargs);
-					ArrayList<FunctionLibFunctionArg> list = bif.getFlf().getArg();
+					ArrayList<FunctionLibFunctionArg> list = flf.getArg();
 					Iterator<FunctionLibFunctionArg> it = list.iterator();
 					LinkedList<Argument> tmpArgs = new LinkedList<Argument>();
 					LinkedList<Boolean> nulls = new LinkedList<Boolean>();
@@ -709,9 +701,9 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 
 					for (int y = 0; y < names.length; y++) {
 						if (names[y] != null) {
-							TransformerException bce = new TransformerException(bc, "argument [" + names[y] + "] is not allowed for function [" + bif.getFlf().getName() + "]",
+							TransformerException bce = new TransformerException(bc, "argument [" + names[y] + "] is not allowed for function [" + flf.getName() + "]",
 									args[y].getStart());
-							UDFUtil.addFunctionDoc(bce, bif.getFlf());
+							UDFUtil.addFunctionDoc(bce, flf);
 							throw bce;
 						}
 					}
