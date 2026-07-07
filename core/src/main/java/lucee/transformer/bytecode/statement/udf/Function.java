@@ -19,7 +19,7 @@
 package lucee.transformer.bytecode.statement.udf;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -598,7 +598,7 @@ public abstract class Function extends StatementBaseNoFinal implements Opcodes, 
 
 		else {
 			toLitString(bc, name, attr.getValue());// needed for testing
-			if (metadata == null) metadata = new HashMap<String, Attribute>();
+			if (metadata == null) metadata = new LinkedHashMap<String, Attribute>();
 			metadata.put(attr.getName(), attr);
 		}
 	}

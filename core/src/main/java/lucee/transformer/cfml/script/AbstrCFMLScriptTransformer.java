@@ -20,7 +20,6 @@ package lucee.transformer.cfml.script;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -1103,7 +1102,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 					// meta
 					if (StringUtil.startsWithIgnoreCase(name, idName + ".")) {
 						if (name.length() > idName.length() + 1) {
-							if (meta == null) meta = new HashMap<String, Attribute>();
+							if (meta == null) meta = new LinkedHashMap<String, Attribute>();
 							_name = name.substring(idName.length() + 1);
 							meta.put(_name, new Attribute(attr.isDynamicType(), _name, attr.getValue(), attr.getType()));
 						}
@@ -1117,7 +1116,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 
 			Attribute _attr;
 			if (!ArrayUtil.isEmpty(_attrs)) {
-				if (meta == null) meta = new HashMap<String, Attribute>();
+				if (meta == null) meta = new LinkedHashMap<String, Attribute>();
 				for (int i = 0; i < _attrs.length; i++) {
 					_attr = _attrs[i];
 					meta.put(_attr.getName(), _attr);

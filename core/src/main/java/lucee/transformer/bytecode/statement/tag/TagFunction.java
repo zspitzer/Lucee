@@ -18,8 +18,8 @@
  */
 package lucee.transformer.bytecode.statement.tag;
 
-import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -291,7 +291,7 @@ public final class TagFunction extends TagBase implements IFunction {
 				cachedWithin, modifier, body, getStart(), getEnd());
 		Map<String, Attribute> attrs = getAttributes();
 		Iterator<Entry<String, Attribute>> it = attrs.entrySet().iterator();
-		HashMap<String, Attribute> metadatas = new HashMap<String, Attribute>();
+		LinkedHashMap<String, Attribute> metadatas = new LinkedHashMap<String, Attribute>();
 		while (it.hasNext()) {
 			attr = it.next().getValue();
 			metadatas.put(attr.getName(), attr);

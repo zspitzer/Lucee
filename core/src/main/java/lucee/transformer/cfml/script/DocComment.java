@@ -18,7 +18,7 @@
  **/
 package lucee.transformer.cfml.script;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import lucee.commons.lang.StringUtil;
@@ -32,7 +32,7 @@ public final class DocComment {
 	private StringBuilder tmpHint = new StringBuilder();
 	private String hint;
 	// private List<DocCommentParam> params=new ArrayList<DocComment.DocCommentParam>();
-	Map<String, Attribute> params = new HashMap<String, Attribute>();
+	Map<String, Attribute> params = new LinkedHashMap<String, Attribute>();
 
 	public void addHint(char c) {
 		tmpHint.append(c);

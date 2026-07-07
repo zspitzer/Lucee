@@ -18,9 +18,8 @@
  */
 package lucee.transformer.bytecode.statement.tag;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -51,7 +50,7 @@ public abstract class TagBase extends StatementBase implements Tag {
 	private TagLibTag tagLibTag;
 	Map<String, Attribute> attributes = new LinkedHashMap<String, Attribute>();
 	// Map<String,String> missingAttributes=new HashMap<String,String>();
-	HashSet<TagLibTagAttr> missingAttributes = new HashSet<TagLibTagAttr>();
+	LinkedHashSet<TagLibTagAttr> missingAttributes = new LinkedHashSet<TagLibTagAttr>();
 	private boolean scriptBase = false;
 
 	private Map<String, Attribute> metadata;
@@ -180,7 +179,7 @@ public abstract class TagBase extends StatementBase implements Tag {
 
 	@Override
 	public void addMetaData(Attribute metadata) {
-		if (this.metadata == null) this.metadata = new HashMap<String, Attribute>();
+		if (this.metadata == null) this.metadata = new LinkedHashMap<String, Attribute>();
 		this.metadata.put(metadata.getName(), metadata);
 	}
 
