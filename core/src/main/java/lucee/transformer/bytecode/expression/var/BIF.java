@@ -18,11 +18,16 @@
  **/
 package lucee.transformer.bytecode.expression.var;
 
+import org.objectweb.asm.Type;
+
 import lucee.runtime.db.ClassDefinition;
 import lucee.transformer.Factory;
+import lucee.transformer.TransformerException;
+import lucee.transformer.bytecode.BytecodeContext;
 import lucee.transformer.cfml.Data;
 import lucee.transformer.cfml.TransfomerSettings;
 import lucee.transformer.expression.ExprString;
+import lucee.transformer.expression.var.Variable;
 import lucee.transformer.library.function.FunctionLibFunction;
 
 public final class BIF extends FunctionMember {
@@ -113,5 +118,18 @@ public final class BIF extends FunctionMember {
 	@Override
 	public ExprString getName() {
 		return factory.createLitString(flf.getName());
+	}
+
+	@Override
+	public Type emit(Variable v, BytecodeContext bc, int i, int count, int mode, Boolean asCollection) throws TransformerException {
+		if (getSafeNavigated()) return null;
+		if (count == 1) {
+			return VariableImpl._writeOutFirstBIF(bc, this, mode, true, ((VariableImpl) v).getStart());
+		}
+		if (i == 0) {
+			// Head BIF in multi-member chain — writer preloaded PCs, we delegate to the legacy head emitter with last=false.
+			return VariableImpl._writeOutFirstBIF(bc, this, mode, false, ((VariableImpl) v).getStart());
+		}
+		return null;   // mid/tail BIF stays on emitGeneral fallback (genuinely rare)
 	}
 }

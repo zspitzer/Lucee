@@ -341,7 +341,7 @@ public final class TryCatchFinally extends StatementBase implements Opcodes, Has
 		// name
 		if (name instanceof LitString) {
 			Variable v = getFactory().createVariable(Scope.SCOPE_UNDEFINED, name.getStart(), name.getEnd());
-			v.addMember(getFactory().createDataMember(getFactory().toExprString(name)));
+			v.addDataMember(getFactory().createDataMember(getFactory().toExprString(name)));
 			name = new VariableRef(v, true);
 		}
 		else if (name instanceof Variable) name = new VariableRef((Variable) name, true);

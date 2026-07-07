@@ -1413,7 +1413,7 @@ public abstract class AbstrCFMLExprTransformer {
 
 			data.ep.add(flf, bif, data.srcCode);
 			Variable var = data.factory.createVariable(line, data.srcCode.getPosition());
-			var.addMember(bif);
+			var.addFunctionMember(bif);
 			return var;
 		}
 
@@ -1460,7 +1460,7 @@ public abstract class AbstrCFMLExprTransformer {
 
 		data.ep.add(flf, bif, data.srcCode);
 		Variable var = data.factory.createVariable(line, data.srcCode.getPosition());
-		var.addMember(bif);
+		var.addFunctionMember(bif);
 		return var;
 	}
 
@@ -1618,11 +1618,17 @@ public abstract class AbstrCFMLExprTransformer {
 			// Method
 			if (data.srcCode.isCurrent('(')) {
 				if (nameProp == null && name != null) nameProp = Identifier.toIdentifier(data.factory, name, Identifier.CASE_ORIGNAL, null, null);// properly this is never used
-				invoker.addMember(member = getFunctionMember(data, nameProp, false));
+				FunctionMember fm = getFunctionMember(data, nameProp, false);
+				invoker.addFunctionMember(fm);
+				member = fm;
 			}
 
 			// property
-			else invoker.addMember(member = data.factory.createDataMember(namePropUC));
+			else {
+				DataMember dm = data.factory.createDataMember(namePropUC);
+				invoker.addDataMember(dm);
+				member = dm;
+			}
 
 			if (safeNavigation) {
 				member.setSafeNavigated(true);
@@ -1661,7 +1667,7 @@ public abstract class AbstrCFMLExprTransformer {
 			}
 
 			Variable var = data.factory.createVariable(old.getStart(), data.srcCode.getPosition());
-			var.addMember(bif);
+			var.addFunctionMember(bif);
 
 			// now we are reading what is coming after ":::"
 			Expression sd = subDynamic(data, var, false, true);
@@ -1703,7 +1709,7 @@ public abstract class AbstrCFMLExprTransformer {
 			func.addArgument(new ArgumentImpl(exprName, "string"));
 			func.addArgument(new ArgumentImpl(data.factory.createLitString(type), "string"));
 			Variable v = expr.getFactory().createVariable(expr.getStart(), expr.getEnd());
-			v.addMember(func);
+			v.addFunctionMember(func);
 			// if (listener != null) v.addListener(listener);
 			comments(data);
 			return v;
@@ -1770,7 +1776,7 @@ public abstract class AbstrCFMLExprTransformer {
 			Expression listener = getListener(data);
 
 			Variable var = data.factory.createVariable(line, data.srcCode.getPosition());
-			var.addMember(func);
+			var.addFunctionMember(func);
 			if (listener != null) var.addListener(listener);
 			comments(data);
 			return var;
@@ -1783,7 +1789,7 @@ public abstract class AbstrCFMLExprTransformer {
 		// undefined variable — needs Identifier for the DataMember
 		Identifier name = buildIdentifier(data, idStart, idLen, idStartPos, idEndPos);
 		var = data.factory.createVariable(line, data.srcCode.getPosition());
-		var.addMember(data.factory.createDataMember(name));
+		var.addDataMember(data.factory.createDataMember(name));
 
 		comments(data);
 		return var;
@@ -1822,7 +1828,7 @@ public abstract class AbstrCFMLExprTransformer {
 				if (_id != null) {
 					comments(data);
 					Variable local = data.factory.createVariable(ScopeSupport.SCOPE_VAR, line, data.srcCode.getPosition());
-					if (!"LOCAL".equalsIgnoreCase(_id.getString())) local.addMember(data.factory.createDataMember(_id));
+					if (!"LOCAL".equalsIgnoreCase(_id.getString())) local.addDataMember(data.factory.createDataMember(_id));
 					else {
 						local.ignoredFirstMember(true);
 					}

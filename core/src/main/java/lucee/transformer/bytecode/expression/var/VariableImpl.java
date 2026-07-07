@@ -90,12 +90,12 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 	final static Method INIT = new Method("init", Types.COLLECTION_KEY, new Type[] { Types.STRING });
 	final static Method TO_KEY = new Method("toKey", Types.COLLECTION_KEY, new Type[] { Types.OBJECT });
 
-	private static final int TWO = 0;
-	private static final int THREE = 1;
-	private static final int THREE2 = 2;
+	static final int TWO = 0;
+	static final int THREE = 1;
+	static final int THREE2 = 2;
 
 	// Object getCollection (Object,Key[,Object])
-	private final static Method[] GET_COLLECTION = new Method[] {
+	final static Method[] GET_COLLECTION = new Method[] {
 
 			new Method("getCollection", Types.OBJECT, new Type[] { Types.OBJECT, Types.COLLECTION_KEY }),
 			new Method("getCollection", Types.OBJECT, new Type[] { Types.OBJECT, Types.COLLECTION_KEY, Types.OBJECT })
@@ -103,14 +103,14 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 	};
 
 	// Object get (Object,Key)
-	private final static Method[] GET = new Method[] { new Method("get", Types.OBJECT, new Type[] { Types.OBJECT, Types.COLLECTION_KEY }),
+	final static Method[] GET = new Method[] { new Method("get", Types.OBJECT, new Type[] { Types.OBJECT, Types.COLLECTION_KEY }),
 			new Method("get", Types.OBJECT, new Type[] { Types.OBJECT, Types.COLLECTION_KEY, Types.OBJECT }) };
 
-	private final static Method[] GET_FUNCTION = new Method[] { new Method("getFunction", Types.OBJECT, new Type[] { Types.OBJECT, Types.COLLECTION_KEY, Types.OBJECT_ARRAY }),
+	final static Method[] GET_FUNCTION = new Method[] { new Method("getFunction", Types.OBJECT, new Type[] { Types.OBJECT, Types.COLLECTION_KEY, Types.OBJECT_ARRAY }),
 			new Method("getFunction", Types.OBJECT, new Type[] { Types.OBJECT, Types.COLLECTION_KEY, Types.OBJECT_ARRAY, Types.OBJECT }),
 			new Method("getFunction2", Types.OBJECT, new Type[] { Types.OBJECT, Types.COLLECTION_KEY, Types.OBJECT_ARRAY, Types.OBJECT }) };
 	// Object getFunctionWithNamedValues (Object,String,Object[])
-	private final static Method[] GET_FUNCTION_WITH_NAMED_ARGS = new Method[] {
+	final static Method[] GET_FUNCTION_WITH_NAMED_ARGS = new Method[] {
 			new Method("getFunctionWithNamedValues", Types.OBJECT, new Type[] { Types.OBJECT, Types.COLLECTION_KEY, Types.OBJECT_ARRAY }),
 			new Method("getFunctionWithNamedValues", Types.OBJECT, new Type[] { Types.OBJECT, Types.COLLECTION_KEY, Types.OBJECT_ARRAY, Types.OBJECT }),
 			new Method("getFunctionWithNamedValues2", Types.OBJECT, new Type[] { Types.OBJECT, Types.COLLECTION_KEY, Types.OBJECT_ARRAY, Types.OBJECT }) };
@@ -155,7 +155,7 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 	private final static Method LS_GET_KEY4 = new Method("ls", Types.OBJECT, new Type[] { Types.COLLECTION_KEY, Types.COLLECTION_KEY, Types.COLLECTION_KEY, Types.COLLECTION_KEY });
 	private final static Method[] LS_GET_KEYS = new Method[] { LS_GET_KEY1, LS_GET_KEY2, LS_GET_KEY3, LS_GET_KEY4 };
 
-	private final static Method[][] GET_KEYS = new Method[Scope.SCOPE_COUNT][4];
+	final static Method[][] GET_KEYS = new Method[Scope.SCOPE_COUNT][4];
 
 	// GET COLUMN
 	private final static Method USC_GET_KEY2 = new Method("usc", Types.OBJECT, new Type[] { Types.COLLECTION_KEY, Types.COLLECTION_KEY });
@@ -246,9 +246,15 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 	}
 
 	@Override
-	public void addMember(Member member) {
-		if (member instanceof DataMember) countDM++;
-		else countFM++;
+	public void addDataMember(DataMember member) {
+		countDM++;
+		member.setParent(this);
+		members.add(member);
+	}
+
+	@Override
+	public void addFunctionMember(FunctionMember member) {
+		countFM++;
 		member.setParent(this);
 		members.add(member);
 	}
@@ -306,60 +312,109 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 	}
 
 	public Type writeOutX(BytecodeContext bc, int mode, Boolean asCollection) throws TransformerException {
+		int n = members.size();
+		if (n == 1) {
+			Type t = members.get(0).emit(this, bc, 0, 1, mode, asCollection);
+			if (t != null) return t;
+		}
+		else if (n >= 2 && compactMultiEligible()) return emitCompactMulti(bc, asCollection);
+		else if (n >= 2 && memberChainEligible()) return emitMemberChain(bc, mode, asCollection);
+		return emitGeneral(bc, mode, asCollection);
+	}
+
+	private boolean memberChainEligible() {
+		int count = countFM + countDM;
+		if (count < 2) return false;
+		if (scope < 0 || scope >= TypeScope.SCOPES.length || TypeScope.SCOPES[scope] == null) return false;
+		int last = count - 1;
+		for (int i = 0; i < count; i++) {
+			Member m = members.get(i);
+			if (m instanceof DataMember) {
+				// Safe-nav allowed on continuations (i > 0). Never set at i==0 by the parser.
+				if (m.getSafeNavigated() && i == 0) return false;
+				if (i == last && ((DataMember) m).getReservedProp() != DataMember.QP_NONE) return false;
+				// Head `this.xxx` / `static.xxx` in undefined scope has a specialized
+				// PageContextImpl.thisTouch()/staticTouch() fast path in _writeOutFirstDataMember.
+				// emitMemberChain's generic Undefined.getCollection resolution would lose it —
+				// gate out so emitGeneral fires the specialization.
+				if (i == 0 && scope == Scope.SCOPE_UNDEFINED) {
+					ExprString name = ((DataMember) m).getName();
+					if (ASMUtil.isDotKey(name)) {
+						LitString ls = (LitString) name;
+						if (ls.equalsLowerAscii("this") || ls.equalsLowerAscii("static")) return false;
+					}
+				}
+				continue;
+			}
+			// UDF allowed at any position. Head safe-nav UDF (parser marks head when `?.` follows) has an
+			// emitGeneral-specific bytecode shape (extra PC preload in _writeOutFirstDataMember-style) that
+			// our head UDF.emit doesn't replicate — reject it here so emitGeneral handles it.
+			if (m instanceof UDF) {
+				if (i == 0 && m.getSafeNavigated()) return false;
+				continue;
+			}
+			// Head BIF allowed — BIF.emit delegates to _writeOutFirstBIF. Mid/tail BIF stays on emitGeneral.
+			if (i == 0 && m instanceof BIF && !m.getSafeNavigated()) continue;
+			return false;
+		}
+		return true;
+	}
+
+	private Type emitMemberChain(BytecodeContext bc, int mode, Boolean asCollection) throws TransformerException {
+		int n = members.size();
+		boolean doOnlyScope = scope == Scope.SCOPE_LOCAL;
+		GeneratorAdapter adapter = bc.getAdapter();
+		// PC preload — reverse-iterated so PC-per-member ordering is right for LIFO stack consumption.
+		// For LOCAL: n PCs, first corresponds to member[n-1], last to member[0]. Continuation processes
+		// members left-to-right so each pops its own top-of-stack PC.
+		// For non-LOCAL: n-1 PCs, first corresponds to member[n-1], last to member[1].
+		// checkCast to PAGE_CONTEXT_IMPL when the corresponding member is safe-nav UDF (needs *_IMPL receiver).
+		int c = 0;
+		int startIdx = doOnlyScope ? 0 : 1;
+		for (int j = startIdx; j < n; j++) {
+			Member m = members.get((n - 1) - c);
+			c++;
+			adapter.loadArg(0);
+			if (m.getSafeNavigated() && m instanceof UDF) adapter.checkCast(Types.PAGE_CONTEXT_IMPL);
+		}
+		Type rtn = null;
+		for (int i = 0; i < n; i++) rtn = members.get(i).emit(this, bc, i, n, mode, asCollection);
+		return rtn;
+	}
+
+	private boolean compactMultiEligible() {
+		if (countFM != 0) return false;
+		if (scope != Scope.SCOPE_UNDEFINED && scope != Scope.SCOPE_VARIABLES && scope != Scope.SCOPE_LOCAL) return false;
+		int count = countDM;
+		if (count > GET_KEYS[scope].length) return false;
+		int last = count - 1;
+		for (int i = 0; i < count; i++) {
+			Member m = members.get(i);
+			if (m.getSafeNavigated()) return false;
+			if (i == last && ((DataMember) m).getReservedProp() != DataMember.QP_NONE) return false;
+		}
+		return true;
+	}
+
+	private Type emitCompactMulti(BytecodeContext bc, Boolean asCollection) throws TransformerException {
+		GeneratorAdapter adapter = bc.getAdapter();
+		int count = countDM;
+		adapter.loadArg(0);
+		adapter.checkCast(Types.PAGE_CONTEXT_IMPL);
+		for (int i = 0; i < count; i++) {
+			getFactory().registerKey(bc, ((DataMember) members.get(i)).getName(), false);
+		}
+		adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, asCollection(asCollection, true) ? GETC_KEYS[scope][count - 1] : GET_KEYS[scope][count - 1]);
+		return Types.OBJECT;
+	}
+
+	private Type emitGeneral(BytecodeContext bc, int mode, Boolean asCollection) throws TransformerException {
 
 		final GeneratorAdapter adapter = bc.getAdapter();
 		final int count = countFM + countDM;
 
 		// count 0
 		if (count == 0) return _writeOutEmpty(bc);
-
-		boolean supported = false;
-
-		switch (scope) {
-		case Scope.SCOPE_UNDEFINED:
-			supported = true;
-			break;
-		case Scope.SCOPE_VARIABLES:
-			supported = true;
-			break;
-		case Scope.SCOPE_LOCAL:
-			supported = true;
-			break;
-		}
-
-		outer: while (count > 0 && supported && count <= GET_KEYS[scope].length) {
-			// check if rules aply
-			{
-				boolean last;
-				Member member;
-				for (int i = 0; i < count; i++) {
-					last = (i + 1) == count;
-					member = members.get(i);
-					if (!(member instanceof DataMember) || member.getSafeNavigated()) {
-						break outer;
-					}
-					//
-
-					if (last && ((DataMember) member).getReservedProp() != DataMember.QP_NONE) break outer;
-
-				}
-			}
-			// load pc
-			adapter.loadArg(0);
-			adapter.checkCast(Types.PAGE_CONTEXT_IMPL);
-
-			// write keys
-			Member member;
-			for (int i = 0; i < count; i++) {
-				member = members.get(i);
-				getFactory().registerKey(bc, ((DataMember) member).getName(), false);
-			}
-
-			// call get function
-			adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, asCollection(asCollection, true) ? GETC_KEYS[scope][count - 1] : GET_KEYS[scope][count - 1]);
-
-			return Types.OBJECT;
-		}
 
 		boolean doOnlyScope = scope == Scope.SCOPE_LOCAL;
 
@@ -449,7 +504,7 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 		return Types.OBJECT;
 	}
 
-	private boolean asCollection(Boolean asCollection, boolean last) {
+	static boolean asCollection(Boolean asCollection, boolean last) {
 		if (!last) return true;
 		return asCollection != null && asCollection.booleanValue();
 	}

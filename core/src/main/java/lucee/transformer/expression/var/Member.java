@@ -17,7 +17,10 @@
  */
 package lucee.transformer.expression.var;
 
+import lucee.transformer.TransformerException;
+import lucee.transformer.bytecode.BytecodeContext;
 import lucee.transformer.expression.Expression;
+import org.objectweb.asm.Type;
 
 public interface Member {
 
@@ -32,4 +35,13 @@ public interface Member {
 	public void setSafeNavigatedValue(Expression obj);
 
 	public Expression getSafeNavigatedValue();
+
+	/**
+	 * Emit this member's ASM ops. Return null to signal "not migrated, fall back to emitGeneral".
+	 * Position is writer-owned: {@code i} is the member's index in the chain, {@code count} is the total.
+	 */
+	@SuppressWarnings("unused")
+	default Type emit(Variable v, BytecodeContext bc, int i, int count, int mode, Boolean asCollection) throws TransformerException {
+		return null;
+	}
 }

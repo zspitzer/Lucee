@@ -101,7 +101,12 @@ public final class ExpressionInvoker extends ExpressionBase implements Invoker {
 	}
 
 	@Override
-	public void addMember(Member member) {
+	public void addDataMember(DataMember member) {
+		members.add(member);
+	}
+
+	@Override
+	public void addFunctionMember(lucee.transformer.bytecode.expression.var.FunctionMember member) {
 		members.add(member);
 	}
 

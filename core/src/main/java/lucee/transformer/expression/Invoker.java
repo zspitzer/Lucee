@@ -19,16 +19,21 @@ package lucee.transformer.expression;
 
 import java.util.List;
 
+import lucee.transformer.bytecode.expression.var.FunctionMember;
+import lucee.transformer.expression.var.DataMember;
 import lucee.transformer.expression.var.Member;
 
 public interface Invoker extends Expression, Listenable {
 
 	/**
-	 * add a member to the invoker
-	 * 
-	 * @param member
+	 * add a data member to the invoker
 	 */
-	public void addMember(Member member);
+	public void addDataMember(DataMember member);
+
+	/**
+	 * add a function member (UDF/BIF) to the invoker
+	 */
+	public void addFunctionMember(FunctionMember member);
 
 	/**
 	 * returns all members as a List

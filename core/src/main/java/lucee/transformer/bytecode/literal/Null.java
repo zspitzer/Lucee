@@ -72,7 +72,7 @@ public final class Null extends ExpressionBase implements Literal {
 
 	public Variable toVariable() {
 		Variable v = getFactory().createVariable(Scope.SCOPE_UNDEFINED, getStart(), getEnd());
-		v.addMember(getFactory().createDataMember(getFactory().createLitString("null")));
+		v.addDataMember(getFactory().createDataMember(getFactory().createLitString("null")));
 		return v;
 	}
 
