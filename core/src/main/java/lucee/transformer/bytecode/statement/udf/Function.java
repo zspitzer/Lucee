@@ -541,7 +541,7 @@ public abstract class Function extends StatementBaseNoFinal implements Opcodes, 
 	}
 
 	public final void addAttribute(BytecodeContext bc, Attribute attr) throws TemplateException {
-		String name = attr.getName().toLowerCase();
+		String name = attr.getName();
 		// name
 		if ("name".equals(name)) {
 			throw new TransformerException(bc, "Name cannot be defined twice", getStart());

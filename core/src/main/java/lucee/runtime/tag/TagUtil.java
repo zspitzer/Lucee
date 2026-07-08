@@ -18,11 +18,8 @@
  */
 package lucee.runtime.tag;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -83,33 +80,24 @@ public final class TagUtil {
 	public static void setAttributeCollection(PageContext pc, Tag tag, MissingAttribute[] missingAttrs, Struct _attrs, int attrType) throws PageException {
 
 		TagLibTag tlt = null;
-		Key k;
-
 		if (pc.getConfig() instanceof ConfigWebPro) {
-			ConfigWebPro cw = (ConfigWebPro) pc.getConfig();
-
-			List<TagLib> allTlds = new ArrayList<>();
-			allTlds.addAll(Arrays.asList(cw.getTLDs()));
-
-			for (TagLib tld: allTlds) {
-				tlt = tld != null ? tld.getTag(tag.getClass()) : null;
-				if (tlt != null) break;
+			for (TagLib tld: ((ConfigWebPro) pc.getConfig()).getTLDs()) {
+				if (tld != null) {
+					tlt = tld.getTag(tag.getClass());
+					if (tlt != null) break;
+				}
 			}
 		}
 
+		Key k;
 		Map<Key, Object> att = new HashMap<Key, Object>();
 		{
 			Iterator<Entry<Key, Object>> it = _attrs.entryIterator();
 			Entry<Key, Object> e;
-			TagLibTagAttr alias = null;
-
 			while (it.hasNext()) {
 				e = it.next();
 				k = e.getKey();
-				if (tlt != null) {
-					alias = tlt.getAttributeByAlias(k.toString());
-					if (alias != null) k = KeyImpl.init(alias.getName()); // translate alias to canonical name
-				}
+				if (tlt != null) k = tlt.resolveAliasKey(k);
 				att.put(k, e.getValue());
 			}
 		}
@@ -120,7 +108,6 @@ public final class TagUtil {
 			for (int i = 0; i < missingAttrs.length; i++) {
 				miss = missingAttrs[i];
 				value = att.get(miss.getName());
-				// check alias; TODO: is this still needed? we now translate aliases above
 				if (value == null && !ArrayUtil.isEmpty(miss.getAlias())) {
 					String[] alias = miss.getAlias();
 					for (int y = 0; y < alias.length; y++) {
@@ -131,10 +118,7 @@ public final class TagUtil {
 						}
 					}
 				}
-
 				if (value == null) throw new ApplicationException("Attribute [" + missingAttrs[i].getName().getString() + "] is required but missing");
-				// throw new ApplicationException("attribute "+missingAttrs[i].getName().getString()+" is required
-				// for tag "+tag.getFullName());
 				att.put(missingAttrs[i].getName(), Caster.castTo(pc, missingAttrs[i].getType(), value, false));
 			}
 		}

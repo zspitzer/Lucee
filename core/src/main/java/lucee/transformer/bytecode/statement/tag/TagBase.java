@@ -100,7 +100,7 @@ public abstract class TagBase extends StatementBase implements Tag {
 
 	@Override
 	public void addAttribute(Attribute attribute) {
-		attributes.put(attribute.getName().toLowerCase(), attribute);
+		attributes.put(attribute.getName(), attribute);
 	}
 
 	@Override

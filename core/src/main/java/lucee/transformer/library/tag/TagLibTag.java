@@ -43,6 +43,8 @@ import lucee.runtime.db.ClassDefinition;
 import lucee.runtime.op.Caster;
 import lucee.runtime.osgi.OSGiUtil;
 import lucee.runtime.reflection.Reflector;
+import lucee.runtime.type.Collection;
+import lucee.runtime.type.KeyImpl;
 import lucee.runtime.type.util.ArrayUtil;
 import lucee.transformer.Factory;
 import lucee.transformer.Position;
@@ -125,6 +127,7 @@ public final class TagLibTag {
 	private String bundleName;
 	private Version bundleVersion;
 	private Version introduced;
+	private volatile TagAttrDescriptor descriptor;
 
 	public TagLibTag duplicate(boolean cloneAttributes) {
 		TagLibTag tlt = new TagLibTag(tagLib);
@@ -241,10 +244,18 @@ public final class TagLibTag {
 
 	public TagLibTagAttr getAttribute(String name, boolean checkAlias) {
 		TagLibTagAttr attr = attributes.get(name);
-		// checking alias
-		if (attr == null && checkAlias) return getAttributeByAlias(name);
+		if (attr == null && checkAlias) return getAttributeByAliasLower(name);
 		return attr;
+	}
 
+	public TagLibTagAttr getAttributeByAliasLower(String name) {
+		TagAttrDescriptor d = getDescriptor();
+		if (d.aliasNamesLower == null) return null;
+		String[] an = d.aliasNamesLower;
+		for (int i = 0; i < an.length; i++) {
+			if (an[i].equals(name)) return d.attrs[d.aliasIndices[i]];
+		}
+		return null;
 	}
 
 	public TagLibTagAttr getAttributeByAlias(String alias) {
@@ -261,6 +272,28 @@ public final class TagLibTag {
 			}
 		}
 		return null;
+	}
+
+	public TagLibTagAttr getAttributeByAlias(Collection.Key k) {
+		TagAttrDescriptor d = getDescriptor();
+		if (d.aliasHashes == null) return null;
+		long h = k.hash();
+		long[] ah = d.aliasHashes;
+		for (int i = 0; i < ah.length; i++) {
+			if (ah[i] == h) return d.attrs[d.aliasIndices[i]];
+		}
+		return null;
+	}
+
+	public Collection.Key resolveAliasKey(Collection.Key k) {
+		TagAttrDescriptor d = getDescriptor();
+		if (d.aliasHashes == null) return k;
+		long h = k.hash();
+		long[] ah = d.aliasHashes;
+		for (int i = 0; i < ah.length; i++) {
+			if (ah[i] == h) return d.aliasKeys[i];
+		}
+		return k;
 	}
 
 	/**
@@ -282,9 +315,7 @@ public final class TagLibTag {
 	}
 
 	/**
-	 * Gibt den Namen des Tag zurueck.
-	 * 
-	 * @return String Name des Tag.
+	 * @return the tag name, always lowercase (setName lowercases on store); use getNameWithCase() for display
 	 */
 	public String getName() {
 		return name;
@@ -931,6 +962,87 @@ public final class TagLibTag {
 
 	public Version getIntroduced() {
 		return introduced;
+	}
+
+	/**
+	 * Precomputed, immutable descriptor built once per tag (lazy, via {@link #getDescriptor()}).
+	 * <p>
+	 * Attribute alias matching at compile time would otherwise require iterating every attribute's
+	 * alias list and calling {@code equalsIgnoreCase} on each entry. Instead, aliases are flattened
+	 * into parallel arrays at build time: {@link #aliasHashes} holds the h64 hash of each alias
+	 * (UPPERCASE, matching {@code KeyImpl} hash semantics), allowing a fast long-compare first pass
+	 * before the cheaper {@code equals} confirmation on {@link #aliasNamesLower}.
+	 * <p>
+	 * {@code aliasHashes} is {@code null} when the tag has no aliases at all — the common case —
+	 * so the entire alias scan is skipped for those tags.
+	 */
+	public static final class TagAttrDescriptor {
+		public final long[]            aliasHashes;      // h64 per alias (null if no aliases)
+		public final Collection.Key[]  aliasKeys;        // canonical Key per alias entry
+		public final String[]          aliasNamesLower;  // lowercase alias name per alias entry
+		public final int[]             aliasIndices;     // canonical attr index per alias entry
+		public final TagLibTagAttr[]   attrs;
+
+		TagAttrDescriptor(long[] aliasHashes, Collection.Key[] aliasKeys, String[] aliasNamesLower, int[] aliasIndices, TagLibTagAttr[] attrs) {
+			this.aliasHashes     = aliasHashes;
+			this.aliasKeys       = aliasKeys;
+			this.aliasNamesLower = aliasNamesLower;
+			this.aliasIndices    = aliasIndices;
+			this.attrs           = attrs;
+		}
+	}
+
+	public TagAttrDescriptor getDescriptor() {
+		if (descriptor != null) return descriptor;
+		synchronized (this) {
+			if (descriptor != null) return descriptor;
+			descriptor = buildDescriptor();
+		}
+		return descriptor;
+	}
+
+	private TagAttrDescriptor buildDescriptor() {
+		TagLibTagAttr[] attrArr = attributes.values().toArray(new TagLibTagAttr[0]);
+		int n = attrArr.length;
+
+		List<Long>           aliasHashList = null;
+		List<Collection.Key> aliasKeyList  = null;
+		List<String>         aliasNameList = null;
+		List<Integer>        aliasIdxList  = null;
+
+		for (int i = 0; i < n; i++) {
+			TagLibTagAttr attr = attrArr[i];
+			String[] aliases = attr.getAlias();
+			if (aliases != null) {
+				if (aliasHashList == null) {
+					aliasHashList = new ArrayList<>();
+					aliasKeyList = new ArrayList<>();
+					aliasNameList = new ArrayList<>();
+					aliasIdxList = new ArrayList<>();
+				}
+				Collection.Key k = KeyImpl.init(attr.getName());
+				for (String alias : aliases) {
+					aliasHashList.add(KeyImpl.createHash64(alias.toUpperCase()));
+					aliasKeyList.add(k);
+					aliasNameList.add(alias); // already lowercase (stored by setAlias)
+					aliasIdxList.add(i);
+				}
+			}
+		}
+
+		if (aliasHashList == null) return new TagAttrDescriptor(null, null, null, null, attrArr);
+		int m = aliasHashList.size();
+		long[]           aliasHashes     = new long[m];
+		Collection.Key[] aliasKeys       = new Collection.Key[m];
+		String[]         aliasNamesLower = new String[m];
+		int[]            aliasIndices    = new int[m];
+		for (int i = 0; i < m; i++) {
+			aliasHashes[i]     = aliasHashList.get(i);
+			aliasKeys[i]       = aliasKeyList.get(i);
+			aliasNamesLower[i] = aliasNameList.get(i);
+			aliasIndices[i]    = aliasIdxList.get(i);
+		}
+		return new TagAttrDescriptor(aliasHashes, aliasKeys, aliasNamesLower, aliasIndices, attrArr);
 	}
 
 }

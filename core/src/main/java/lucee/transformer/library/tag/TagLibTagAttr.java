@@ -114,9 +114,7 @@ public final class TagLibTagAttr {
 	}
 
 	/**
-	 * Gibt den Namen des Attribut zurueck.
-	 * 
-	 * @return Name des Attribut.
+	 * @return the attribute name, always lowercase (setName lowercases on store); use getNameWithCase() for display
 	 */
 	public String getName() {
 		return name;

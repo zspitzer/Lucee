@@ -1607,16 +1607,15 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 		// print.e("namespace:"+tagLib.getNameSpaceAndSeparator());
 
 		// get the name of the tag
-		String id = CFMLTransformer.identifier(data.srcCode, false, true);
+		String id = CFMLTransformer.identifierLower(data.srcCode, false, true);
 
 		if (id == null) {
 			data.srcCode.setPos(start);
 			return null;
 		}
 
-		id = id.toLowerCase();
 		String appendix = null;
-		TagLibTag tlt = tagLib.getTag(id);
+		TagLibTag tlt = tagLib.getTagLower(id);
 
 		/*
 		 * Iterator<TagLibTag> it = tagLib.getTags().values().iterator(); while(it.hasNext()) { TagLibTag
@@ -2535,7 +2534,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 			if (endCond.isEnd(data)) break;
 			Attribute attr = attribute(tlt, data, ids, defaultValue, oAllowExpression, allowTwiceAttr, allowColonAsNameValueSeparator);
 			if (attr == null) break;
-			attrs.put(attr.getName().toLowerCase(), attr);
+			attrs.put(attr.getName(), attr);
 
 			// seperator
 			if (attributeSeparator > 0) {
@@ -2550,7 +2549,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 			boolean hasAttributeCollection = false;
 			Iterator<Attribute> iii = attrs.values().iterator();
 			while (iii.hasNext()) {
-				if ("attributecollection".equalsIgnoreCase(iii.next().getName())) {
+				if ("attributecollection".equals(iii.next().getName())) {
 					hasAttributeCollection = true;
 					break;
 				}
@@ -2580,12 +2579,12 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 			TagLibTagAttr att;
 			while (it.hasNext()) {
 				att = it.next();
-				if (!attrs.containsKey(att.getName().toLowerCase()) && att.hasDefaultValue()) {
+				if (!attrs.containsKey(att.getName()) && att.hasDefaultValue()) {
 
 					Attribute attr = new Attribute(tlt.getAttributeType() == TagLibTag.ATTRIBUTE_TYPE_DYNAMIC, att.getName(),
 							data.factory.toExpression(data.factory.createLitString(Caster.toString(att.getDefaultValue(), null)), att.getType()), att.getType());
 					attr.setDefaultAttribute(true);
-					attrs.put(att.getName().toLowerCase(), attr);
+					attrs.put(att.getName(), attr);
 				}
 			}
 		}

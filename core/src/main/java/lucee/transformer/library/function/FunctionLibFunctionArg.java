@@ -174,7 +174,7 @@ public final class FunctionLibFunctionArg {
 	}
 
 	/**
-	 * @return the name
+	 * @return the argument name, always lowercase (setName lowercases on store); use getNameWithCase() for display
 	 */
 	public String getName() {
 		return name;
@@ -191,7 +191,7 @@ public final class FunctionLibFunctionArg {
 	 * @param name the name to set
 	 */
 	public void setName(String name) {
-		this.name = name;
+		this.name = name.toLowerCase();
 		this.nameWithCase = name;
 	}
 

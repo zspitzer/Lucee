@@ -604,15 +604,16 @@ public final class CFMLTransformer {
 			}
 
 			// Get matching tag from tag lib
+			int nameStart = data.srcCode.getPos();
 			String strNameNormal = identifier(data.srcCode, false, true);
 			if (strNameNormal == null) {
 				data.srcCode.setPos((data.srcCode.getPos() - tagLib.getNameSpaceAndSeparator().length()) - 1);
 				return false;
 			}
 
-			String strName = strNameNormal.toLowerCase();
+			String strName = data.srcCode.substringLower(nameStart, strNameNormal.length());
 			String appendix = null;
-			TagLibTag tagLibTag = tagLib.getTag(strName);
+			TagLibTag tagLibTag = tagLib.getTagLower(strName);
 
 			// get taglib
 			if (tagLibTag == null) {
@@ -726,7 +727,7 @@ public final class CFMLTransformer {
 					if (!matchTagLibPrefix(data, tagLib)) throw new TemplateException(data.srcCode, "invalid construct");
 					TagLib tagLibEnd = tagLib;
 					// get end Tag
-					String strNameEnd = identifier(data.srcCode, true, true).toLowerCase();
+					String strNameEnd = identifierLower(data.srcCode, true, true);
 
 					// not the same name Tag
 					if (!strName.equals(strNameEnd)) {
@@ -794,7 +795,7 @@ public final class CFMLTransformer {
 							if (tagLibEnd.getNameSpaceAndSeparator().equals(tagLib.getNameSpaceAndSeparator())) {
 
 								// get end Tag
-								strNameEnd = identifier(data.srcCode, true, true).toLowerCase();
+								strNameEnd = identifierLower(data.srcCode, true, true);
 								// not the same name Tag
 
 								// new part
@@ -808,12 +809,12 @@ public final class CFMLTransformer {
 							}
 							// new part
 							if (tagLibTag.isBodyReq()) {
-								TagLibTag endTag = tagLibEnd.getTag(strNameEnd);
+								TagLibTag endTag = tagLibEnd.getTagLower(strNameEnd);
 								if (endTag != null && !endTag.getHasBody()) throw new TemplateException(data.srcCode,
 										"End Tag [" + tagLibEnd.getNameSpaceAndSeparator() + strNameEnd + "] is not allowed, for this tag only a Start Tag is allowed");
 								int closeTagLine = data.srcCode.getLine();
 								data.srcCode.setPos(start);
-								if (tagLibEnd.getIgnoreUnknowTags() && (tagLibEnd.getTag(strNameEnd)) == null) {
+								if (tagLibEnd.getIgnoreUnknowTags() && (tagLibEnd.getTagLower(strNameEnd)) == null) {
 									data.srcCode.setPos(_start);
 								}
 								else throw new TemplateException(data.srcCode, "Start and End Tag do not match [" + tagLib.getNameSpaceAndSeparator() + strName + "-"
@@ -1208,13 +1209,12 @@ public final class CFMLTransformer {
 	private static String attributeName(SourceCode cfml, RefBoolean dynamic, ArrayList<String> args, TagLibTag tag, StringBuilder sbType, boolean[] parseExpression,
 			boolean allowDefaultValue) throws TemplateException {
 
-		String _id = identifier(cfml, false, true);
-		if (StringUtil.isEmpty(_id)) {
+		String id = identifierLower(cfml, false, true);
+		if (StringUtil.isEmpty(id)) {
 			return null;
 		}
 
 		int typeDef = tag.getAttributeType();
-		String id = StringUtil.toLowerCase(_id);
 		if (args.contains(id)) throw createTemplateException(cfml, "you can't use the same tag attribute [" + id + "] twice", tag);
 		args.add(id);
 
@@ -1350,6 +1350,24 @@ public final class CFMLTransformer {
 			else break;
 		}
 		return cfml.substring(start, cfml.getPos() - start);
+	}
+
+	public static String identifierLower(SourceCode cfml, boolean throwError, boolean allowColon) throws TemplateException {
+		int start = cfml.getPos();
+		if (!cfml.isCurrentLetter() && !cfml.isCurrent('_')) {
+			if (throwError) throw new TemplateException(cfml, "Invalid Identifier, the following character cannot be part of an identifier [" + cfml.getCurrent() + "]");
+			return null;
+		}
+		cfml.forwardVarCharRun();
+		while (true) {
+			char c = cfml.getCurrentLower();
+			if (c == '-' || (allowColon && c == ':')) {
+				cfml.next();
+				cfml.forwardVarCharRun();
+			}
+			else break;
+		}
+		return cfml.substringLower(start, cfml.getPos() - start);
 	}
 
 	public static TemplateException createTemplateException(SourceCode cfml, String msg, String detail, TagLibTag tag) {

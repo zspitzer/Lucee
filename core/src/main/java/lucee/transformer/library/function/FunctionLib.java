@@ -63,6 +63,10 @@ public final class FunctionLib implements Lib {
 		return functions.get(name.toLowerCase());
 	}
 
+	public FunctionLibFunction getFunctionLower(String name) {
+		return functions.get(name);
+	}
+
 	/**
 	 * Gibt die Beschreibung der FLD zurueck.
 	 * 

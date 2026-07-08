@@ -586,13 +586,13 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 		if (core && bif.getArgType() == FunctionLibFunction.ARG_FIX && !bifCD.isBundle()) {
 
 			// named arguments
-			if (isNamed(bc, flf.getName(), args)) {
+			if (isNamed(bc, flf.getNameWithCase(), args)) {
 				NamedArgument[] nargs = toNamedArguments(args);
 
 				String[] names = new String[nargs.length];
-				// get all names
+				// get all names (lowercased to match FLD arg names which are stored lowercase)
 				for (int i = 0; i < nargs.length; i++) {
-					names[i] = getName(bc, nargs[i].getName());
+					names[i] = getName(bc, nargs[i].getName()).toLowerCase();
 				}
 				ArrayList<FunctionLibFunctionArg> list = flf.getArg();
 				lucee.transformer.dynamic.meta.Method method = getMethod(clazzz, list, rtnType, bc, line);
@@ -620,7 +620,7 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 				}
 				for (int y = 0; y < names.length; y++) {
 					if (names[y] != null) {
-						TransformerException bce = new TransformerException(bc, "argument [" + names[y] + "] is not allowed for function [" + flf.getName() + "]",
+						TransformerException bce = new TransformerException(bc, "argument [" + names[y] + "] is not allowed for function [" + flf.getNameWithCase() + "]",
 								args[y].getStart());
 						UDFUtil.addFunctionDoc(bce, flf);
 						throw bce;
@@ -679,7 +679,7 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 		else {
 			///////////////////////////////////////////////////////////////
 			if (bif.getArgType() == FunctionLibFunction.ARG_FIX) {
-				if (isNamed(bc, flf.getName(), args)) {
+				if (isNamed(bc, flf.getNameWithCase(), args)) {
 					NamedArgument[] nargs = toNamedArguments(args);
 					String[] names = getNames(bc, nargs);
 					ArrayList<FunctionLibFunctionArg> list = flf.getArg();
@@ -701,7 +701,7 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 
 					for (int y = 0; y < names.length; y++) {
 						if (names[y] != null) {
-							TransformerException bce = new TransformerException(bc, "argument [" + names[y] + "] is not allowed for function [" + flf.getName() + "]",
+							TransformerException bce = new TransformerException(bc, "argument [" + names[y] + "] is not allowed for function [" + flf.getNameWithCase() + "]",
 									args[y].getStart());
 							UDFUtil.addFunctionDoc(bce, flf);
 							throw bce;
@@ -980,11 +980,11 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 
 	private static VT getMatchingValueAndType(BytecodeContext bc, Factory factory, FunctionLibFunctionArg flfa, NamedArgument[] nargs, String[] names, Position line)
 			throws TransformerException {
-		String flfan = flfa.getName();
+		String flfan = flfa.getName(); // already lowercase (FLD setName lowercases)
 
 		// first search if an argument match
 		for (int i = 0; i < nargs.length; i++) {
-			if (names[i] != null && names[i].equalsIgnoreCase(flfan)) {
+			if (names[i] != null && names[i].equals(flfan)) {
 				nargs[i].setValue(nargs[i].getRawValue(), flfa.getTypeAsString());
 				return new VT(nargs[i].getValue(), flfa.getTypeAsString(), i);
 			}
@@ -996,7 +996,7 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 			for (int i = 0; i < nargs.length; i++) {
 				if (names[i] != null) {
 					for (String a: aliases) {
-						if (names[i].equalsIgnoreCase(a)) {
+						if (names[i].equals(a)) { // aliases already lowercase (setAlias lowercases)
 							nargs[i].setValue(nargs[i].getRawValue(), flfa.getTypeAsString());
 							return new VT(nargs[i].getValue(), flfa.getTypeAsString(), i);
 						}
@@ -1009,7 +1009,7 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 		if (!flfa.getRequired()) {
 			return getDefaultValue(factory, flfa);
 		}
-		TransformerException be = new TransformerException(bc, "missing required argument [" + flfan + "] for function [" + flfa.getFunction().getName() + "]", line);
+		TransformerException be = new TransformerException(bc, "missing required argument [" + flfa.getNameWithCase() + "] for function [" + flfa.getFunction().getNameWithCase() + "]", line);
 		UDFUtil.addFunctionDoc(be, flfa.getFunction());
 		throw be;
 	}
@@ -1034,7 +1034,7 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 	private static String[] getNames(BytecodeContext bc, NamedArgument[] args) throws TransformerException {
 		String[] names = new String[args.length];
 		for (int i = 0; i < args.length; i++) {
-			names[i] = getName(bc, args[i].getName());
+			names[i] = getName(bc, args[i].getName()).toLowerCase();
 		}
 		return names;
 	}

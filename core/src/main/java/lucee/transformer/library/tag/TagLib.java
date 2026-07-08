@@ -66,6 +66,7 @@ public class TagLib implements Cloneable, Lib {
 	private ClassDefinition<? extends ExprTransformer> ELClass = EXPR_TRANSFORMER;
 	private Map<String, TagLibTag> tags = new ConcurrentHashMap<String, TagLibTag>(512);
 	private Map<String, TagLibTag> appendixTags = new ConcurrentHashMap<String, TagLibTag>(64);
+	private final Map<Class, TagLibTag> tagsByClass = new ConcurrentHashMap<>();
 	private ExprTransformer exprTransformer;
 
 	private char[] nameSpaceAndNameSpaceSeperator;
@@ -149,9 +150,16 @@ public class TagLib implements Cloneable, Lib {
 		return tags.get(name.toLowerCase());
 	}
 
+	public TagLibTag getTagLower(String name) {
+		return tags.get(name);
+	}
+
 	public TagLibTag getTag(Class clazz) {
+		TagLibTag cached = tagsByClass.get(clazz);
+		if (cached != null) return cached;
 		for (TagLibTag tlt: tags.values()) {
 			if (tlt.getTagClassDefinition().isClassNameEqualTo(clazz.getName(), true)) {
+				tagsByClass.put(clazz, tlt);
 				return tlt;
 			}
 		}

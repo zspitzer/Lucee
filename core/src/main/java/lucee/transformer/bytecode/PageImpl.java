@@ -1259,7 +1259,7 @@ public final class PageImpl extends BodyBase implements Page {
 								Map<String, Attribute> allAttrs = tag.getAttributes();
 								List<Attribute> dynamicAttrs = new ArrayList<>();
 								for (Attribute attr: allAttrs.values()) {
-									String attrName = attr.getName().toLowerCase();
+									String attrName = attr.getName();
 									// Skip standard attributes
 									if (!STANDARD_PROPERTY_ATTRS.contains(attrName)) {
 										dynamicAttrs.add(attr);

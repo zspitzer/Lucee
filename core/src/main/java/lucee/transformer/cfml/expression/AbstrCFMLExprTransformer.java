@@ -1771,8 +1771,9 @@ public abstract class AbstrCFMLExprTransformer {
 
 		// check function — needs Identifier (fed to getFunctionMember)
 		if (data.srcCode.isCurrent('(')) {
+			FunctionLibFunction flf = data.flibs != null ? data.flibs.getFunctionLower(data.srcCode.substringLower(idStart, idLen)) : null;
 			Identifier name = buildIdentifier(data, idStart, idLen, idStartPos, idEndPos);
-			FunctionMember func = getFunctionMember(data, name, true);
+			FunctionMember func = getFunctionMember(data, name, flf);
 			Expression listener = getListener(data);
 
 			Variable var = data.factory.createVariable(line, data.srcCode.getPosition());
@@ -1929,18 +1930,16 @@ public abstract class AbstrCFMLExprTransformer {
 	 * @throws TemplateException
 	 */
 	private FunctionMember getFunctionMember(Data data, final ExprString name, boolean checkLibrary) throws TemplateException {
-
-		// get Function Library
-		checkLibrary = checkLibrary && data.flibs != null;
 		FunctionLibFunction flf = null;
-		if (checkLibrary) {
+		if (checkLibrary && data.flibs != null) {
 			if (!(name instanceof Literal)) throw new TemplateException(data.srcCode, "Syntax error"); // should never happen!
-
 			flf = data.flibs.getFunction(((Literal) name).getString());
-			if (flf == null) {
-				checkLibrary = false;
-			}
 		}
+		return getFunctionMember(data, name, flf);
+	}
+
+	private FunctionMember getFunctionMember(Data data, final ExprString name, FunctionLibFunction flf) throws TemplateException {
+		boolean checkLibrary = flf != null;
 
 		FunctionMember fm = null;
 		while (true) {

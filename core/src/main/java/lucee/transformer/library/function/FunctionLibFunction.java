@@ -137,9 +137,7 @@ public final class FunctionLibFunction {
 	}
 
 	/**
-	 * Gibt den Namen der Funktion zurueck.
-	 * 
-	 * @return name Name der Funktion.
+	 * @return the function name, always lowercase (setName lowercases on store); use getNameWithCase() for display
 	 */
 	public String getName() {
 		return name;
