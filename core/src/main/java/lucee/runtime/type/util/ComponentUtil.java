@@ -179,7 +179,7 @@ public final class ComponentUtil {
 		// null);
 		// fv.visitEnd();
 
-		Map<LitString, Integer> _keys = new LinkedHashMap<LitString, Integer>();
+		BytecodeContext.KeyPool _keys = new BytecodeContext.KeyPool();
 
 		// remote methods
 		Collection.Key[] keys = component.keys(Component.ACCESS_REMOTE);
@@ -580,7 +580,7 @@ public final class ComponentUtil {
 		return cl.loadClass(className);
 	}
 
-	private static int createMethod(PageContext pc, ConstrBytecodeContext constr, Map<LitString, Integer> keys, ClassWriter cw, String className, Object member, int max,
+	private static int createMethod(PageContext pc, ConstrBytecodeContext constr, BytecodeContext.KeyPool keys, ClassWriter cw, String className, Object member, int max,
 			boolean writeLog, boolean suppressWSbeforeArg, boolean output, boolean returnValue) throws PageException {
 
 		boolean hasOptionalArgs = false;

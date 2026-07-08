@@ -18,8 +18,11 @@
  */
 package lucee.transformer.bytecode;
 
+import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicLong;
@@ -44,10 +47,15 @@ import lucee.transformer.expression.literal.LitString;
 
 public class BytecodeContext implements Context {
 
+	public static final class KeyPool {
+		final Map<String, Integer> keyIndex = new HashMap<>();
+		final List<LitString> orderedKeys = new ArrayList<>();
+	}
+
 	private ClassWriter classWriter;
 	private GeneratorAdapter adapter;
 	private String className;
-	private Map<LitString, Integer> keys;
+	private final KeyPool keyPool;
 	private int count = 0;
 	private Method method;
 	private boolean doSubFunctions = true;
@@ -86,14 +94,14 @@ public class BytecodeContext implements Context {
 	protected PageSource ps;
 	protected final ExpressionUtil expressionUtil;
 
-	public BytecodeContext(Config config, PageSource ps, ConstrBytecodeContext constr, PageImpl page, Map<LitString, Integer> keys, ClassWriter classWriter, String className,
+	public BytecodeContext(Config config, PageSource ps, ConstrBytecodeContext constr, PageImpl page, KeyPool keyPool, ClassWriter classWriter, String className,
 			GeneratorAdapter adapter, Method method, boolean writeLog, boolean suppressWSbeforeArg, boolean output, boolean returnValue) {
 		this.config = config;
 		this.classWriter = classWriter;
 		this.className = className;
 		this.writeLog = writeLog;
 		this.adapter = adapter;
-		this.keys = keys;
+		this.keyPool = keyPool;
 		this.method = method;
 		this.constr = constr;
 		this.page = page;
@@ -111,13 +119,22 @@ public class BytecodeContext implements Context {
 		}
 	}
 
-	public BytecodeContext(ConstrBytecodeContext constr, Map<LitString, Integer> keys, BytecodeContext bc, GeneratorAdapter adapter, Method method) {
+	public BytecodeContext child(GeneratorAdapter adapter, Method method) {
+		return new BytecodeContext(this.constr, this.keyPool, this, adapter, method);
+	}
+
+	public BytecodeContext deriveContext(String name, ClassWriter cw, GeneratorAdapter adapter, Method method) {
+		return new BytecodeContext(this.config, null, (ConstrBytecodeContext) this, this.page, this.keyPool, cw, name, adapter, method,
+				this.writeLog, this.suppressWSbeforeArg, this.output, this.returnValue);
+	}
+
+	public BytecodeContext(ConstrBytecodeContext constr, KeyPool keyPool, BytecodeContext bc, GeneratorAdapter adapter, Method method) {
 		this.classWriter = bc.getClassWriter();
 		this.className = bc.getClassName();
 		this.writeLog = bc.writeLog();
 
 		this.adapter = adapter;
-		this.keys = keys;
+		this.keyPool = keyPool;
 		this.method = method;
 		// this.staticConstr=statConstr;
 		this.constr = constr;
@@ -208,11 +225,13 @@ public class BytecodeContext implements Context {
 	}
 
 	public int registerKey(LitString lit) {
-		Integer index = keys.get(lit);
-		if (index != null) return index;// calls the toString method of litString
+		String s = lit.getString();
+		Integer index = keyPool.keyIndex.get(s);
+		if (index != null) return index;
 
-		int newIndex = keys.size();
-		keys.put(lit, newIndex);
+		int newIndex = keyPool.orderedKeys.size();
+		keyPool.orderedKeys.add(lit);
+		keyPool.keyIndex.put(s, newIndex);
 
 		return newIndex;
 	}
@@ -221,8 +240,8 @@ public class BytecodeContext implements Context {
 		this.page.registerJavaFunction(jbc);
 	}
 
-	public Map<LitString, Integer> getKeys() {
-		return keys;
+	public KeyPool getKeyPool() {
+		return keyPool;
 	}
 
 	// private static BytecodeContext staticConstr;

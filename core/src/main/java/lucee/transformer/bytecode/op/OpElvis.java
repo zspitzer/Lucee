@@ -76,7 +76,7 @@ public final class OpElvis extends ExpressionBase {
 
 		Method m = new Method(name, Types.OBJECT, new Type[] { Types.PAGE_CONTEXT });
 		GeneratorAdapter ga = new GeneratorAdapter(Opcodes.ACC_PRIVATE + Opcodes.ACC_FINAL, m, null, new Type[] { Types.THROWABLE }, parent.getClassWriter());
-		BytecodeContext bc = new BytecodeContext(parent.getConstructor(), parent.getKeys(), parent, ga, m);
+		BytecodeContext bc = parent.child(ga, m);
 
 		Label tryStart = new Label();
 		Label tryEnd = new Label();

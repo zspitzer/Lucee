@@ -178,7 +178,7 @@ public class BodyBase extends StatementBaseNoFinal implements Body {
 				m = new Method(method, Types.VOID, new Type[] { Types.PAGE_CONTEXT });
 				a = new GeneratorAdapter(Opcodes.ACC_PRIVATE + Opcodes.ACC_FINAL, m, null, new Type[] { Types.THROWABLE }, bc.getClassWriter());
 
-				_bc = new BytecodeContext(bc.getConstructor(), bc.getKeys(), bc, a, m);
+				_bc = bc.child(a, m);
 				if (bc.getRoot() != null) _bc.setRoot(bc.getRoot());
 				else _bc.setRoot(bc);
 
@@ -265,7 +265,7 @@ public class BodyBase extends StatementBaseNoFinal implements Body {
 		Method m = new Method(method, Types.VOID, new Type[] { Types.PAGE_CONTEXT });
 		GeneratorAdapter a = new GeneratorAdapter(Opcodes.ACC_PRIVATE + Opcodes.ACC_FINAL, m, null, new Type[] { Types.THROWABLE }, callerBC.getClassWriter());
 
-		BytecodeContext bc = new BytecodeContext(callerBC.getConstructor(), callerBC.getKeys(), callerBC, a, m);
+		BytecodeContext bc = callerBC.child(a, m);
 		if (callerBC.getRoot() != null) bc.setRoot(callerBC.getRoot());
 		else bc.setRoot(callerBC);
 

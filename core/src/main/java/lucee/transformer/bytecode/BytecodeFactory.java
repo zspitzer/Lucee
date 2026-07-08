@@ -329,25 +329,34 @@ public final class BytecodeFactory extends FactoryBase {
 	@Override
 	public void registerKey(Context c, Expression name, boolean doUpperCase) throws TransformerException {
 		BytecodeContext bc = (BytecodeContext) c;
+		// hot path: a string-literal key resolves either to a KeyConstants field or the class key pool
+		if (name instanceof LitString) {
+			registerKeyLiteral(bc, (LitString) name, doUpperCase);
+			return;
+		}
+		registerKeySlow(bc, name, doUpperCase);
+	}
+
+	private void registerKeyLiteral(BytecodeContext bc, LitString ls, boolean doUpperCase) {
+		if (doUpperCase) {
+			ls = ls.duplicate();
+			ls.upperCase();
+		}
+		String key = KeyConstants.getFieldName(ls.getString());
+		if (key != null) {
+			bc.getAdapter().getStatic(KEY_CONSTANTS, key, Types.COLLECTION_KEY);
+			return;
+		}
+
+		int index = bc.registerKey(ls);
+		bc.getAdapter().visitFieldInsn(Opcodes.GETSTATIC, bc.getClassName(), "keys", Types.COLLECTION_KEY_ARRAY.toString());
+		bc.getAdapter().push(index);
+		bc.getAdapter().visitInsn(Opcodes.AALOAD);
+	}
+
+	private void registerKeySlow(BytecodeContext bc, Expression name, boolean doUpperCase) throws TransformerException {
 		if (name instanceof Literal) {
-			Literal l = (Literal) name;
-
-			LitString ls = name instanceof LitString ? (LitString) l : c.getFactory().createLitString(l.getString());
-			if (doUpperCase) {
-				ls = ls.duplicate();
-				ls.upperCase();
-			}
-			String key = KeyConstants.getFieldName(ls.getString());
-			if (key != null) {
-				bc.getAdapter().getStatic(KEY_CONSTANTS, key, Types.COLLECTION_KEY);
-				return;
-			}
-
-			int index = bc.registerKey(ls);
-			bc.getAdapter().visitFieldInsn(Opcodes.GETSTATIC, bc.getClassName(), "keys", Types.COLLECTION_KEY_ARRAY.toString());
-			bc.getAdapter().push(index);
-			bc.getAdapter().visitInsn(Opcodes.AALOAD);
-
+			registerKeyLiteral(bc, bc.getFactory().createLitString(((Literal) name).getString()), doUpperCase);
 			return;
 		}
 		name.writeOut(bc, Expression.MODE_REF);
