@@ -69,6 +69,23 @@ public final class TagLibTagAttr {
 	private Object[] values;
 	private Version introduced;
 
+	/**
+	 * Lazily resolved, then cached, setter for this attribute. The tag class is 1:1 with the
+	 * TagLibTag, so the setter is invariant once resolved. Resolved on first use from
+	 * {@code TagUtil.setAttributeCollection} to skip the per-call {@code Reflector.getSetter}
+	 * linear scan. Null means "not yet resolved" (or no matching setter) — either way the caller
+	 * falls back to the standard resolution path, so no negative caching is needed.
+	 */
+	private volatile lucee.transformer.dynamic.meta.Method resolvedSetter;
+
+	public lucee.transformer.dynamic.meta.Method getResolvedSetter() {
+		return resolvedSetter;
+	}
+
+	public void setResolvedSetter(lucee.transformer.dynamic.meta.Method setter) {
+		this.resolvedSetter = setter;
+	}
+
 	public TagLibTagAttr duplicate(TagLibTag tag) {
 		TagLibTagAttr tlta = new TagLibTagAttr(tag);
 		tlta.name = name;

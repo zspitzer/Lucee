@@ -123,13 +123,16 @@ public final class TagUtil {
 			}
 		}
 
-		setAttributes(pc, tag, att, attrType);
+		setAttributes(pc, tag, att, attrType, tlt);
 	}
 
 	public static void setAttributes(PageContext pc, Tag tag, Map<Key, Object> att, int attrType) throws PageException {
+		setAttributes(pc, tag, att, attrType, null);
+	}
+
+	public static void setAttributes(PageContext pc, Tag tag, Map<Key, Object> att, int attrType, TagLibTag tlt) throws PageException {
 		Iterator<Entry<Key, Object>> it;
 		Entry<Key, Object> e;
-		// TagLibTag tlt=null;
 		if (TagLibTag.ATTRIBUTE_TYPE_DYNAMIC == attrType) {
 			DynamicAttributes da = (DynamicAttributes) tag;
 			it = att.entrySet().iterator();
@@ -142,6 +145,7 @@ public final class TagUtil {
 			it = att.entrySet().iterator();
 			while (it.hasNext()) {
 				e = it.next();
+				if (tlt != null && fastSetAttribute(pc, tag, tlt, e.getKey(), e.getValue())) continue;
 				setAttribute(pc, false, true, tag, e.getKey().getLowerString(), e.getValue());
 			}
 		}
@@ -149,9 +153,43 @@ public final class TagUtil {
 			it = att.entrySet().iterator();
 			while (it.hasNext()) {
 				e = it.next();
+				if (tlt != null && fastSetAttribute(pc, tag, tlt, e.getKey(), e.getValue())) continue;
 				setAttribute(pc, true, true, tag, e.getKey().getLowerString(), e.getValue());
 			}
 		}
+	}
+
+	/**
+	 * Fast-path setter dispatch for a declared TLD attribute. The setter is resolved once via
+	 * {@link Reflector#getSetter} and cached on the {@link TagLibTagAttr}; subsequent calls coerce
+	 * the value and invoke directly, skipping the per-call linear method scan. Returns false when
+	 * the attribute is not declared on the tag (a dynamic attr) or no cacheable setter resolves —
+	 * the caller then falls back to the standard {@link #setAttribute} path, which preserves the
+	 * dynamic-attribute and error handling unchanged.
+	 */
+	private static boolean fastSetAttribute(PageContext pc, Tag tag, TagLibTag tlt, Key name, Object value) throws PageException {
+		if (tag instanceof Proxy) return false; // proxies dispatch dynamically
+		TagLibTagAttr attr = tlt.getAttribute(name.getLowerString());
+		if (attr == null) return false; // undeclared attribute, let the caller handle it
+
+		lucee.transformer.dynamic.meta.Method setter = attr.getResolvedSetter();
+		if (setter == null) {
+			MethodInstance mi = Reflector.getSetter(tag, name.getLowerString(), value, (MethodInstance) null);
+			if (mi == null) return false; // no matching void setter, use standard path
+			setter = mi.getMethod();
+			attr.setResolvedSetter(setter);
+		}
+
+		Class<?> pt = setter.getArgumentClasses()[0];
+		if (value == null && pt.isPrimitive()) return true; // matches setAttribute null+primitive suppression
+		Object arg = Reflector.convert(value, Reflector.toReferenceClass(pt), null);
+		try {
+			setter.invoke(tag, arg);
+		}
+		catch (Exception ex) {
+			throw Caster.toPageException(ex);
+		}
+		return true;
 	}
 
 	public static void setAttribute(PageContext pc, Tag tag, String name, Object value) throws PageException {
