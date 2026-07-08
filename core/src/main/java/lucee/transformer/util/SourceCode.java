@@ -55,6 +55,36 @@ public class SourceCode {
 	// return false/0 at EOF without needing a `pos < len` guard.
 	private static final short CC_EOF_SENTINEL = 0x000C;
 
+	// Combined classification table for the constructor pass: one L1 load per char yields the
+	// lowercased byte (bits 0-7), the CC_* kind (bits 8-11), and whitespace/newline/CR flags
+	// (bits 12-14) — folding the lowercase cascade, the kind cascade, and newline detection
+	// into a single load. Chars >= 256 take a rare pre-check (€ → CC_LETTER, else operator).
+	private static final int CT_KIND_SHIFT = 8;
+	private static final int CT_VAR_MASK   = (CC_LETTER | CC_DIGIT) << CT_KIND_SHIFT;
+	private static final int CT_WS_FLAG    = 0x1000;
+	private static final int CT_NL_FLAG    = 0x2000;
+	private static final int CT_CR_FLAG    = 0x4000;
+	private static final short[] CLASS_TABLE = new short[256];
+	static {
+		for (int c = 0; c < 256; c++) {
+			int e;
+			if (c == ' ' || c == '\t')  e = ' ' | CT_WS_FLAG;
+			else if (c == '\n')          e = ' ' | CT_WS_FLAG | CT_NL_FLAG;
+			else if (c == '\r')          e = ' ' | CT_WS_FLAG | CT_CR_FLAG;
+			else {
+				int lc = (c >= 'A' && c <= 'Z') ? (c | 0x20) : c;
+				int kind;
+				if      (lc >= 'a' && lc <= 'z')                                 kind = CC_LETTER;
+				else if (lc >= '0' && lc <= '9')                                 kind = CC_DIGIT;
+				else if (lc == '_' || lc == '$' || lc == SystemUtil.CHAR_POUND)  kind = CC_LETTER; // £ < 256; € handled at the pre-check
+				else if (lc == '"' || lc == '\'')                                kind = CC_QUOTE;
+				else                                                             kind = 0;
+				e = lc | (kind << CT_KIND_SHIFT);
+			}
+			CLASS_TABLE[c] = (short) e;
+		}
+	}
+
 	protected int pos = 0;
 	protected int currentLine = 1; // Track current line number (1-based)
 	// Companion state to currentLine — stashed line-boundary positions so the hint
@@ -155,80 +185,59 @@ public class SourceCode {
 	}
 
 	private int[] buildLcTextAndCharClass() {
-		// single backward pass: builds lcText[], charClass[], lines[], and hash together.
-		// lines[] comes out in descending order and is reversed at the end.
-		// hash is Horner-from-the-right: h += text[i] * 31^(n-1-i) — algebraically
-		// identical to String.hashCode()'s forward 31*h + a[i] under Java int overflow.
-		// only A-Z need lowercasing (ASCII source) — bit-flip avoids Character.toLowerCase().
-		int[] arr = new int[32];
-		int count = 0;
+		// single backward pass: builds lcText[], charClass[], and lines[] together, driven by
+		// CLASS_TABLE — one load per char replaces the lowercase cascade, the kind cascade, and
+		// the newline checks. hash is NOT computed here — it's lazy in hashCode().
+		// lines[] is tail-filled: the len sentinel is pre-placed at arr[end] and newlines are
+		// recorded at arr[--top], so the backward walk's descending positions land ascending —
+		// no reverse pass. Pre-sized to ~1 line per 36 chars; the growth guard only fires on
+		// pathologically newline-dense files.
+		int[] arr = new int[len / 36 + 2];
+		int top = arr.length - 1;
+		arr[top] = len;
 		int nextNonSpace = len;
 		int nextNonVar   = len;
-		int h = 0;
-		int pow = 1;
 
 		for (int i = len - 1; i >= 0; i--) {
 			char raw = text[i];
-			h += raw * pow;
-			pow *= 31;
-			char lc;
-			if (raw == '\n') {
-				lc = ' ';
-				if (count == arr.length) arr = Arrays.copyOf(arr, arr.length * 2);
-				arr[count++] = i;
-			}
-			else if (raw == '\r') {
-				lc = ' ';
-				// only record lone \r — \r\n pairs are already recorded via the \n
-				if (i + 1 >= len || text[i + 1] != '\n') {
-					if (count == arr.length) arr = Arrays.copyOf(arr, arr.length * 2);
-					arr[count++] = i;
-				}
-			}
-			else if (raw == '\t') {
-				lc = ' ';
-			}
-			else if (raw >= 'A' && raw <= 'Z') {
-				lc = (char)(raw | 0x20);
-			}
-			else {
-				lc = raw;
-			}
-			lcText[i] = lc < 0x100 ? (byte) lc : 0;
+			int e;
+			if (raw < 256)                          e = CLASS_TABLE[raw];
+			else if (raw == SystemUtil.CHAR_EURO)   e = CC_LETTER << CT_KIND_SHIFT; // lcByte 0 (truncated), see lcText[] javadoc
+			else                                    e = 0;
 
-			if (lc == ' ') {
+			if ((e & CT_VAR_MASK) != 0) {
+				lcText[i] = (byte) e;
+				nextNonSpace = i;
+				int runLen = nextNonVar - i;
+				charClass[i] = (short)(((runLen > CC_MAX_RUN ? CC_MAX_RUN : runLen) << CC_RUN_SHIFT) | ((e >> CT_KIND_SHIFT) & 0xF));
+			}
+			else if ((e & CT_WS_FLAG) != 0) {
+				lcText[i] = ' ';
 				int dist = nextNonSpace - i;
 				charClass[i] = (short)(dist > CC_SPACE_MAX ? -CC_SPACE_MAX : -dist);
 				nextNonVar = i;
+				if ((e & (CT_NL_FLAG | CT_CR_FLAG)) != 0) {
+					// \n records always; lone \r records too — \r\n pairs are recorded via the \n
+					if ((e & CT_NL_FLAG) != 0 || i + 1 >= len || text[i + 1] != '\n') {
+						if (top == 0) {
+							int[] bigger = new int[arr.length * 2];
+							System.arraycopy(arr, 0, bigger, arr.length, arr.length);
+							top = arr.length;
+							arr = bigger;
+						}
+						arr[--top] = i;
+					}
+				}
 			}
 			else {
+				lcText[i] = (byte) e;
 				nextNonSpace = i;
-				byte kind;
-				if      (lc >= 'a' && lc <= 'z')                                                                           kind = CC_LETTER;
-				else if (lc >= '0' && lc <= '9')                                                                           kind = CC_DIGIT;
-				else if (lc == '_' || lc == '$' || lc == SystemUtil.CHAR_EURO || lc == SystemUtil.CHAR_POUND) kind = CC_LETTER;
-				else if (lc == '"' || lc == '\'')                                                                          kind = CC_QUOTE;
-				else                                                                                                       kind = 0;
-				if (kind == CC_LETTER || kind == CC_DIGIT) {
-					int runLen = nextNonVar - i;
-					charClass[i] = (short)(((runLen > CC_MAX_RUN ? CC_MAX_RUN : runLen) << CC_RUN_SHIFT) | kind);
-				}
-				else {
-					charClass[i] = kind;
-					nextNonVar = i;
-				}
+				charClass[i] = (short)((e >> CT_KIND_SHIFT) & 0xF);
+				nextNonVar = i;
 			}
 		}
 
-		this.hash = h;
-
-		// reverse the descending line positions to ascending, then append sentinel
-		for (int l = 0, r = count - 1; l < r; l++, r--) {
-			int tmp = arr[l]; arr[l] = arr[r]; arr[r] = tmp;
-		}
-		if (count == arr.length) arr = Arrays.copyOf(arr, arr.length + 1);
-		arr[count++] = len;
-		return Arrays.copyOf(arr, count);
+		return top == 0 ? arr : Arrays.copyOfRange(arr, top, arr.length);
 	}
 
 	public SourceCode getParent() {
@@ -1631,7 +1640,21 @@ public class SourceCode {
 
 	@Override
 	public int hashCode() {
-		return hash;
+		// Lazy — identical to String.hashCode() over text[] (31-polynomial, int overflow).
+		// The identity is load-bearing: PageImpl emits this value as the page's getHash()
+		// constant, so the algorithm must stay stable across builds (bytecode-compare gate).
+		// Consumed once per compile on the root SourceCode; subCFMLString children never
+		// call it, so computing eagerly in the constructor loop was pure per-char waste.
+		// hash == 0 means "not yet computed" — zero-hash content recomputes per call,
+		// same trade-off as java.lang.String.
+		int h = hash;
+		if (h == 0) {
+			for (int i = 0; i < len; i++) {
+				h = 31 * h + text[i];
+			}
+			hash = h;
+		}
+		return h;
 	}
 
 	/** True when the source should be parsed directly by the script transformer (bypassing the tag parser).
