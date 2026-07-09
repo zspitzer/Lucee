@@ -86,6 +86,41 @@ public final class FunctionLibFunction {
 	private final boolean core;
 
 	/**
+	 * Precomputed, cached emit metadata for the declared-argument dispatch of this function.
+	 * Invariant per definition (function class + declared args + return type are fixed), so it is
+	 * resolved once on first emit and reused, skipping the per-emit {@code getMethod} resolution
+	 * (the {@code Types.toType} of each declared arg, the {@code Clazz.getMethods} scan, the match)
+	 * and the per-arg {@code Types.isPrimitiveType} check. Mirrors {@link lucee.transformer.library.tag.TagLibTag}'s
+	 * {@code TagAttrDescriptor} — a built-once holder read cheaply at emit. Populated by the bytecode
+	 * emit layer (it needs a {@code BytecodeContext}), so unlike the self-contained tag descriptor it
+	 * is a passive holder filled on first use. Null means "not yet resolved" (or no match) — the
+	 * caller falls back to the standard resolution path, so no negative caching. Not copied by
+	 * {@link #duplicate()}: it re-resolves lazily per instance.
+	 */
+	private volatile BIFDescriptor bifDescriptor;
+
+	/** Built-once declared-argument emit metadata; see {@link #bifDescriptor}. */
+	public static final class BIFDescriptor {
+		/** the {@code call()} method matched against the declared args */
+		public final lucee.transformer.dynamic.meta.Method method;
+		/** per-arg primitive-ness, aligned to {@code method.getArgumentTypes()} indices (0 = PageContext) */
+		public final boolean[] argIsPrimitive;
+
+		public BIFDescriptor(lucee.transformer.dynamic.meta.Method method, boolean[] argIsPrimitive) {
+			this.method = method;
+			this.argIsPrimitive = argIsPrimitive;
+		}
+	}
+
+	public BIFDescriptor getBIFDescriptor() {
+		return bifDescriptor;
+	}
+
+	public void setBIFDescriptor(BIFDescriptor bifDescriptor) {
+		this.bifDescriptor = bifDescriptor;
+	}
+
+	/**
 	 * Geschuetzer Konstruktor ohne Argumente.
 	 */
 	/*

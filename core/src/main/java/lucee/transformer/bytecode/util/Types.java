@@ -476,7 +476,7 @@ public final class Types {
 
 		if (className.endsWith(";")) return Type.getType(className.replace('.', '/'));
 
-		char first = StringUtil.toLowerCase(className).charAt(0);
+		char first = Character.toLowerCase(className.charAt(0));
 
 		switch (first) {
 		case 'b':

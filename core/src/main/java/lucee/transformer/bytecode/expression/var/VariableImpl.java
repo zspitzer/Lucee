@@ -595,7 +595,8 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 					names[i] = getName(bc, nargs[i].getName()).toLowerCase();
 				}
 				ArrayList<FunctionLibFunctionArg> list = flf.getArg();
-				lucee.transformer.dynamic.meta.Method method = getMethod(clazzz, list, rtnType, bc, line);
+				FunctionLibFunction.BIFDescriptor desc = getBIFDescriptor(flf, clazzz, list, rtnType, bc, line);
+				lucee.transformer.dynamic.meta.Method method = desc == null ? null : desc.method;
 				if (method == null) {
 					throw new TransformerException(bc, "not matching method found for function [" + bif.getName() + "] in class [" + clazzz.getDeclaringClass().getName()
 							+ "] with return type [" + rtnType.getClassName() + "], when developing clear dynclasses folder", line);
@@ -616,7 +617,7 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 					// aprint.e("argument type missmatch[" + vt.type + "->" + Types.toType(bc, vt.type) + "!=" +
 					// argTypes[index] + "]");
 					if (vt.value == null) ASMConstants.NULL(bc.getAdapter());
-					else vt.value.writeOut(bc, Types.isPrimitiveType(argTypes[index]) ? MODE_VALUE : MODE_REF);
+					else vt.value.writeOut(bc, desc.argIsPrimitive[index] ? MODE_VALUE : MODE_REF);
 				}
 				for (int y = 0; y < names.length; y++) {
 					if (names[y] != null) {
@@ -645,7 +646,10 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 				// exists)
 				else {
 					ArrayList<FunctionLibFunctionArg> fargs = flf.getArg();
-					m = getMethod(clazzz, fargs, rtnType, bc, line);
+					// declared-arg dispatch is invariant per flf (class + declared args + return are fixed);
+					// resolve + precompute per-arg modes once on first emit (FunctionLibFunction.BIFDescriptor)
+					FunctionLibFunction.BIFDescriptor desc = getBIFDescriptor(flf, clazzz, fargs, rtnType, bc, line);
+					m = desc == null ? null : desc.method;
 					if (m == null) {
 
 						StringBuilder sb = new StringBuilder();
@@ -664,11 +668,11 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 					for (int i = 1; i < argTypes.length; i++) {
 						// we do have an argument for it
 						if (args.length >= i) {
-							((ArgumentImpl) args[i - 1]).writeOutValue(bc, Types.isPrimitiveType(argTypes[i]) ? MODE_VALUE : MODE_REF);
+							((ArgumentImpl) args[i - 1]).writeOutValue(bc, desc.argIsPrimitive[i] ? MODE_VALUE : MODE_REF);
 						}
 						else {
 							def = getDefaultValue(bc.getFactory(), fargs.get(i - 1));
-							if (def.value != null) def.value.writeOut(bc, Types.isPrimitiveType(argTypes[i]) ? MODE_VALUE : MODE_REF);
+							if (def.value != null) def.value.writeOut(bc, desc.argIsPrimitive[i] ? MODE_VALUE : MODE_REF);
 							else ASMConstants.NULL(bc.getAdapter());
 						}
 					}
@@ -758,6 +762,29 @@ public final class VariableImpl extends ExpressionBase implements Variable {
 			}
 		}
 		return rtnType;
+	}
+
+	/**
+	 * Lazily resolves and caches the declared-argument dispatch metadata for a BIF on its
+	 * {@link FunctionLibFunction} (see {@code FunctionLibFunction.BIFDescriptor}). The resolution is
+	 * invariant per function definition (class + declared args + return type are fixed), so the
+	 * {@code getMethod} match and the per-arg primitive-ness are computed once and reused, not per
+	 * emit. Returns null when no matching {@code call()} method exists (no negative caching) — the
+	 * caller throws as it did before.
+	 */
+	private static FunctionLibFunction.BIFDescriptor getBIFDescriptor(FunctionLibFunction flf, Clazz clazz, ArrayList<FunctionLibFunctionArg> fargs, Type returnType, BytecodeContext bc,
+			Position pos) throws TransformerException {
+		FunctionLibFunction.BIFDescriptor desc = flf.getBIFDescriptor();
+		if (desc != null) return desc;
+		lucee.transformer.dynamic.meta.Method m = getMethod(clazz, fargs, returnType, bc, pos);
+		if (m == null) return null;
+		Type[] at = m.getArgumentTypes();
+		boolean[] prim = new boolean[at.length];
+		for (int i = 0; i < at.length; i++)
+			prim[i] = Types.isPrimitiveType(at[i]);
+		desc = new FunctionLibFunction.BIFDescriptor(m, prim);
+		flf.setBIFDescriptor(desc);
+		return desc;
 	}
 
 	private static lucee.transformer.dynamic.meta.Method getMethod(Clazz clazz, ArrayList<FunctionLibFunctionArg> _args, Type returnType, BytecodeContext bc, Position pos)
