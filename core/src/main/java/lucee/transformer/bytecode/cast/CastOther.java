@@ -28,6 +28,7 @@ import lucee.commons.lang.StringUtil;
 import lucee.runtime.type.Struct;
 import lucee.runtime.type.StructImpl;
 import lucee.runtime.type.util.KeyConstants;
+import lucee.transformer.Factory;
 import lucee.transformer.TransformerException;
 import lucee.transformer.bytecode.BytecodeContext;
 import lucee.transformer.bytecode.expression.ExpressionBase;
@@ -100,6 +101,29 @@ public final class CastOther extends ExpressionBase implements Cast {
 			break;
 		}
 		return new CastOther(expr, type, lcType);
+	}
+
+	/**
+	 * Kind-dispatched twin of {@link #toExpression(Expression, String)}: the caller passes a pre-resolved
+	 * {@code CAST_*} kind, skipping the per-occurrence {@code toLowerCase} + char-switch.
+	 */
+	public static Expression castByKind(Expression expr, int castKind, String type) {
+		switch (castKind) {
+		case Factory.CAST_ANY:
+			return expr;
+		case Factory.CAST_BOOLEAN:
+			return expr.getFactory().toExprBoolean(expr);
+		case Factory.CAST_NUMBER:
+			return expr.getFactory().toExprNumber(expr);
+		case Factory.CAST_INT:
+			return expr.getFactory().toExprInt(expr);
+		case Factory.CAST_STRING:
+			return expr.getFactory().toExprString(expr);
+		case Factory.CAST_VARIABLE_STRING:
+			return VariableString.toExprString(expr);
+		default:
+			return new CastOther(expr, type, StringUtil.toLowerCase(type));
+		}
 	}
 
 	// Array toArray(Object)

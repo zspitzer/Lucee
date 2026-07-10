@@ -2192,7 +2192,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 		if (attrValue != null) {
 			attrName = attr.getName();
 			TagLibTagAttr tlta = tlt.getAttribute(attr.getName(), true);
-			tag.addAttribute(new Attribute(false, attrName, data.factory.toExpression(attrValue, tlta.getType()), tlta.getType()));
+			tag.addAttribute(new Attribute(false, attrName, data.factory.toExpression(attrValue, tlta.getResolvedCastKind(), tlta.getType()), tlta.getType()));
 		}
 		else if (ATTR_TYPE_REQUIRED == attrType) {
 			data.srcCode.setPos(pos);
@@ -2582,7 +2582,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 				if (!attrs.containsKey(att.getName()) && att.hasDefaultValue()) {
 
 					Attribute attr = new Attribute(tlt.getAttributeType() == TagLibTag.ATTRIBUTE_TYPE_DYNAMIC, att.getName(),
-							data.factory.toExpression(data.factory.createLitString(Caster.toString(att.getDefaultValue(), null)), att.getType()), att.getType());
+							data.factory.toExpression(data.factory.createLitString(Caster.toString(att.getDefaultValue(), null)), att.getResolvedCastKind(), att.getType()), att.getType());
 					attr.setDefaultAttribute(true);
 					attrs.put(att.getName(), attr);
 				}
@@ -2649,7 +2649,7 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 			tlta = tlt.getAttribute(nameLC, true);
 			if (tlta != null && tlta.getName() != null) nameLC = tlta.getName();
 		}
-		return new Attribute(dynamic.toBooleanValue(), name, tlta != null ? data.factory.toExpression(value, tlta.getType()) : value, sbType.toString(), !hasValue);
+		return new Attribute(dynamic.toBooleanValue(), name, tlta != null ? data.factory.toExpression(value, tlta.getResolvedCastKind(), tlta.getType()) : value, sbType.toString(), !hasValue);
 	}
 
 	private final String attributeName(SourceCode cfml, ArrayList<String> args, TagLibTag tag, RefBoolean dynamic, StringBuilder sbType, boolean allowTwiceAttr, boolean allowColon)

@@ -86,6 +86,50 @@ public final class TagLibTagAttr {
 		this.resolvedSetter = setter;
 	}
 
+	/**
+	 * Lazily resolved (then cached) emit-side type — invariant per TLD declaration. Typed {@code Object}
+	 * to keep ASM off this backend-agnostic class (the bytecode emitter owns the cast). Populated once
+	 * from {@code TagHelper}; {@code null} = not yet resolved (re-derive fallback).
+	 */
+	private volatile Object resolvedEmitType;
+
+	public Object getResolvedEmitType() {
+		return resolvedEmitType;
+	}
+
+	public void setResolvedEmitType(Object type) {
+		this.resolvedEmitType = type;
+	}
+
+	/**
+	 * Lazily resolved (then cached) ASM setter {@code Method} — removes the per-occurrence
+	 * {@code getSetter} scan + {@code Method}/{@code Type[]} alloc in {@code TagHelper}. {@code Object}-typed
+	 * for the same reason as {@link #resolvedEmitType}; {@code null} = not yet resolved.
+	 */
+	private volatile Object resolvedSetterMethod;
+
+	public Object getResolvedSetterMethod() {
+		return resolvedSetterMethod;
+	}
+
+	public void setResolvedSetterMethod(Object method) {
+		this.resolvedSetterMethod = method;
+	}
+
+	/**
+	 * Cached parse-side cast kind ({@code Factory.CAST_*}), invariant per declaration — classified once
+	 * (eagerly in {@link #setType}) instead of re-deriving the {@code toLowerCase}+char-switch per
+	 * occurrence. {@code -1} = not yet resolved.
+	 */
+	private volatile int resolvedCastKind = -1;
+
+	public int getResolvedCastKind() {
+		int kind = resolvedCastKind;
+		// -1 guard is a never-taken fallback for the getType reflection path (attrs with no setType call)
+		if (kind == -1) resolvedCastKind = kind = Factory.toCastKind(getType());
+		return kind;
+	}
+
 	public TagLibTagAttr duplicate(TagLibTag tag) {
 		TagLibTagAttr tlta = new TagLibTagAttr(tag);
 		tlta.name = name;
@@ -103,6 +147,7 @@ public final class TagLibTagAttr {
 		tlta.noname = noname;
 		tlta._default = _default;
 		tlta.status = status;
+		tlta.resolvedCastKind = resolvedCastKind;
 
 		return tlta;
 	}
@@ -250,6 +295,9 @@ public final class TagLibTagAttr {
 	 */
 	public void setType(String type) {
 		this.type = type;
+		// eager: classify at TLD-parse time so getResolvedCastKind's -1 guard is never-taken on the
+		// hot path (stable branch, not a taken-then-cold unstable_if).
+		this.resolvedCastKind = Factory.toCastKind(type);
 	}
 
 	/**

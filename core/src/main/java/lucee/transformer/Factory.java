@@ -19,6 +19,7 @@ package lucee.transformer;
 
 import java.math.BigDecimal;
 
+import lucee.commons.lang.StringUtil;
 import lucee.runtime.exp.PageException;
 import lucee.transformer.expression.ExprBoolean;
 import lucee.transformer.expression.ExprInt;
@@ -75,6 +76,16 @@ public abstract class Factory {
 
 	public static final int OP_NEG_NBR_PLUS = 0;
 	public static final int OP_NEG_NBR_MINUS = 1;
+
+	// Parse-side cast classification: type string → one CAST_* kind, resolved once (toCastKind) and
+	// cached on the TagLibTagAttr rather than re-derived per occurrence.
+	public static final int CAST_ANY = 0; // any/object/void/null → value passes through unchanged
+	public static final int CAST_BOOLEAN = 1;
+	public static final int CAST_NUMBER = 2;
+	public static final int CAST_INT = 3;
+	public static final int CAST_STRING = 4;
+	public static final int CAST_VARIABLE_STRING = 5;
+	public static final int CAST_OTHER = 6; // not a keyword (e.g. a class name) → keep the raw type string
 
 	public abstract LitBoolean TRUE();
 
@@ -154,6 +165,58 @@ public abstract class Factory {
 	public abstract ExprInt toExprInt(Expression expr);
 
 	public abstract Expression toExpression(Expression expr, String type);
+
+	/**
+	 * As {@link #toExpression(Expression, String)}, but the caller has already resolved the type
+	 * String to a {@code CAST_*} kind (once, cached on the declaration) so the per-occurrence
+	 * {@code toLowerCase} + char-switch is skipped. {@code type} still rides along for the
+	 * {@link #CAST_OTHER} arm (class-name types the bytecode side must keep verbatim).
+	 */
+	public abstract Expression toExpression(Expression expr, int castKind, String type);
+
+	/**
+	 * Resolve an attribute/argument type String to one of the {@code CAST_*} kinds. Mirrors the
+	 * bytecode {@code CastOther.toExpression} classification exactly, so the cached kind drives a
+	 * byte-identical cast on the compile lane.
+	 */
+	public static int toCastKind(String type) {
+		if (type == null) return CAST_ANY;
+		String lcType = StringUtil.toLowerCase(type);
+		switch (lcType.charAt(0)) {
+		case 'a':
+			if ("any".equals(lcType)) return CAST_ANY;
+			break;
+		case 'b':
+			if ("boolean".equals(type) || "bool".equals(lcType)) return CAST_BOOLEAN;
+			break;
+		case 'd':
+			if ("double".equals(type)) return CAST_NUMBER;
+			break;
+		case 'i':
+			if ("int".equals(lcType)) return CAST_INT;
+			// no break: fall through to the number cases, mirroring CastOther.toExpression
+		case 'n':
+			if ("number".equals(lcType) || "numeric".equals(lcType)) return CAST_NUMBER;
+			break;
+		case 'o':
+			if ("object".equals(lcType)) return CAST_ANY;
+			break;
+		case 's':
+			if ("string".equals(lcType)) return CAST_STRING;
+			break;
+		case 'u':
+			if ("uuid".equals(lcType)) return CAST_STRING;
+			break;
+		case 'v':
+			if ("variablename".equals(lcType)) return CAST_VARIABLE_STRING;
+			if ("variable_name".equals(lcType)) return CAST_VARIABLE_STRING;
+			if ("variablestring".equals(lcType)) return CAST_VARIABLE_STRING;
+			if ("variable_string".equals(lcType)) return CAST_VARIABLE_STRING;
+			if ("void".equals(lcType)) return CAST_ANY;
+			break;
+		}
+		return CAST_OTHER;
+	}
 
 	// OPERATIONS
 	public abstract ExprString opString(Expression left, Expression right);

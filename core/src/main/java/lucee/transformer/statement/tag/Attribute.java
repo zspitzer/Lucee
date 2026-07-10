@@ -19,6 +19,7 @@
 package lucee.transformer.statement.tag;
 
 import lucee.transformer.expression.Expression;
+import lucee.transformer.library.tag.TagLibTagAttr;
 
 public final class Attribute {
 
@@ -30,18 +31,28 @@ public final class Attribute {
 	private boolean defaultAttribute;
 	private String setterName;
 	private final boolean isDefaultValue;
+	private final TagLibTagAttr tlta;
 
 	public Attribute(boolean dynamicType, String name, Expression value, String type) {
-		this(dynamicType, name, value, type, false);
+		this(dynamicType, name, value, type, false, null);
 	}
 
 	public Attribute(boolean dynamicType, String name, Expression value, String type, boolean isDefaultValue) {
+		this(dynamicType, name, value, type, isDefaultValue, null);
+	}
+
+	public Attribute(boolean dynamicType, String name, Expression value, String type, TagLibTagAttr tlta) {
+		this(dynamicType, name, value, type, false, tlta);
+	}
+
+	public Attribute(boolean dynamicType, String name, Expression value, String type, boolean isDefaultValue, TagLibTagAttr tlta) {
 		this.dynamicType = dynamicType;
 		this.nameOC = name;
 		this.nameLC = name.toLowerCase();
 		this.value = value;
 		this.type = type;
 		this.isDefaultValue = isDefaultValue;
+		this.tlta = tlta;
 	}
 
 	public boolean isDefaultValue() {
@@ -80,6 +91,15 @@ public final class Attribute {
 	 */
 	public String getType() {
 		return type;
+	}
+
+	/**
+	 * @return the static TLD declaration this attribute was parsed against, or null for synthetic /
+	 *         fully-dynamic attributes. Carries the parser-resolved fact so the emitter reads the
+	 *         resolved type off the declaration instead of re-deriving it from {@link #type}.
+	 */
+	public TagLibTagAttr getTagLibTagAttr() {
+		return tlta;
 	}
 
 	/**

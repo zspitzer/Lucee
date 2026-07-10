@@ -1027,7 +1027,7 @@ public final class CFMLTransformer {
 						if (!parent.containsAttribute(att.getName()) && att.hasDefaultValue()) {
 
 							Attribute attr = new Attribute(tag.getAttributeType() == TagLibTag.ATTRIBUTE_TYPE_DYNAMIC, att.getName(),
-									data.factory.toExpression(data.factory.createLitString(Caster.toString(att.getDefaultValue(), null)), att.getType()), att.getType());
+									data.factory.toExpression(data.factory.createLitString(Caster.toString(att.getDefaultValue(), null)), att.getResolvedCastKind(), att.getType()), att.getType());
 							attr.setDefaultAttribute(true);
 							parent.addAttribute(attr);
 						}
@@ -1126,8 +1126,18 @@ public final class CFMLTransformer {
 			pe = attr.getRtexpr();
 		}
 		// LitString.toExprString("",-1);
-		Attribute att = new Attribute(false, strName, attributeValue(data, tag, strType, pe, true, data.factory.createNull()), strType);
+		Attribute att = new Attribute(false, strName, attributeValue(data, tag, attr, strType, pe, true, data.factory.createNull()), strType, attr);
 		parent.addAttribute(att);
+	}
+
+	/** Short-lived local carrier for the facts attributeName() resolves and attribute() consumes,
+	 *  replacing the per-occurrence out-params (dynamic / type / parseExpression) and the data.attr
+	 *  side-channel with one holder scoped to a single attribute() call. */
+	private static final class AttrParse {
+		boolean dynamic = false;
+		boolean parseExpr = true;
+		final StringBuilder type = new StringBuilder();
+		TagLibTagAttr tla;
 	}
 
 	/**
@@ -1145,13 +1155,11 @@ public final class CFMLTransformer {
 		Expression value = null;
 
 		// Name
-		StringBuilder sbType = new StringBuilder();
-		RefBoolean dynamic = new RefBooleanImpl(false);
+		AttrParse ap = new AttrParse();
 		boolean isDefaultValue = false;
-		boolean[] parseExpression = new boolean[2];
-		parseExpression[0] = true;
-		parseExpression[1] = false;
-		String name = attributeName(data.srcCode, dynamic, args, tag, sbType, parseExpression, allowDefaultValue.toBooleanValue());
+		String name = attributeName(data, tag, args, ap, allowDefaultValue.toBooleanValue());
+		// declaration resolved in attributeName as a validation by-product; carried on the local holder
+		TagLibTagAttr tlta = ap.tla;
 
 		// mixed in a noname attribute
 		if (StringUtil.isEmpty(name)) {
@@ -1159,8 +1167,9 @@ public final class CFMLTransformer {
 			TagLibTagAttr attr = tag.getDefaultAttribute();
 			if (attr == null) throw new TemplateException(data.srcCode, "Invalid Identifier.");
 			name = attr.getName();
-			sbType.append(attr.getType());
+			ap.type.append(attr.getType());
 			isDefaultValue = true;
+			tlta = attr;
 		}
 
 		comment(data.srcCode, true);
@@ -1168,21 +1177,22 @@ public final class CFMLTransformer {
 		if (isDefaultValue || data.srcCode.forwardIfCurrent('=')) {
 			comment(data.srcCode, true);
 			// Value
-			value = attributeValue(data, tag, sbType.toString(), parseExpression[0], false, data.factory.createLitString(""));
+			value = attributeValue(data, tag, tlta, ap.type.toString(), ap.parseExpr, false, data.factory.createLitString(""));
 		}
 		// default value boolean true
 		else {
 			TagLibTagAttr attr = tag.getAttribute(name);
 			if (attr != null) value = attr.getUndefinedValue(data.factory);
 			else value = tag.getAttributeUndefinedValue(data.factory);
+			tlta = attr;
 
-			if (sbType.toString().length() > 0) {
-				value = data.factory.toExpression(value, sbType.toString());
+			if (ap.type.length() > 0) {
+				value = tlta != null ? data.factory.toExpression(value, tlta.getResolvedCastKind(), ap.type.toString()) : data.factory.toExpression(value, ap.type.toString());
 			}
 		}
 		comment(data.srcCode, true);
 
-		return new Attribute(dynamic.toBooleanValue(), name, value, sbType.toString());
+		return new Attribute(ap.dynamic, name, value, ap.type.toString(), tlta);
 	}
 
 	/**
@@ -1196,18 +1206,16 @@ public final class CFMLTransformer {
 	 * EBNF:<br />
 	 * <code>("expression"|'expression'|expression) | identifier;(* Ruft identifier oder den Expression Transformer auf je nach Attribute Definition in der Tag Lib. *)</code>
 	 * 
-	 * @param dynamic
 	 * @param args Container zum Speichern einzelner Attribute Namen zum nachtraeglichen Prufen gegen
 	 *            die Tag-Lib.
 	 * @param tag Aktuelles tag aus der Tag-Lib
-	 * @param sbType Die Methode speichert innerhalb von sbType den Typ des Tags, zur Interpretation in
-	 *            der attribute Methode.
-	 * @param parseExpression Soll der Wert des Attributes geparst werden
+	 * @param ap Lokaler Traeger fuer die aufgeloesten Fakten (dynamic, Typ, parseExpr, TagLibTagAttr),
+	 *            die attribute() anschliessend auswertet.
 	 * @return Attribute Name
 	 * @throws TemplateException
 	 */
-	private static String attributeName(SourceCode cfml, RefBoolean dynamic, ArrayList<String> args, TagLibTag tag, StringBuilder sbType, boolean[] parseExpression,
-			boolean allowDefaultValue) throws TemplateException {
+	private static String attributeName(Data data, TagLibTag tag, ArrayList<String> args, AttrParse ap, boolean allowDefaultValue) throws TemplateException {
+		SourceCode cfml = data.srcCode;
 
 		String id = identifierLower(cfml, false, true);
 		if (StringUtil.isEmpty(id)) {
@@ -1219,10 +1227,9 @@ public final class CFMLTransformer {
 		args.add(id);
 
 		if ("attributecollection".equals(id)) {
-			dynamic.setValue(tag.getAttribute(id, true) == null);
-			sbType.append("struct");
-			parseExpression[0] = true;
-			parseExpression[1] = true;
+			ap.dynamic = tag.getAttribute(id, true) == null;
+			ap.type.append("struct");
+			ap.parseExpr = true;
 		}
 		else if (typeDef == TagLibTag.ATTRIBUTE_TYPE_FIXED || typeDef == TagLibTag.ATTRIBUTE_TYPE_MIXED) {
 			TagLibTagAttr attr = tag.getAttribute(id, true);
@@ -1240,16 +1247,17 @@ public final class CFMLTransformer {
 					throw createTemplateException(cfml, "Attribute [" + id + "] is not allowed for tag [" + tag.getFullName() + "]", "valid attribute names are [" + names + "]",
 							tag);
 				}
-				dynamic.setValue(true);
+				ap.dynamic = true;
 			}
 			else {
 				id = attr.getName();
-				sbType.append(attr.getType());
-				parseExpression[0] = attr.getRtexpr();
+				ap.type.append(attr.getType());
+				ap.parseExpr = attr.getRtexpr();
+				ap.tla = attr; // carry the resolved declaration back to attribute() on the local holder
 			}
 		}
 		else if (typeDef == TagLibTag.ATTRIBUTE_TYPE_DYNAMIC) {
-			dynamic.setValue(true);
+			ap.dynamic = true;
 		}
 		return id;
 	}
@@ -1267,7 +1275,7 @@ public final class CFMLTransformer {
 	 * @return Element Eingelesener uebersetzer Wert des Attributes.
 	 * @throws TemplateException
 	 */
-	public static Expression attributeValue(Data data, TagLibTag tag, String type, boolean parseExpression, boolean isNonName, Expression noExpression) throws TemplateException {
+	public static Expression attributeValue(Data data, TagLibTag tag, TagLibTagAttr tlta, String type, boolean parseExpression, boolean isNonName, Expression noExpression) throws TemplateException {
 		Expression expr;
 		try {
 			ExprTransformer transfomer = null;
@@ -1311,7 +1319,9 @@ public final class CFMLTransformer {
 				else expr = transfomer.transform(data);
 			}
 			if (!StringUtil.isEmpty(type)) {
-				expr = data.factory.toExpression(expr, type);
+				// tlta carries the cast kind resolved once per declaration; synthetic attrs (no tlta)
+				// fall back to the per-occurrence string classification.
+				expr = tlta != null ? data.factory.toExpression(expr, tlta.getResolvedCastKind(), type) : data.factory.toExpression(expr, type);
 			}
 		}
 		catch (TagLibException e) {

@@ -277,6 +277,11 @@ public final class BytecodeFactory extends FactoryBase {
 	}
 
 	@Override
+	public Expression toExpression(Expression expr, int castKind, String type) {
+		return CastOther.castByKind(expr, castKind, type);
+	}
+
+	@Override
 	public Variable createVariable(Position start, Position end) {
 		return new VariableImpl(this, start, end);
 	}

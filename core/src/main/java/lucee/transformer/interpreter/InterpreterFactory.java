@@ -254,6 +254,13 @@ public final class InterpreterFactory extends FactoryBase {
 	}
 
 	@Override
+	public Expression toExpression(Expression expr, int castKind, String type) {
+		// interpreter lane keeps its own per-occurrence classification (it diverges from the bytecode
+		// classifier — live float case, variablename commented out), so the precomputed kind is ignored here.
+		return CastOther.toExpression(expr, type);
+	}
+
+	@Override
 	public ExprString opString(Expression left, Expression right) {
 		return OpString.toExprString(left, right, true);
 	}

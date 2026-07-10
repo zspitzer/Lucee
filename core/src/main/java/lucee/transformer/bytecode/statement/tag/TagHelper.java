@@ -460,25 +460,39 @@ public final class TagHelper {
 
 				}
 				else {
-					Type type = CastOther.getType(bc, attr.getType());
-					methodName = tag.getTagLibTag().getSetter(attr, type == null ? null : ASMUtil.getClassName(type));
+					// setter Method + arg Type are invariant per TLD declaration: resolve once, cache on
+					// the TagLibTagAttr, read per occurrence. Synthetic attrs (no tlta) re-derive directly.
+					TagLibTagAttr tlta = attr.getTagLibTagAttr();
+					Method setterMethod = tlta == null ? null : (Method) tlta.getResolvedSetterMethod();
+					Type type;
+					if (setterMethod != null) {
+						type = (Type) tlta.getResolvedEmitType();
+					}
+					else {
+						type = tlta == null ? null : (Type) tlta.getResolvedEmitType();
+						if (type == null) type = CastOther.getType(bc, attr.getType());
+						methodName = tag.getTagLibTag().getSetter(attr, type == null ? null : ASMUtil.getClassName(type));
+						setterMethod = new Method(methodName, Type.VOID_TYPE, new Type[] { type });
+						if (tlta != null) {
+							tlta.setResolvedEmitType(type);
+							tlta.setResolvedSetterMethod(setterMethod);
+						}
+					}
 					adapter.loadLocal(currLocal);
 
-					TagHelper.writeNumberAsDouble(bc, attr, Types.isPrimitiveType(type) ? Expression.MODE_VALUE : Expression.MODE_REF);
-					adapter.invokeVirtual(currType, new Method(methodName, Type.VOID_TYPE, new Type[] { type }));
+					TagHelper.writeNumberAsDouble(bc, attr, type, Types.isPrimitiveType(type) ? Expression.MODE_VALUE : Expression.MODE_REF);
+					adapter.invokeVirtual(currType, setterMethod);
 				}
 			}
 		}
 	}
 
-	private static void writeNumberAsDouble(BytecodeContext bc, Attribute attr, int i) throws TransformerException {
-		Type type = CastOther.getType(bc, attr.getType());
+	private static void writeNumberAsDouble(BytecodeContext bc, Attribute attr, Type type, int mode) throws TransformerException {
 		Expression expr = attr.getValue();
 		if (type.equals(Types.DOUBLE_VALUE) && !(attr.getValue() instanceof ExprNumber)) {
 			expr = CastNumber.toExprNumber(attr.getValue());
 		}
-		expr.writeOut(bc, Types.isPrimitiveType(type) ? Expression.MODE_VALUE : Expression.MODE_REF);
-
+		expr.writeOut(bc, mode);
 	}
 
 	private static void doTry(BytecodeContext bc, GeneratorAdapter adapter, Tag tag, int currLocal, Type currType, boolean interf) throws TransformerException {
