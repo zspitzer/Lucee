@@ -217,7 +217,9 @@ public class SourceCode {
 				charClass[i] = (short)(dist > CC_SPACE_MAX ? -CC_SPACE_MAX : -dist);
 				nextNonVar = i;
 				if ((e & (CT_NL_FLAG | CT_CR_FLAG)) != 0) {
-					// \n records always; lone \r records too — \r\n pairs are recorded via the \n
+					// record on \n always; a lone \r counts as a line break too — ColdBox ships
+					// CR-only source files, so lone CR is a live case, not extinct: do not drop it.
+					// \r\n records once, via the \n; the text[i+1]!='\n' check skips the paired \r.
 					if ((e & CT_NL_FLAG) != 0 || i + 1 >= len || text[i + 1] != '\n') {
 						if (top == 0) {
 							int[] bigger = new int[arr.length * 2];
