@@ -1586,8 +1586,11 @@ public abstract class AbstrCFMLExprTransformer {
 				if (name == null) throw new TemplateException(data.srcCode, "Invalid identifier");
 				comments(data);
 				nameProp = Identifier.toIdentifier(data.factory, name, line, data.srcCode.getPosition());
-				namePropUC = Identifier.toIdentifier(data.factory, name, data.settings.dotNotationUpper ? Identifier.CASE_UPPER : Identifier.CASE_ORIGNAL, line,
-						data.srcCode.getPosition());
+				// with dotNotationUpper off the UC variant is byte-identical to nameProp — reuse it
+				// (as the structElement branch above does) instead of allocating a second Identifier
+				namePropUC = data.settings.dotNotationUpper
+						? Identifier.toIdentifier(data.factory, name, Identifier.CASE_UPPER, line, data.srcCode.getPosition())
+						: nameProp;
 			}
 
 			// finish

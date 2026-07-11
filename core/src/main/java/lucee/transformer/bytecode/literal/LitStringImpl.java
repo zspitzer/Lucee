@@ -46,9 +46,6 @@ import lucee.transformer.expression.literal.LitString;
 public class LitStringImpl extends ExpressionBase implements LitString, ExprString {
 
 	public static final int MAX_SIZE = 65535;
-	public static final int TYPE_ORIGINAL = 0;
-	public static final int TYPE_UPPER = 1;
-	public static final int TYPE_LOWER = 2;
 
 	private String str;
 	private boolean fromBracket;
@@ -127,12 +124,6 @@ public class LitStringImpl extends ExpressionBase implements LitString, ExprStri
 		return _writeOut(bc, mode, str);
 	}
 
-	public Type writeOut(BytecodeContext bc, int mode, int caseType) throws TransformerException {
-		if (TYPE_UPPER == caseType) return _writeOut(bc, mode, str.toUpperCase());
-		if (TYPE_LOWER == caseType) return _writeOut(bc, mode, str.toLowerCase());
-		return _writeOut(bc, mode, str);
-	}
-
 	private static boolean toBig(String str) {
 		if (str == null || str.length() < (MAX_SIZE / 2)) return false; // a char is max 2 bytes
 		return str.getBytes(StandardCharsets.UTF_8).length > MAX_SIZE;
@@ -177,13 +168,24 @@ public class LitStringImpl extends ExpressionBase implements LitString, ExprStri
 		return str;
 	}
 
-	@Override
-	public void upperCase() {
-		str = str.toUpperCase();
+	/**
+	 * Returns the input unchanged when no character would change under uppercasing (no
+	 * allocation) — the common case for already-uppercase dot-notation keys. Otherwise delegates
+	 * to {@code String.toUpperCase()}, whose Latin1 fast path mutates the string's backing array
+	 * directly in one pass, rather than the decompress-to-char[]-then-recompress round trip a
+	 * hand-rolled scan would need.
+	 */
+	public static String toUpperAscii(String s) {
+		for (int i = 0, len = s.length(); i < len; i++) {
+			char c = s.charAt(i);
+			if ((c >= 'a' && c <= 'z') || c >= 0x80) return s.toUpperCase();
+		}
+		return s;
 	}
 
-	public void lowerCase() {
-		str = str.toLowerCase();
+	@Override
+	public void upperCase() {
+		str = toUpperAscii(str);
 	}
 
 	@Override

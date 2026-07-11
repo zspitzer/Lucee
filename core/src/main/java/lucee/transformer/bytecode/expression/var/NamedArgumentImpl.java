@@ -27,6 +27,7 @@ import lucee.runtime.type.StructImpl;
 import lucee.runtime.type.util.KeyConstants;
 import lucee.transformer.TransformerException;
 import lucee.transformer.bytecode.BytecodeContext;
+import lucee.transformer.bytecode.literal.LitStringImpl;
 import lucee.transformer.bytecode.literal.Null;
 import lucee.transformer.bytecode.literal.NullConstant;
 import lucee.transformer.bytecode.util.Types;
@@ -71,7 +72,7 @@ public final class NamedArgumentImpl extends ArgumentImpl implements NamedArgume
 				av.visitBegin(adapter, Types.STRING, arr.length);
 				for (int y = 0; y < arr.length; y++) {
 					av.visitBeginItem(adapter, y);
-					adapter.push(varKeyUpperCase ? arr[y].toUpperCase() : arr[y]);
+					adapter.push(varKeyUpperCase ? LitStringImpl.toUpperAscii(arr[y]) : arr[y]);
 					av.visitEndItem(bc.getAdapter());
 				}
 				av.visitEnd();
@@ -79,7 +80,7 @@ public final class NamedArgumentImpl extends ArgumentImpl implements NamedArgume
 			else {
 				// VariableString.toExprString(name).writeOut(bc, MODE_REF);
 				String str = VariableString.variableToString(bc, (Variable) name, true);
-				name = bc.getFactory().createLitString(varKeyUpperCase ? str.toUpperCase() : str);
+				name = bc.getFactory().createLitString(varKeyUpperCase ? LitStringImpl.toUpperAscii(str) : str);
 				getFactory().registerKey(bc, VariableString.toExprString(name), false);
 				type = KEY;
 			}
