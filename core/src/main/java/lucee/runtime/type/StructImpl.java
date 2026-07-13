@@ -120,16 +120,20 @@ public class StructImpl extends StructSupport {
 	}
 
 	public boolean makeSynchronized() {
+		// linked — must be checked before HashMap, since LinkedHashMap extends HashMap.
+		// Wrap in place even when empty: keep the LinkedHashMap backing and the
+		// TYPE_LINKED tag. Replacing an empty linked map with a ConcurrentHashMap, or
+		// retagging it TYPE_SYNC, silently drops insertion order — and duplicate()
+		// rebuilds from getType(), so it would return an unordered copy.
+		if (map instanceof LinkedHashMap) {
+			map = Collections.synchronizedMap(map);
+			this.type = TYPE_LINKED;
+			return true;
+		}
 		// only HashMap is not sync
 		if (map instanceof HashMap) {
 			if (isEmpty()) map = MapFactory.getConcurrentMap(4); // TODO set initialCapacity from above
 			else map = Collections.synchronizedMap(map);
-			this.type = TYPE_SYNC;
-			return true;
-		}
-		// linked
-		if (map instanceof LinkedHashMap) {
-			map = Collections.synchronizedMap(map);
 			this.type = TYPE_SYNC;
 			return true;
 		}
