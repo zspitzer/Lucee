@@ -175,7 +175,12 @@ public abstract class ScopeSupport extends StructImpl implements Scope {
 	 * @throws ApplicationException
 	 */
 	protected void fillDecoded(URLItem[] raw, String encoding, boolean scriptProteced, boolean sameAsArray, boolean formUrlAsStruct) throws UnsupportedEncodingException {
-		clear();
+		// Build into a fresh bare (unsynchronized) linked map off to the side, then
+		// swap it in atomically at the end. The populate runs monitor-free, and a
+		// re-fill (setEncoding/addRaw/reinitialize) never exposes the clear()-then-
+		// refill window: a concurrent reader sees the old-complete or new-complete
+		// scope, never a partially-rebuilt one.
+		StructImpl target = new StructImpl(TYPE_LINKED_NOT_SYNC, optimalCapacity(raw.length, 4));
 		String name, value;
 		// Object curr;
 		for (int i = 0; i < raw.length; i++) {
@@ -195,18 +200,18 @@ public abstract class ScopeSupport extends StructImpl implements Scope {
 			if (formUrlAsStruct && (name.indexOf('.') != -1 || name.indexOf('[') != -1)) {
 				// If bracket notation is disabled and the name contains brackets, treat as literal
 				if (!BRACKET_NOTATION_ENABLED && name.indexOf('[') != -1) {
-					_fill(this, name, value, true, scriptProteced, sameAsArray);
+					_fill(target, name, value, true, scriptProteced, sameAsArray);
 				}
 				else {
 					List<String> segments = parseFormUrlName(name);
 
 					if (segments == null || segments.isEmpty()) {
 						// Malformed brackets or no segments, treat as literal key
-						_fill(this, name, value, true, scriptProteced, sameAsArray);
+						_fill(target, name, value, true, scriptProteced, sameAsArray);
 					}
 					else {
 						// Process segments into nested structure
-						Struct parent = this;
+						Struct parent = target;
 						for (int j = 0; j < segments.size() - 1; j++) {
 							parent = _fill(parent, segments.get(j), new CastableStruct(Struct.TYPE_LINKED), false, scriptProteced, sameAsArray);
 						}
@@ -215,9 +220,12 @@ public abstract class ScopeSupport extends StructImpl implements Scope {
 				}
 			}
 			else {
-				_fill(this, name, value, true, scriptProteced, sameAsArray);
+				_fill(target, name, value, true, scriptProteced, sameAsArray);
 			}
 		}
+		// promote the built map to synchronized-linked and publish it in one swap
+		target.makeSynchronized();
+		adopt(target);
 	}
 
 	/**

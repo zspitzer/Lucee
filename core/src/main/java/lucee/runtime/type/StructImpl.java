@@ -62,7 +62,9 @@ public class StructImpl extends StructSupport {
 	public static final int DEFAULT_INITIAL_CAPACITY = 32;
 	public static final Object NULL = new Object();
 
-	private Map<Collection.Key, Object> map;
+	// volatile so the atomic swap in adopt() is safely published: a concurrent
+	// reader either sees the whole old map or the whole new map, never a tear.
+	private volatile Map<Collection.Key, Object> map;
 	private int type;
 
 	public static final int DEFAULT_TYPE;
@@ -134,6 +136,19 @@ public class StructImpl extends StructSupport {
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Publish another struct's backing (and type) as this struct's own, in a single volatile reference
+	 * write. Lets a caller build a fully-populated map off to the side and swap it in atomically, so a
+	 * concurrent reader never observes a half-filled scope. The source is expected to already be
+	 * promoted (e.g. via {@link #makeSynchronized()}).
+	 *
+	 * @param other the struct whose backing to adopt
+	 */
+	protected void adopt(StructImpl other) {
+		this.type = other.type;
+		this.map = other.map; // volatile write last: establishes happens-before for the built entries
 	}
 
 	/**
