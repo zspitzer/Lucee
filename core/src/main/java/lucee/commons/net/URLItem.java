@@ -25,36 +25,60 @@ public final class URLItem {
 
 	private String name;
 	private String value;
-	private boolean urlEncoded;
+	// The name and the value each carry their own decode flag: a query item can
+	// have a decodable name and a raw value (or vice-versa), e.g. "a%20b=zac+%".
+	private boolean nameUrlEncoded;
+	private boolean valueUrlEncoded;
 
 	/**
 	 * @param name
 	 * @param value
-	 * @param urlEncoded
+	 * @param urlEncoded applies to both name and value
 	 */
 	public URLItem(String name, String value, boolean urlEncoded) {
+		this(name, value, urlEncoded, urlEncoded);
+	}
+
+	/**
+	 * @param name
+	 * @param value
+	 * @param nameUrlEncoded the name needs decoding
+	 * @param valueUrlEncoded the value needs decoding
+	 */
+	public URLItem(String name, String value, boolean nameUrlEncoded, boolean valueUrlEncoded) {
 		this.name = name;
 		this.value = value;
-		this.urlEncoded = urlEncoded;
-
+		this.nameUrlEncoded = nameUrlEncoded;
+		this.valueUrlEncoded = valueUrlEncoded;
 	}
-	/*
-	 * public URLItem(String name, byte[] value, boolean urlEncoded) { this.name = name; //this.value =
-	 * value; this.urlEncoded=urlEncoded; }
-	 */
 
 	/**
-	 * @return the urlEncoded
+	 * @return whether the name or the value needs decoding
 	 */
 	public boolean isUrlEncoded() {
-		return urlEncoded;
+		return nameUrlEncoded || valueUrlEncoded;
 	}
 
 	/**
-	 * @param urlEncoded the urlEncoded to set
+	 * @return whether the name needs decoding
+	 */
+	public boolean isNameUrlEncoded() {
+		return nameUrlEncoded;
+	}
+
+	/**
+	 * @return whether the value needs decoding
+	 */
+	public boolean isValueUrlEncoded() {
+		return valueUrlEncoded;
+	}
+
+	/**
+	 * @param urlEncoded the urlEncoded to set for both name and value
 	 */
 	public void setUrlEncoded(boolean urlEncoded) {
-		this.urlEncoded = urlEncoded;
+		this.nameUrlEncoded = urlEncoded;
+		this.valueUrlEncoded = urlEncoded;
 	}
 
 	/**

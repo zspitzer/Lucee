@@ -122,20 +122,55 @@ public abstract class ScopeSupport extends StructImpl implements Scope {
 		Array arr = ListUtil.listToArrayRemoveEmpty(tp, delimiter);
 		URLItem[] pairs = new URLItem[arr.size()];
 
-		// Array item;
-		int index;
-		String name;
-
 		for (int i = 1; i <= pairs.length; i++) {
-			name = Caster.toString(arr.get(i, ""), "");
-			// if(name.length()==0) continue;
+			String item = Caster.toString(arr.get(i, ""), "");
 
-			index = name.indexOf('=');
-			if (index != -1) pairs[i - 1] = new URLItem(name.substring(0, index), name.substring(index + 1), true);
-			else pairs[i - 1] = new URLItem(name, "", true);
+			// Single pass over the item that: (a) finds the name/value split (first
+			// '='), and (b) classifies each side as needing decoding. A side needs
+			// decoding when it contains a '+', a char >127 (the charset re-decode
+			// case), or a well-formed '%XX' escape. A malformed '%' (non-hex or
+			// truncated) marks that side raw — decoding is skipped, matching today's
+			// swallowed-exception outcome but without the throw + error log.
+			int eq = -1;
+			boolean nameMarker = false, nameBad = false, valueMarker = false, valueBad = false;
+			int len = item.length();
+			for (int j = 0; j < len; j++) {
+				char c = item.charAt(j);
+				if (c == '=' && eq == -1) {
+					eq = j;
+					continue;
+				}
+				boolean inValue = eq != -1;
+				if (c == '%') {
+					if (j + 2 < len && isHex(item.charAt(j + 1)) && isHex(item.charAt(j + 2))) {
+						if (inValue) valueMarker = true;
+						else nameMarker = true;
+					}
+					else {
+						if (inValue) valueBad = true;
+						else nameBad = true;
+					}
+				}
+				else if (c == '+' || c > 127) {
+					if (inValue) valueMarker = true;
+					else nameMarker = true;
+				}
+			}
 
+			boolean encName = nameMarker && !nameBad;
+			// The value decode is skipped when the name is malformed too: today both
+			// decode calls share one try/catch (name first), so a throw on the name
+			// leaves the value raw regardless of the value's own content.
+			boolean encValue = valueMarker && !valueBad && !nameBad;
+
+			if (eq != -1) pairs[i - 1] = new URLItem(item.substring(0, eq), item.substring(eq + 1), encName, encValue);
+			else pairs[i - 1] = new URLItem(item, "", encName, false);
 		}
 		return pairs;
+	}
+
+	private static boolean isHex(char c) {
+		return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 	}
 
 	protected static byte[] getBytes(String str) {
@@ -177,18 +212,25 @@ public abstract class ScopeSupport extends StructImpl implements Scope {
 	protected void fillDecoded(URLItem[] raw, String encoding, boolean scriptProteced, boolean sameAsArray, boolean formUrlAsStruct) throws UnsupportedEncodingException {
 		clear();
 		String name, value;
+		boolean loggedDecodeFault = false;
 		// Object curr;
 		for (int i = 0; i < raw.length; i++) {
 			name = raw[i].getName();
 			value = raw[i].getValue();
-			if (raw[i].isUrlEncoded()) {
+			if (raw[i].isNameUrlEncoded() || raw[i].isValueUrlEncoded()) {
 				try {
-					name = URLDecoder.decode(name, encoding, true);
-					value = URLDecoder.decode(value, encoding, true);
+					if (raw[i].isNameUrlEncoded()) name = URLDecoder.decode(name, encoding, true);
+					if (raw[i].isValueUrlEncoded()) value = URLDecoder.decode(value, encoding, true);
 				}
 				catch (ApplicationException ae) {
 					// invalid encoding comes from the client (e.g. bots), the value is kept as is and the request goes on
-					LogUtil.log(Log.LEVEL_DEBUG, "encoding", ae);
+					// Malformed input is already classified raw in setFrom___ (no decode attempted), so a fault here is a
+					// genuine encoding problem, not a client-supplied bad escape — log it quietly, once per fill pass, and
+					// never at error level (nothing on the server broke).
+					if (!loggedDecodeFault) {
+						LogUtil.log(Log.LEVEL_DEBUG, "encoding", ae.getMessage());
+						loggedDecodeFault = true;
+					}
 				}
 			}
 
