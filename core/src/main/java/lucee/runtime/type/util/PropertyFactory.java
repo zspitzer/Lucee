@@ -18,6 +18,9 @@
  */
 package lucee.runtime.type.util;
 
+import java.util.Map;
+
+import lucee.commons.lang.ExceptionUtil;
 import lucee.commons.lang.StringUtil;
 import lucee.runtime.Component;
 import lucee.runtime.ComponentImpl;
@@ -26,6 +29,7 @@ import lucee.runtime.component.Property;
 import lucee.runtime.component.PropertyImpl;
 import lucee.runtime.exp.ApplicationException;
 import lucee.runtime.exp.PageException;
+import lucee.runtime.exp.PageRuntimeException;
 import lucee.runtime.op.Caster;
 import lucee.runtime.type.Collection;
 import lucee.runtime.type.Collection.Key;
@@ -71,6 +75,62 @@ public final class PropertyFactory {
 				PropertyFactory.addHas(comp, property);
 			}
 		}
+	}
+
+	/**
+	 * LDEV-3335: builds the class level accessor flyweight pool, called from the generated
+	 * &lt;clinit&gt; of every component with properties. The flyweights carry no owner component, the
+	 * receiver is passed to _call at dispatch time.
+	 *
+	 * @param properties the class level property registry
+	 * @param pool the class level accessor map to fill, in property declaration order
+	 * @param className name of the generated class, for error context only
+	 */
+	public static void buildAccessorPool(Map<String, PropertyImpl> properties, Map<Key, UDF> pool, String className) {
+		if (properties == null || properties.isEmpty()) return;
+		for (PropertyImpl prop: properties.values()) {
+			try {
+				addAccessorUDFs(pool, prop);
+			}
+			catch (PageException pe) {
+				// a class load failure surfaces as ExceptionInInitializerError, so name the property here
+				ApplicationException ae = new ApplicationException("cannot create the accessor functions for the property [" + prop.getName() + "] of [" + className + "]",
+						pe.getMessage());
+				ExceptionUtil.initCauseEL(ae, pe);
+				throw new PageRuntimeException(ae);
+			}
+		}
+	}
+
+	/**
+	 * LDEV-3335: the pool side counterpart of {@link #createPropertyUDFs(ComponentImpl, Property)},
+	 * same set of accessors in the same order, written into a map instead of registered on an
+	 * instance.
+	 *
+	 * @param pool the class level accessor map to fill
+	 * @param prop the property to create the accessors for
+	 * @throws PageException
+	 */
+	public static void addAccessorUDFs(Map<Key, UDF> pool, Property prop) throws PageException {
+		PropertyImpl propImpl = (PropertyImpl) prop;
+		if (prop.getGetter()) pool.put(propImpl.getGetterKey(), new UDFGetterProperty(null, prop));
+		if (prop.getSetter()) pool.put(propImpl.getSetterKey(), new UDFSetterProperty(null, prop));
+
+		String fieldType = Caster.toString(prop.getDynamicAttributes().get(PropertyFactory.FIELD_TYPE, null), null);
+		if (fieldType == null) return;
+
+		if ("one-to-many".equalsIgnoreCase(fieldType) || "many-to-many".equalsIgnoreCase(fieldType)) {
+			put(pool, new UDFHasProperty(null, prop));
+			put(pool, new UDFAddProperty(null, prop));
+			put(pool, new UDFRemoveProperty(null, prop));
+		}
+		else if ("one-to-one".equalsIgnoreCase(fieldType) || "many-to-one".equalsIgnoreCase(fieldType)) {
+			put(pool, new UDFHasProperty(null, prop));
+		}
+	}
+
+	private static void put(Map<Key, UDF> pool, UDF udf) {
+		pool.put(KeyImpl.init(udf.getFunctionName()), udf);
 	}
 
 	public static void addGet(ComponentImpl comp, Property prop) throws ApplicationException {

@@ -23,7 +23,6 @@ import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -153,20 +152,8 @@ public final class PageImpl extends BodyBase implements Page {
 	// LDEV-3335: Flyweight UDF Type/Method constants
 	private static final Type TYPE_MAP = Type.getType(Map.class);
 	private static final Type TYPE_LINKED_HASH_MAP = Type.getType(LinkedHashMap.class);
-	private static final Type TYPE_COLLECTION = Type.getType(Collection.class);
-	private static final Type TYPE_ITERATOR = Type.getType(Iterator.class);
-	private static final Type TYPE_UDF_GETTER_PROPERTY = Type.getType("Llucee/runtime/type/UDFGetterProperty;");
-	private static final Type TYPE_UDF_SETTER_PROPERTY = Type.getType("Llucee/runtime/type/UDFSetterProperty;");
-	private static final Method METHOD_MAP_PUT = new Method("put", Types.OBJECT, new Type[] { Types.OBJECT, Types.OBJECT });
-	private static final Method METHOD_MAP_VALUES = new Method("values", TYPE_COLLECTION, new Type[] {});
-	private static final Method METHOD_COLLECTION_ITERATOR = new Method("iterator", TYPE_ITERATOR, new Type[] {});
-	private static final Method METHOD_ITERATOR_HAS_NEXT = new Method("hasNext", Type.BOOLEAN_TYPE, new Type[] {});
-	private static final Method METHOD_ITERATOR_NEXT = new Method("next", Types.OBJECT, new Type[] {});
-	private static final Method METHOD_PROPERTY_GET_GETTER = new Method("getGetter", Type.BOOLEAN_TYPE, new Type[] {});
-	private static final Method METHOD_PROPERTY_GET_SETTER = new Method("getSetter", Type.BOOLEAN_TYPE, new Type[] {});
-	private static final Method METHOD_PROPERTY_GET_GETTER_KEY = new Method("getGetterKey", Types.COLLECTION_KEY, new Type[] {});
-	private static final Method METHOD_PROPERTY_GET_SETTER_KEY = new Method("getSetterKey", Types.COLLECTION_KEY, new Type[] {});
-	private static final Method METHOD_UDF_CONSTRUCTOR = new Method("<init>", Type.VOID_TYPE, new Type[] { Types.COMPONENT, Types.PROPERTY });
+	private static final Type TYPE_PROPERTY_FACTORY = Type.getType("Llucee/runtime/type/util/PropertyFactory;");
+	private static final Method METHOD_BUILD_ACCESSOR_POOL = new Method("buildAccessorPool", Type.VOID_TYPE, new Type[] { TYPE_MAP, TYPE_MAP, Types.STRING });
 
 	// void call (lucee.runtime.PageContext)
 	private final static Method CALL1 = new Method("call", Types.OBJECT, new Type[] { Types.PAGE_CONTEXT });
@@ -1330,72 +1317,14 @@ public final class PageImpl extends BodyBase implements Page {
 				}
 			}
 
-			// LDEV-3335: Generate flyweight accessor UDFs from static properties
-			// Iterate over __staticProperties.values() and create getter/setter UDFs
+			// LDEV-3335: Generate the flyweight accessor pool from the static properties.
+			// PropertyFactory.buildAccessorPool(__staticProperties, __staticAccessorUDFs, name) so the pool
+			// and the per instance fallback in PropertyFactory.createPropertyUDFs cannot drift apart
 			if (addStatic && component != null) {
-				// for (Property prop : __staticProperties.values())
 				ga.getStatic(Type.getObjectType(name), "__staticProperties", TYPE_MAP);
-				ga.invokeInterface(TYPE_MAP, METHOD_MAP_VALUES);
-				ga.invokeInterface(TYPE_COLLECTION, METHOD_COLLECTION_ITERATOR);
-				int iteratorLocal = ga.newLocal(TYPE_ITERATOR);
-				ga.storeLocal(iteratorLocal);
-
-				Label loopStart = ga.newLabel();
-				Label loopEnd = ga.newLabel();
-
-				ga.mark(loopStart);
-				ga.loadLocal(iteratorLocal);
-				ga.invokeInterface(TYPE_ITERATOR, METHOD_ITERATOR_HAS_NEXT);
-				ga.visitJumpInsn(Opcodes.IFEQ, loopEnd);
-
-				ga.loadLocal(iteratorLocal);
-				ga.invokeInterface(TYPE_ITERATOR, METHOD_ITERATOR_NEXT);
-				ga.checkCast(Types.PROPERTY_IMPL);
-				int propLocal = ga.newLocal(Types.PROPERTY_IMPL);
-				ga.storeLocal(propLocal);
-
-				// if (prop.getGetter())
-				Label skipGetter = ga.newLabel();
-				ga.loadLocal(propLocal);
-				ga.invokeVirtual(Types.PROPERTY_IMPL, METHOD_PROPERTY_GET_GETTER);
-				ga.visitJumpInsn(Opcodes.IFEQ, skipGetter);
-
-				// __staticAccessorUDFs.put(prop.getGetterKey(), new UDFGetterProperty(null, prop))
 				ga.getStatic(Type.getObjectType(name), "__staticAccessorUDFs", TYPE_MAP);
-				ga.loadLocal(propLocal);
-				ga.invokeVirtual(Types.PROPERTY_IMPL, METHOD_PROPERTY_GET_GETTER_KEY);
-				ga.newInstance(TYPE_UDF_GETTER_PROPERTY);
-				ga.dup();
-				ga.visitInsn(Opcodes.ACONST_NULL); // null component for flyweight
-				ga.loadLocal(propLocal);
-				ga.invokeConstructor(TYPE_UDF_GETTER_PROPERTY, METHOD_UDF_CONSTRUCTOR);
-				ga.invokeInterface(TYPE_MAP, METHOD_MAP_PUT);
-				ga.pop();
-
-				ga.mark(skipGetter);
-
-				// if (prop.getSetter())
-				Label skipSetter = ga.newLabel();
-				ga.loadLocal(propLocal);
-				ga.invokeVirtual(Types.PROPERTY_IMPL, METHOD_PROPERTY_GET_SETTER);
-				ga.visitJumpInsn(Opcodes.IFEQ, skipSetter);
-
-				// __staticAccessorUDFs.put(prop.getSetterKey(), new UDFSetterProperty(null, prop))
-				ga.getStatic(Type.getObjectType(name), "__staticAccessorUDFs", TYPE_MAP);
-				ga.loadLocal(propLocal);
-				ga.invokeVirtual(Types.PROPERTY_IMPL, METHOD_PROPERTY_GET_SETTER_KEY);
-				ga.newInstance(TYPE_UDF_SETTER_PROPERTY);
-				ga.dup();
-				ga.visitInsn(Opcodes.ACONST_NULL); // null component
-				ga.loadLocal(propLocal);
-				ga.invokeConstructor(TYPE_UDF_SETTER_PROPERTY, METHOD_UDF_CONSTRUCTOR);
-				ga.invokeInterface(TYPE_MAP, METHOD_MAP_PUT);
-				ga.pop();
-
-				ga.mark(skipSetter);
-
-				ga.goTo(loopStart);
-				ga.mark(loopEnd);
+				ga.push(name);
+				ga.invokeStatic(TYPE_PROPERTY_FACTORY, METHOD_BUILD_ACCESSOR_POOL);
 			}
 			// Array initialization - MUST be done AFTER property processing so all keys are registered
 			ga.push(keys.size()); // Array size

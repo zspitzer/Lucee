@@ -2067,7 +2067,10 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 
 	public void registerUDF(PageContext pc, Key key, UDF udf, boolean useShadow, boolean injected) throws ApplicationException {
 
-		if (udf instanceof UDFPlus) ((UDFPlus) udf).setOwnerComponent(this);
+		// LDEV-3335: a UDFGSProperty is either a class level flyweight from the accessor pool or a per
+		// instance accessor, and dispatch takes the receiver as a parameter either way, so its owner is
+		// metadata about where it was declared and registering it somewhere else must not rewrite it
+		if (udf instanceof UDFPlus && !(udf instanceof UDFGSProperty)) ((UDFPlus) udf).setOwnerComponent(this);
 
 		if (insideStaticConstrThread.get()) {
 			_static.setEL(pc, key, udf);
@@ -2534,27 +2537,35 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 
 	private void initProperties() throws PageException {
 		top.properties.properties = new LinkedHashMap<String, Property>();
-		// Call generated stub to initialize properties from static registry (zero overhead!)
 		if (top.cp != null) {
-			top.cp.initPropertiesStub(this);
-		}
-
-		// LDEV-3335: Add static flyweight accessor UDFs to _data and scope
-		// Only add accessors if the component has accessors enabled or is persistent
-		Map<Key, UDF> staticAccessorUDFs = top.cp != null && (top.properties.accessors || top.properties.persistent) ? top.cp.getStaticAccessorUDFs() : null;
-		if (staticAccessorUDFs != null && !staticAccessorUDFs.isEmpty()) {
-			Iterator<Map.Entry<Key, UDF>> it = staticAccessorUDFs.entrySet().iterator();
-			while (it.hasNext()) {
-				Map.Entry<Key, UDF> entry = it.next();
-				Key key = entry.getKey();
-				UDF udf = entry.getValue();
-
-				// Only add if not manually overridden
-				if (!_data.containsKey(key)) {
-					_data.put(key, udf);
-					scope.put(key, udf);
+			// LDEV-3335: take the class level accessor flyweights first, so that the
+			// !(m instanceof UDF) guard in PropertyFactory.addX short circuits below and no per instance
+			// accessor is allocated. Only when the class asks for accessors, the fallback in setProperty
+			// stays the single source of truth for the inherited and override cases the pool cannot cover
+			if (top.properties.accessors || top.properties.persistent) {
+				Map<Key, UDF> pool = top.cp.getStaticAccessorUDFs();
+				if (pool != null && !pool.isEmpty()) {
+					// write the three maps registerUDF would write, minus the owner stamp and minus the
+					// second registration through addConstructorUDF, both of which would claim the shared
+					// flyweight for this instance
+					Map<Key, Object> shadow = useShadow ? ((ComponentScopeShadow) scope).getShadow() : null;
+					Iterator<Entry<Key, UDF>> it = pool.entrySet().iterator();
+					Entry<Key, UDF> entry;
+					Key key;
+					while (it.hasNext()) {
+						entry = it.next();
+						key = entry.getKey();
+						// the exact predicate PropertyFactory.addX uses: an inherited accessor reachable
+						// through the shared _data, or a same named function, wins over the pool
+						if (getMember(Component.ACCESS_PRIVATE, key, true, false) instanceof UDF) continue;
+						_udfs.put(key, entry.getValue());
+						_data.put(key, entry.getValue());
+						if (shadow != null) shadow.put(key, entry.getValue());
+					}
 				}
 			}
+			// Call generated stub to initialize properties from static registry (zero overhead!)
+			top.cp.initPropertiesStub(this);
 		}
 
 		// MappedSuperClass
@@ -2765,7 +2776,9 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 		Iterator<? extends Member> it = data.values().iterator();
 		while (it.hasNext()) {
 			m = it.next();
-			if (m instanceof UDFPlus) {
+			// LDEV-3335: same as registerUDF, an accessor's owner says where it was declared, and the pool
+			// entries here are shared with every other instance of the class
+			if (m instanceof UDFPlus && !(m instanceof UDFGSProperty)) {
 				((UDFPlus) m).setOwnerComponent(this);
 			}
 		}

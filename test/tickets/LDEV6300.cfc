@@ -14,23 +14,21 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="java,component" {
 
 		describe( "LDEV-6300 / LDEV-6298 v2 — flyweight share invariants", function(){
 
-			// Locks in current behaviour: PropertyFactory.createGetter allocates fresh UDFGetterProperty
-			// per init via setProperty (LDEV-3335 static pool emitted but unconsumed; LDEV-6236 no-owner
-			// share branch in addUDFS doesn't fire). If LDEV-3335 Option 2 ever revives the pool, this
-			// spec flips and the assertion gets inverted.
-			it( title="fresh same-class siblings get distinct UDFGSProperty Java instances — current contract, no static-pool consumption", body=function( currentSpec ){
+			// LDEV-3335 Option 2: the class level accessor pool is consumed by initProperties, so every
+			// instance of a class draws the same accessor object and setProperty allocates nothing.
+			it( title="fresh same-class siblings share one UDFGSProperty Java instance — LDEV-3335 accessor pool", body=function( currentSpec ){
 				var A = new LDEV6300.Person();
 				var B = new LDEV6300.Person();
-				expect( idOf( probeUdf( A, "getName" ) ) ).notToBe( idOf( probeUdf( B, "getName" ) ) );
+				expect( idOf( probeUdf( A, "getName" ) ) ).toBe( idOf( probeUdf( B, "getName" ) ) );
 			});
 
-			// Same locked behaviour for explicit-extends instantiation: ComponentLoader.searchComponent
-			// allocates a fresh ComponentImpl for the base on every call, with its own PropertyFactory'd
-			// accessors. LDEV-6300 phase 3 (share-base) is what would change this.
-			it( title="explicit-extends subclass and bare base get distinct UDFGSProperty Java instances — current contract, no base-instance reuse", body=function( currentSpec ){
+			// ComponentLoader.searchComponent still allocates a fresh ComponentImpl for the base on every
+			// call, but both that base and a bare instantiation of it draw getName from the same pool, which
+			// lives on the base class. The instances differ, the accessor does not.
+			it( title="explicit-extends subclass and bare base share the base's pooled UDFGSProperty — LDEV-3335 accessor pool", body=function( currentSpec ){
 				var base = new LDEV6300.BasePerson();
 				var sub = new LDEV6300.InheritedPerson();
-				expect( idOf( probeUdf( base, "getName" ) ) ).notToBe( idOf( probeUdf( sub, "getName" ) ) );
+				expect( idOf( probeUdf( base, "getName" ) ) ).toBe( idOf( probeUdf( sub, "getName" ) ) );
 				// child's own accessor still works — sanity check the fixture
 				sub.setRole( "admin" );
 				expect( sub.getRole() ).toBe( "admin" );
@@ -44,35 +42,40 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="java,component" {
 				expect( D.getName() ).toBe( "alpha" );
 			});
 
-			it( title="shared flyweight srcComponent stable across sibling instantiation — fresh new() must not mutate the share", body=function( currentSpec ){
+			// A pooled accessor is shared by every instance of the class, so its srcComponent is null for
+			// its whole life — it must never be claimed by whichever instance happens to register it.
+			it( title="pooled accessor has no srcComponent and sibling instantiation must not claim it", body=function( currentSpec ){
 				var A = new LDEV6300.Person();
-				var srcBefore = idOf( srcOf( probeUdf( A, "getName" ) ) );
+				expect( isNull( srcOf( probeUdf( A, "getName" ) ) ) ).toBeTrue();
 				var B = new LDEV6300.Person();
-				expect( idOf( srcOf( probeUdf( A, "getName" ) ) ) ).toBe( srcBefore );
+				expect( isNull( srcOf( probeUdf( A, "getName" ) ) ) ).toBeTrue();
+				expect( isNull( srcOf( probeUdf( B, "getName" ) ) ) ).toBeTrue();
 			});
 
-			it( title="shared flyweight srcComponent stable across Duplicate(cfc) — duplicate path must not mutate the share", body=function( currentSpec ){
+			it( title="pooled accessor srcComponent stays null across Duplicate(cfc) — duplicate path must not claim the share", body=function( currentSpec ){
 				var A = new LDEV6300.Person();
 				A.setName( "alpha" );
-				var srcBefore = idOf( srcOf( probeUdf( A, "getName" ) ) );
+				expect( isNull( srcOf( probeUdf( A, "getName" ) ) ) ).toBeTrue();
 				var D = duplicate( A );
-				expect( idOf( srcOf( probeUdf( A, "getName" ) ) ) ).toBe( srcBefore );
+				expect( isNull( srcOf( probeUdf( A, "getName" ) ) ) ).toBeTrue();
+				expect( isNull( srcOf( probeUdf( D, "getName" ) ) ) ).toBeTrue();
 			});
 
-			it( title="shared flyweight srcComponent stable across sibling ObjectSave/ObjectLoad — original LDEV-6298 investigation contract", body=function( currentSpec ){
+			// ObjectLoad rebuilds the instance and then walks _udfs / _data stamping the owner, which is
+			// the third write site that has to leave a pooled accessor alone.
+			it( title="pooled accessor srcComponent stays null across sibling ObjectSave/ObjectLoad — original LDEV-6298 investigation contract", body=function( currentSpec ){
 				var A = new LDEV6300.Person();
 				A.setName( "alpha" );
 				var B = new LDEV6300.Person();
 				B.setName( "bravo" );
-				var srcA = idOf( srcOf( probeUdf( A, "getName" ) ) );
-				var srcB = idOf( srcOf( probeUdf( B, "getName" ) ) );
 
 				var C = new LDEV6300.Person();
 				C.setName( "charlie" );
 				var D = ObjectLoad( ObjectSave( C ) );
 
-				expect( idOf( srcOf( probeUdf( A, "getName" ) ) ) ).toBe( srcA );
-				expect( idOf( srcOf( probeUdf( B, "getName" ) ) ) ).toBe( srcB );
+				expect( isNull( srcOf( probeUdf( A, "getName" ) ) ) ).toBeTrue();
+				expect( isNull( srcOf( probeUdf( B, "getName" ) ) ) ).toBeTrue();
+				expect( isNull( srcOf( probeUdf( D, "getName" ) ) ) ).toBeTrue();
 				expect( D.getName() ).toBe( "charlie" );
 				expect( A.getName() ).toBe( "alpha" );
 				expect( B.getName() ).toBe( "bravo" );

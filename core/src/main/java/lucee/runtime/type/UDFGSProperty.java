@@ -103,31 +103,37 @@ public abstract class UDFGSProperty extends MemberSupport implements UDFPlus {
 
 	@Override
 	public String getSource() {
-		// LDEV-3335: Handle null srcComponent for stateless flyweight UDFs
-		if (srcComponent != null) {
-			PageSource ps = srcComponent.getPageSource();
-			if (ps != null) return ps.getDisplayPath();
-		}
-		// Fall back to properties PageSource if available
-		if (properties != null && properties.getPageSource() != null) {
-			return properties.getPageSource().getDisplayPath();
-		}
-		return "";
+		// LDEV-3335: the declaring template, via the property owner when there is no srcComponent
+		PageSource ps = getPageSource();
+		return ps == null ? "" : ps.getDisplayPath();
 	}
 
 	@Override
 	public String id() {
 		if (id == null) {
-			// LDEV-3335: Handle null srcComponent for stateless flyweight UDFs
-			String componentId = srcComponent != null ? srcComponent.id() : "static";
-			try {
-				id = Hash.md5(componentId + ":" + getFunctionName());
+			String componentId;
+			if (srcComponent != null) componentId = srcComponent.id();
+			else {
+				// LDEV-3335: a class level flyweight has no owner, but identity is the declaring template
+				// anyway, so this computes the same value srcComponent.id() would, see ComponentImpl.id()
+				PageSource ps = getPageSource();
+				// no page source means the property owner is not stamped yet, which only happens inside the
+				// very first init of the class, so answer without caching a value that is about to change
+				if (ps == null) return md5("static:" + getFunctionName());
+				componentId = md5(ps.getDisplayPath());
 			}
-			catch (NoSuchAlgorithmException e) {
-				id = componentId + ":" + getFunctionName();
-			}
+			id = md5(componentId + ":" + getFunctionName());
 		}
 		return id;
+	}
+
+	private static String md5(String str) {
+		try {
+			return Hash.md5(str);
+		}
+		catch (NoSuchAlgorithmException e) {
+			return str;
+		}
 	}
 
 	@Override
