@@ -44,6 +44,7 @@ import lucee.runtime.listener.ApplicationContextSupport;
 import lucee.runtime.op.Caster;
 import lucee.runtime.op.Decision;
 import lucee.runtime.type.Collection.Key;
+import lucee.runtime.type.scope.ClosureScope;
 import lucee.runtime.type.scope.Variables;
 import lucee.runtime.type.util.ComponentUtil;
 import lucee.runtime.type.util.KeyConstants;
@@ -367,6 +368,12 @@ public abstract class UDFGSProperty extends MemberSupport implements UDFPlus {
 		if (pc == null) pc = ThreadLocalPageContext.get();
 		if (pc != null) {
 			Variables var = pc.variablesScope();
+			// a closure's variables scope wraps the one it was defined in, and an accessor called by name
+			// from inside the closure has to dispatch against that component, not against whichever
+			// instance happens to be recorded as the accessor's owner
+			while (var instanceof ClosureScope) {
+				var = ((ClosureScope) var).getVariables();
+			}
 			if (var instanceof ComponentScope) {
 				Component comp = ((ComponentScope) var).getComponent();
 				if (comp != null) return comp;
