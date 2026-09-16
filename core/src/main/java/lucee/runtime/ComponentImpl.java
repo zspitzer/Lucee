@@ -102,6 +102,7 @@ import lucee.runtime.type.Struct;
 import lucee.runtime.type.StructImpl;
 import lucee.runtime.type.UDF;
 import lucee.runtime.type.BoundUDF;
+import lucee.runtime.type.Peekable;
 import lucee.runtime.type.UDFGSProperty;
 import lucee.runtime.type.UDFImpl;
 import lucee.runtime.type.UDFPlus;
@@ -131,7 +132,7 @@ import lucee.transformer.bytecode.util.SimpleMethodUDF;
  * %**% MUST add handling for new attributes (style, namespace, serviceportname, porttypename,
  * wsdlfile, bindingname, and output)
  */
-public final class ComponentImpl extends StructSupport implements IteratorablePro, Externalizable, Component, coldfusion.runtime.TemplateProxy, AccessModifier {
+public final class ComponentImpl extends StructSupport implements IteratorablePro, Externalizable, Component, coldfusion.runtime.TemplateProxy, AccessModifier, Peekable {
 	private static final long serialVersionUID = -245618330485511484L; // do not change this
 
 	private static final Interface[] EMPTY = new Interface[0];
@@ -2198,14 +2199,15 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 	// Existence probes (structKeyExists(obj,"setX") is the hot caller) resolve the member without
 	// allocating a BoundUDF; UDFGSProperty.getValue() returns the flyweight itself, which is never
 	// the null sentinel, so contains() answers the same as it would via get().
-	private Object peek(PageContext pc, Collection.Key key, Object defaultValue) {
+	@Override
+	public Object peek(PageContext pc, Collection.Key key, Object defaultValue) {
 		Member member = getMember(pc, key, true, false);
 		if (member != null) return member.getValue();
 		if (triggerDataMember(pc) && !isPrivate(pc)) return callGetter(pc, key, defaultValue);
 		return defaultValue;
 	}
 
-	private Object peek(int access, Collection.Key key, Object defaultValue) {
+	Object peek(int access, Collection.Key key, Object defaultValue) {
 		Member member = getMember(access, key, true, false);
 		if (member != null) return member.getValue();
 		PageContext pc = ThreadLocalPageContext.get();

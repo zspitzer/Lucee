@@ -3,6 +3,8 @@
 	// whether or not the member is an accessor (LDEV-6298 v2 BoundUDF wraps on get(), not on contains())
 	p = new Person();
 	p.setName( "alpha" );
+	// a raw copy of the variables scope holds bound accessors, probes on it take the plain struct path
+	c = p.copyScope();
 
 	r = {
 		getter: structKeyExists( p, "getName" ),
@@ -15,7 +17,11 @@
 		isDefinedSetter: isDefined( "p.setName" ),
 		isDefinedMissing: isDefined( "p.setNope" ),
 		extracted: isCustomFunction( p.getName ),
-		called: p.getName()
+		called: p.getName(),
+		scope: p.probeScope(),
+		copyBif: structKeyExists( c, "getName" ),
+		copyMember: c.keyExists( "getName" ),
+		copyCalled: c.getName()
 	};
 	echo( serializeJSON( r ) );
 </cfscript>

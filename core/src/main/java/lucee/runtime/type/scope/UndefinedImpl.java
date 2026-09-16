@@ -47,6 +47,7 @@ import lucee.runtime.op.Caster;
 import lucee.runtime.op.Duplicator;
 import lucee.runtime.type.BIF;
 import lucee.runtime.type.Collection;
+import lucee.runtime.type.Peekable;
 import lucee.runtime.type.KeyImpl;
 import lucee.runtime.type.Objects;
 import lucee.runtime.type.Query;
@@ -461,6 +462,13 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 
 	@Override
 	public Object get(PageContext pc, Collection.Key key, Object defaultValue) {
+		return get(pc, key, defaultValue, false);
+	}
+
+	// forCall: the value is invoked in place and dropped, so a component scope answers with the stored
+	// accessor instead of binding a copy of it; a bound copy found earlier in the cascade (local,
+	// arguments) is a stored value and is returned as is
+	private Object get(PageContext pc, Collection.Key key, Object defaultValue, boolean forCall) {
 		Object rtn = null;
 		Object _null = CollectionUtil.NULL;
 
@@ -485,7 +493,7 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 		}
 
 		// variable
-		rtn = variable.get(pc, key, _null);
+		rtn = forCall && variable instanceof Peekable ? ((Peekable) variable).peek(pc, key, _null) : variable.get(pc, key, _null);
 		if (rtn != _null) {
 			if (debug && checkArguments) debugCascadedAccess(pc, variable, rtn, key);
 			return rtn;
@@ -806,7 +814,7 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 
 	@Override
 	public Object call(PageContext pc, final Key methodName, Object[] args) throws PageException {
-		Object obj = get(pc, methodName, null); // every none UDF value is fine as default argument
+		Object obj = get(pc, methodName, null, true); // every none UDF value is fine as default argument
 		if (obj instanceof UDF) {
 			return ((UDF) obj).call(pc, methodName, args, false);
 		}
@@ -824,7 +832,7 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 
 	@Override
 	public Object callWithNamedValues(PageContext pc, Key methodName, Struct args) throws PageException {
-		Object obj = get(pc, methodName, null);
+		Object obj = get(pc, methodName, null, true);
 		if (obj instanceof UDF) {
 			return ((UDF) obj).callWithNamedValues(pc, methodName, args, false);
 		}

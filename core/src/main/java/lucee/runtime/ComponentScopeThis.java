@@ -29,6 +29,7 @@ import lucee.runtime.dump.DumpTable;
 import lucee.runtime.exp.PageException;
 import lucee.runtime.type.Collection;
 import lucee.runtime.type.Struct;
+import lucee.runtime.type.Peekable;
 import lucee.runtime.type.StructImpl;
 import lucee.runtime.type.UDF;
 import lucee.runtime.type.dt.DateTime;
@@ -37,7 +38,7 @@ import lucee.runtime.type.util.MemberUtil;
 import lucee.runtime.type.util.StructSupport;
 import lucee.runtime.type.util.StructUtil;
 
-public final class ComponentScopeThis extends StructSupport implements ComponentScope {
+public final class ComponentScopeThis extends StructSupport implements ComponentScope, Peekable {
 
 	private final ComponentImpl component;
 	private static final int access = Component.ACCESS_PRIVATE;
@@ -134,6 +135,18 @@ public final class ComponentScopeThis extends StructSupport implements Component
 	@Override
 	public Object get(PageContext pc, Collection.Key key, Object defaultValue) {
 		return get(key, defaultValue);
+	}
+
+	// same lookup as get, but an accessor comes back as the stored flyweight instead of a BoundUDF
+	@Override
+	public Object peek(PageContext pc, Collection.Key key, Object defaultValue) {
+		if (key.equalsIgnoreCase(KeyConstants._THIS)) {
+			return component.top;
+		}
+		if (key.equalsIgnoreCase(KeyConstants._STATIC)) {
+			return component.staticScope();
+		}
+		return component.peek(access, key, defaultValue);
 	}
 
 	@Override

@@ -31,6 +31,7 @@ import lucee.runtime.op.Caster;
 import lucee.runtime.type.Collection;
 import lucee.runtime.type.CollectionStruct;
 import lucee.runtime.type.KeyImpl;
+import lucee.runtime.type.Peekable;
 import lucee.runtime.type.Query;
 
 public final class StructKeyExists extends BIF {
@@ -51,6 +52,9 @@ public final class StructKeyExists extends BIF {
 		if (!struct.containsKey(pc, key)) return false;
 
 		if (NullSupportHelper.full(pc)) return true;
+		// a component or its scope binds an accessor to its instance in get(); the value is dropped here,
+		// so read the stored value instead of allocating that binding
+		if (struct instanceof Peekable) return ((Peekable) struct).peek(pc, key, null) != null;
 		return struct.get(pc, key, null) != null;// do not change, this has do be this way
 	}
 

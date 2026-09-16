@@ -4,7 +4,8 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="component" {
 	// frameworks is the hot caller) must answer the same for accessors, plain UDFs, data
 	// members, null-valued members and missing keys, with and without full null support.
 	// ComponentImpl.contains() resolves the member directly instead of going through get(),
-	// which would allocate a discarded BoundUDF per probe.
+	// which would allocate a discarded BoundUDF per probe. The same holds for probes and by-name
+	// calls over the variables scope from inside the component (Peekable raw read, LDEV-3335).
 
 	function run( testResults, testBox ) {
 
@@ -23,6 +24,13 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="component" {
 				expect( r.isDefinedMissing ).toBeFalse();
 				expect( r.extracted ).toBeTrue();
 				expect( r.called ).toBe( "alpha" );
+				expect( r.scope.bif ).toBeTrue();
+				expect( r.scope.member ).toBeTrue();
+				expect( r.scope.missing ).toBeFalse();
+				expect( r.scope.called ).toBe( "alpha" );
+				expect( r.copyBif ).toBeTrue();
+				expect( r.copyMember ).toBeTrue();
+				expect( r.copyCalled ).toBe( "alpha" );
 			});
 
 			it( title="structKeyExists on accessors, UDFs, data members and missing keys, nullSupport=true", body=function( currentSpec ){
@@ -38,6 +46,13 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="component" {
 				expect( r.isDefinedMissing ).toBeFalse();
 				expect( r.extracted ).toBeTrue();
 				expect( r.called ).toBe( "alpha" );
+				expect( r.scope.bif ).toBeTrue();
+				expect( r.scope.member ).toBeTrue();
+				expect( r.scope.missing ).toBeFalse();
+				expect( r.scope.called ).toBe( "alpha" );
+				expect( r.copyBif ).toBeTrue();
+				expect( r.copyMember ).toBeTrue();
+				expect( r.copyCalled ).toBe( "alpha" );
 			});
 
 		});

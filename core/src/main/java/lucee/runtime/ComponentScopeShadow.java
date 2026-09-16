@@ -36,6 +36,7 @@ import lucee.runtime.op.Duplicator;
 import lucee.runtime.type.Collection;
 import lucee.runtime.type.Struct;
 import lucee.runtime.type.BoundUDF;
+import lucee.runtime.type.Peekable;
 import lucee.runtime.type.StructImpl;
 import lucee.runtime.type.UDF;
 import lucee.runtime.type.UDFGSProperty;
@@ -51,7 +52,7 @@ import lucee.runtime.type.util.MemberUtil;
 import lucee.runtime.type.util.StructSupport;
 import lucee.runtime.type.util.StructUtil;
 
-public final class ComponentScopeShadow extends StructSupport implements ComponentScope {
+public final class ComponentScopeShadow extends StructSupport implements ComponentScope, Peekable {
 
 	private static final long serialVersionUID = 4930100230796574243L;
 
@@ -147,7 +148,8 @@ public final class ComponentScopeShadow extends StructSupport implements Compone
 	}
 
 	// existence probes and the by-name call path read the raw value and never see the wrapper
-	private Object peek(PageContext pc, Key key, Object defaultValue) {
+	@Override
+	public Object peek(PageContext pc, Key key, Object defaultValue) {
 		// fast path: shadow map lookup (covers 99%+ of property access)
 		Object val = shadow.getOrDefault(key, CollectionUtil.NULL);
 
