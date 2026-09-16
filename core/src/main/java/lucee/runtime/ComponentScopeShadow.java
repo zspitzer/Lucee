@@ -38,6 +38,7 @@ import lucee.runtime.type.Struct;
 import lucee.runtime.type.BoundUDF;
 import lucee.runtime.type.StructImpl;
 import lucee.runtime.type.UDF;
+import lucee.runtime.type.UDFGSProperty;
 import lucee.runtime.type.dt.DateTime;
 import lucee.runtime.type.it.EntryIterator;
 import lucee.runtime.type.it.KeyIterator;
@@ -115,12 +116,12 @@ public final class ComponentScopeShadow extends StructSupport implements Compone
 
 	@Override
 	public final boolean containsKey(Collection.Key key) {
-		return get(key, null) != null;
+		return peek(null, key, null) != null;
 	}
 
 	@Override
 	public final boolean containsKey(PageContext pc, Collection.Key key) {
-		return get(pc, key, null) != null;
+		return peek(pc, key, null) != null;
 	}
 
 	@Override
@@ -137,6 +138,16 @@ public final class ComponentScopeShadow extends StructSupport implements Compone
 
 	@Override
 	public Object get(PageContext pc, Key key, Object defaultValue) {
+		Object val = peek(pc, key, defaultValue);
+		// an accessor read out of the variables scope as a value is leaving the component, so bind it to
+		// this instance the same way ComponentImpl.get does; a copy that lands in a scope with no component
+		// in it then still dispatches here, and assignment back into a component scope unwraps it (set)
+		if (val instanceof UDFGSProperty) return new BoundUDF((UDFGSProperty) val, component.top);
+		return val;
+	}
+
+	// existence probes and the by-name call path read the raw value and never see the wrapper
+	private Object peek(PageContext pc, Key key, Object defaultValue) {
 		// fast path: shadow map lookup (covers 99%+ of property access)
 		Object val = shadow.getOrDefault(key, CollectionUtil.NULL);
 
