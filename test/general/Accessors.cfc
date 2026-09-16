@@ -123,6 +123,22 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 					var cfc = new accessors.testPropertyTypes();
 					expect( function(){ cfc.setActive( "not-a-bool" ); } ).toThrow();
 				});
+				// The exception detail is built from the accessor's source lookup, which resolves the
+				// declaring component's display path. That lookup is one of only two things that read an
+				// accessor's owner, so it needs a CFML-visible assertion: a shared class-level accessor
+				// has no owner instance to ask, and must resolve its source some other way.
+				it( title="setter type-mismatch detail names the CFC the property was declared in", body=function( currentSpec ){
+					var cfc = new accessors.testPropertyTypes();
+					var detail = "";
+					try {
+						cfc.setAge( "not-a-number" );
+					}
+					catch ( any e ) {
+						detail = e.detail;
+					}
+					// empty when the setter failed to reject, which fails here rather than passing silently
+					expect( detail ).toInclude( "testPropertyTypes.cfc" );
+				});
 				it( title="boolean setter accepts CFML-truthy strings (yes/no/true/false/1/0)", body=function( currentSpec ){
 					var cfc = new accessors.testPropertyTypes();
 					cfc.setActive( "yes" );
@@ -418,6 +434,21 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 					var ref1 = foo.getA;
 					var ref2 = foo.getA;
 					expect( ObjectEquals( ref1, ref2 ) ).toBeTrue();
+				});
+				// Every other spec in this block asserts that things ARE equal, which leaves the suite
+				// blind to the opposite failure: equality being manufactured where none exists. Component
+				// identity is the declaring page source, so an accessor's identity is that path plus the
+				// function name. testPropertyTypesTwin is textually identical to testPropertyTypes, so the
+				// ONLY thing separating these two accessors is the file they were declared in. A shared
+				// class-level accessor that derived its identity from a constant rather than its page
+				// source would make these compare equal, and would silently break anything resting on
+				// component equality — Hibernate's FK column resolution included.
+				it( title="accessors from two unrelated CFCs with identical properties do NOT compare equal — identity is the declaring page source", body=function( currentSpec ){
+					var one = new accessors.testPropertyTypes();
+					var two = new accessors.testPropertyTypesTwin();
+					expect( ObjectEquals( one.getName, two.getName ) ).toBeFalse();
+					// and the components themselves are distinct for the same reason
+					expect( ObjectEquals( one, two ) ).toBeFalse();
 				});
 			});
 
