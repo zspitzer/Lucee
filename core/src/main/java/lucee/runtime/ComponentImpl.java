@@ -2192,6 +2192,24 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 		return member.getValue();
 	}
 
+	// Existence probes (structKeyExists(obj,"setX") is the hot caller) resolve the member without
+	// allocating a BoundUDF; UDFGSProperty.getValue() returns the flyweight itself, which is never
+	// the null sentinel, so contains() answers the same as it would via get().
+	private Object peek(PageContext pc, Collection.Key key, Object defaultValue) {
+		Member member = getMember(pc, key, true, false);
+		if (member != null) return member.getValue();
+		if (triggerDataMember(pc) && !isPrivate(pc)) return callGetter(pc, key, defaultValue);
+		return defaultValue;
+	}
+
+	private Object peek(int access, Collection.Key key, Object defaultValue) {
+		Member member = getMember(access, key, true, false);
+		if (member != null) return member.getValue();
+		PageContext pc = ThreadLocalPageContext.get();
+		if (triggerDataMember(pc) && !isPrivate(pc)) return callGetter(pc, key, defaultValue);
+		return defaultValue;
+	}
+
 	private Object callGetter(PageContext pc, Collection.Key key) throws PageException {
 		Key getterName = KeyImpl.init("get" + key.getLowerString());
 		Member member = getMember(pc, getterName, false, false);
@@ -2350,7 +2368,7 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 
 	public boolean contains(PageContext pc, String name) {
 		Object _null = NullSupportHelper.NULL(pc);
-		return get(pc, KeyImpl.init(name), _null) != _null;
+		return peek(pc, KeyImpl.init(name), _null) != _null;
 	}
 
 	/**
@@ -2361,7 +2379,7 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 	@Override
 	public boolean contains(PageContext pc, Key key) {
 		Object _null = NullSupportHelper.NULL(pc);
-		return get(pc, key, _null) != _null;
+		return peek(pc, key, _null) != _null;
 	}
 
 	@Override
@@ -2375,17 +2393,17 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 	}
 
 	public boolean contains(int access, String name) {
-		return !NullSupportHelper.isNull(get(access, name, Null.NULL));
+		return !NullSupportHelper.isNull(peek(access, KeyImpl.init(name), Null.NULL));
 	}
 
 	@Override
 	public boolean contains(int access, Key name) {
-		return !NullSupportHelper.isNull(get(access, name, Null.NULL));
+		return !NullSupportHelper.isNull(peek(access, name, Null.NULL));
 	}
 
 	public boolean contains(PageContext pc, int access, Key name) {
 		Object _null = NullSupportHelper.NULL(pc);
-		return get(access, name, _null) != _null;
+		return peek(access, name, _null) != _null;
 	}
 
 	@Override
