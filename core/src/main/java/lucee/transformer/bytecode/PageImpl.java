@@ -495,6 +495,19 @@ public final class PageImpl extends BodyBase implements Page {
 		adapter.returnValue();
 		adapter.endMethod();
 
+		// persistent and accessors are read once here, before anything consumes the component node:
+		// writeOutNewComponent removes both attributes, and it runs before writeOutStatic needs them.
+		// Both are literal-only (ASMUtil.toBoolean throws otherwise), so they are compile time constants.
+		boolean persistent = false;
+		boolean accessors = false;
+		if (isComponent(comp)) {
+			Attribute attr = comp.removeAttribute("persistent");
+			if (attr != null) persistent = ASMUtil.toBoolean(constr, attr, comp.getStart()).booleanValue();
+
+			attr = comp.removeAttribute("accessors");
+			if (attr != null) accessors = ASMUtil.toBoolean(constr, attr, comp.getStart()).booleanValue();
+		}
+
 		// static consructor for component/interface
 
 		if (comp != null) {
@@ -545,7 +558,7 @@ public final class PageImpl extends BodyBase implements Page {
 		// newInstance/initComponent/call
 		if (isComponent()) {
 			// writeOutGetStaticStructX(constr, keys, cw, comp, className);
-			writeOutNewComponent(constr, keys, cw, comp, className);
+			writeOutNewComponent(constr, keys, cw, comp, className, persistent, accessors);
 			funcs = writeOutInitComponent(constr, functions, keys, cw, comp, className);
 
 		}
@@ -751,7 +764,7 @@ public final class PageImpl extends BodyBase implements Page {
 		constrAdapter.endMethod();
 
 		// newInstance/initComponent/call
-		writeOutStatic(optionalPS, constr, keys, cw, comp, className);
+		writeOutStatic(optionalPS, constr, keys, cw, comp, className, persistent || accessors);
 
 		// set field subs
 		FieldVisitor fv = cw.visitField(Opcodes.ACC_PRIVATE, "subs", "[Llucee/runtime/CIPage;", null, null);
@@ -1076,7 +1089,8 @@ public final class PageImpl extends BodyBase implements Page {
 		cv.visitAfter(bc);
 	}
 
-	private void writeOutStatic(PageSource optionalPS, ConstrBytecodeContext constr, Map<LitString, Integer> keys, ClassWriter cw, TagCIObject component, String name) {
+	private void writeOutStatic(PageSource optionalPS, ConstrBytecodeContext constr, Map<LitString, Integer> keys, ClassWriter cw, TagCIObject component, String name,
+			boolean buildAccessorPool) {
 
 		boolean addStatic = isComponent() || isInterface();
 
@@ -1319,8 +1333,12 @@ public final class PageImpl extends BodyBase implements Page {
 
 			// LDEV-3335: Generate the flyweight accessor pool from the static properties.
 			// PropertyFactory.buildAccessorPool(__staticProperties, __staticAccessorUDFs, name) so the pool
-			// and the per instance fallback in PropertyFactory.createPropertyUDFs cannot drift apart
-			if (addStatic && component != null) {
+			// and the per instance fallback in PropertyFactory.createPropertyUDFs cannot drift apart.
+			// Only ComponentImpl.initProperties reads the pool, and only when accessors or persistent is
+			// set, so anything else would build a pool nothing can reach. Accessors are declaration scoped
+			// (a base never supplies accessors for a child's properties, nor a child for a base's), so this
+			// class's own attributes are the whole question. Interfaces are never accessor pool readers.
+			if (addStatic && component != null && buildAccessorPool) {
 				ga.getStatic(Type.getObjectType(name), "__staticProperties", TYPE_MAP);
 				ga.getStatic(Type.getObjectType(name), "__staticAccessorUDFs", TYPE_MAP);
 				ga.push(name);
@@ -1817,7 +1835,8 @@ public final class PageImpl extends BodyBase implements Page {
 
 	}
 
-	private void writeOutNewComponent(ConstrBytecodeContext constr, Map<LitString, Integer> keys, ClassWriter cw, Tag component, String name) throws TransformerException {
+	private void writeOutNewComponent(ConstrBytecodeContext constr, Map<LitString, Integer> keys, ClassWriter cw, Tag component, String name, boolean persistent,
+			boolean accessors) throws TransformerException {
 		GeneratorAdapter adapter = new GeneratorAdapter(Opcodes.ACC_PUBLIC + Opcodes.ACC_FINAL, NEW_COMPONENT_IMPL_INSTANCE, null, new Type[] { Types.PAGE_EXCEPTION }, cw);
 		BytecodeContext bc = new BytecodeContext(config, null, constr, this, keys, cw, name, adapter, NEW_COMPONENT_IMPL_INSTANCE, writeLog(), suppressWSbeforeArg, output,
 				returnValue, sourceCode.getSourceOffset());
@@ -1888,19 +1907,7 @@ public final class PageImpl extends BodyBase implements Page {
 		if (attr != null) ExpressionUtil.writeOutSilent(attr.getValue(), bc, Expression.MODE_REF);
 		else adapter.push("");
 
-		// persistent
-		attr = component.removeAttribute("persistent");
-		boolean persistent = false;
-		if (attr != null) {
-			persistent = ASMUtil.toBoolean(constr, attr, component.getStart()).booleanValue();
-		}
-
-		// accessors
-		attr = component.removeAttribute("accessors");
-		boolean accessors = false;
-		if (attr != null) {
-			accessors = ASMUtil.toBoolean(constr, attr, component.getStart()).booleanValue();
-		}
+		// persistent and accessors are resolved in execute(), before the attributes are consumed
 
 		// modifier
 		attr = component.removeAttribute("modifier");

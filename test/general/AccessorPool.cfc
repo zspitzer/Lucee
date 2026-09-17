@@ -38,8 +38,54 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="java,component" {
 
 				it( title="a component without accessors gets no pooled accessors", body=function( currentSpec ){
 					var cfc = new accessors.testNoAccessors();
+					// deliberately not a property: the containsKey miss branch, so this stays off the
+					// Peekable read that LDEV6298.cfc pins. Accessors.cfc:314 owns the getX/setX form.
 					expect( structKeyExists( cfc, "getFirstName" ) ).toBeFalse();
 				});
+			});
+
+			describe( "the class level pool, as opposed to what reaches an instance", function(){
+
+				// initProperties reads the pool only when accessors or persistent is on, and the <clinit>
+				// emit is gated on the same question. Accessors are declaration scoped, so a class's own
+				// attributes settle it and the emitter needs nothing about the hierarchy.
+
+				it( title="a component with accessors on publishes its accessors in the class level pool", body=function( currentSpec ){
+					var pool = poolOf( new accessorpool.pooled() );
+					expect( isNull( pool ) ).toBeFalse( "a component with properties must publish a pool" );
+					expect( poolHas( pool, "getName" ) ).toBeTrue();
+					expect( poolHas( pool, "setName" ) ).toBeTrue();
+				});
+
+				it( title="the pooled instance draws the very objects the class level pool holds", body=function( currentSpec ){
+					var cfc = new accessorpool.pooled();
+					var pool = poolOf( cfc );
+					for ( var key in [ "getName", "setName", "getAge", "setAge" ] ) {
+						expect( idOf( poolGet( pool, key ) ) ).toBe( idOf( probeUdf( cfc, key ) ), "[#key#] on the instance is not the pooled object" );
+					}
+				});
+
+				it( title="a component with accessors off builds no pool at all", body=function( currentSpec ){
+					var cfc = new accessors.testNoAccessors();
+					var pool = poolOf( cfc );
+
+					// nothing reaches the instance, and nothing was built for the class either
+					expect( isNull( probeUdf( cfc, "getX" ) ) ).toBeTrue();
+					expect( isNull( pool ) || poolSize( pool ) == 0 ).toBeTrue( "a component with accessors off must not build a pool" );
+				});
+
+				it( title="persistent alone builds the pool, without an accessors attribute", body=function( currentSpec ){
+					var pool = poolOf( new componentAttributes.PersistentTrue() );
+					expect( isNull( pool ) ).toBeFalse();
+					expect( poolHas( pool, "getTitle" ) ).toBeTrue();
+					expect( poolHas( pool, "setTitle" ) ).toBeTrue();
+				});
+
+				it( title="a component with no properties at all publishes no pool entries", body=function( currentSpec ){
+					var pool = poolOf( new accessorpool.noProperties() );
+					expect( isNull( pool ) || poolSize( pool ) == 0 ).toBeTrue();
+				});
+
 			});
 
 			describe( "dispatch on pooled accessors", function(){
@@ -126,6 +172,48 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="java,component" {
 					// the child's own default still wins
 					expect( child.getParentProp() ).toBe( "re-declared" );
 					expect( parent.getParentProp() ).toBe( "from-parent" );
+				});
+
+				// Accessors are declaration scoped: the class that declares a property decides whether
+				// it gets accessors, and children inherit the resulting functions. A component's own
+				// accessors flag never reaches back over a base's properties. Measured identical on
+				// 6.2.8.20, 7.0.5.41, 7.1.1.5 and 8.0.0.189, so it is the contract, not a version quirk.
+				// It is also what lets the emitter decide per class: it compiles one page and cannot
+				// see the base.
+
+				it( title="an accessors on child gets nothing for a property its base declared with accessors off", body=function( currentSpec ){
+					var child = new accessorpool.accessorChild();
+
+					expect( isNull( probeUdf( child, "getBaseProp" ) ) ).toBeTrue();
+					expect( structKeyExists( child, "getBaseProp" ) ).toBeFalse();
+					expect( function(){ child.getBaseProp(); } ).toThrow();
+
+					// its own property still gets a pooled accessor
+					expect( child.getOwnProp() ).toBe( "from-child" );
+				});
+
+				it( title="the base's property is still inherited, only its accessors are not", body=function( currentSpec ){
+					var child = new accessorpool.accessorChild();
+					var md = getMetaData( child );
+
+					expect( propertyNames( md.properties ) ).toInclude( "ownprop" );
+					expect( propertyNames( md.properties ) ).notToInclude( "baseprop" );
+					expect( propertyNames( md.extends.properties ) ).toInclude( "baseprop" );
+				});
+
+				it( title="an accessors off child does inherit its base's accessors, minted per instance not pooled", body=function( currentSpec ){
+					var child = new accessorpool.plainChild();
+					var sibling = new accessorpool.plainChild();
+
+					// the child's own accessors flag is off, so initProperties never reads a pool for it
+					expect( child.getBaseProp() ).toBe( "from-base" );
+					child.setBaseProp( "mutated" );
+					expect( child.getBaseProp() ).toBe( "mutated" );
+					expect( sibling.getBaseProp() ).toBe( "from-base" );
+
+					// its own property declared under accessors off gets nothing, in the same component
+					expect( isNull( probeUdf( child, "getOwnProp" ) ) ).toBeTrue();
+					expect( structKeyExists( child, "getOwnProp" ) ).toBeFalse();
 				});
 			});
 
@@ -274,9 +362,37 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="java,component" {
 		return createObject( "java", "java.lang.System" ).identityHashCode( arguments.obj );
 	}
 
+	// the class level pool, reached through the instance's ComponentPageImpl rather than _udfs
+	private any function poolOf( required any cfc ) {
+		var clazz = createObject( "java", "java.lang.Class" ).forName( "lucee.runtime.ComponentImpl" );
+		var cpField = clazz.getDeclaredField( "cp" );
+		cpField.setAccessible( true );
+		var cp = cpField.get( arguments.cfc );
+		if ( isNull( cp ) ) return;
+		return cp.getStaticAccessorUDFs();
+	}
+
+	private boolean function poolHas( required any pool, required string key ) {
+		return !isNull( poolGet( arguments.pool, arguments.key ) );
+	}
+
+	private any function poolGet( required any pool, required string key ) {
+		return arguments.pool.get( createObject( "java", "lucee.runtime.type.KeyImpl" ).init( arguments.key ) );
+	}
+
+	private numeric function poolSize( required any pool ) {
+		return arguments.pool.size();
+	}
+
 	private string function functionNames( required array functions ) {
 		var names = [];
 		for ( var fn in arguments.functions ) arrayAppend( names, lCase( fn.name ) );
+		return arrayToList( names );
+	}
+
+	private string function propertyNames( required array properties ) {
+		var names = [];
+		for ( var p in arguments.properties ) arrayAppend( names, lCase( p.name ) );
 		return arrayToList( names );
 	}
 
