@@ -158,7 +158,7 @@ public final class ComponentScopeShadow extends StructSupport implements Compone
 		// slow path: special keys (SUPER/THIS/STATIC can never be in the shadow map — set() blocks them)
 		if (key.equalsIgnoreCase(KeyConstants._SUPER)) {
 			Component ac = ComponentUtil.getCurrentComponent(ThreadLocalPageContext.get(pc), component);
-			return SuperComponent.superInstance((ComponentImpl) ac.getBaseComponent());
+			return SuperComponent.superInstanceOf((ComponentImpl) ac);
 		}
 		if (key.equalsIgnoreCase(KeyConstants._THIS)) return component.top;
 		if (key.equalsIgnoreCase(KeyConstants._STATIC)) return component.staticScope();

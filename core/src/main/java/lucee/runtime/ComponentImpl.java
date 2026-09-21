@@ -150,6 +150,9 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 
 	ComponentImpl top = this;
 	ComponentImpl base;
+	// `super` is a dispatch proxy around this instance's own base segment, immutable and fixed for the
+	// lifetime of the chain, so build it once per instance rather than once per `super.x()` call
+	private transient SuperComponent superInstance;
 	private PageSource pageSource;
 	private ComponentPageImpl cp;
 	private ComponentScope scope;
@@ -1076,7 +1079,7 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 		// check super
 		if (dataMember && access == ACCESS_PRIVATE && key.equalsIgnoreCase(KeyConstants._super)) {
 			Component ac = ComponentUtil.getCurrentComponent(ThreadLocalPageContext.get(), this);
-			return SuperComponent.superMember((ComponentImpl) ac.getBaseComponent());
+			return SuperComponent.superMemberOf((ComponentImpl) ac);
 			// return SuperComponent . superMember(base);
 		}
 		if (superAccess) {
@@ -1111,7 +1114,7 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 		// check super
 		if (dataMember && key.equalsIgnoreCase(KeyConstants._super) && isPrivate(pc)) {
 			Component ac = ComponentUtil.getCurrentComponent(pc, this);
-			return SuperComponent.superMember((ComponentImpl) ac.getBaseComponent());
+			return SuperComponent.superMemberOf((ComponentImpl) ac);
 		}
 		if (superAccess) {
 			return _udfs.get(key);
@@ -2841,6 +2844,18 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 	@Override
 	public Component getBaseComponent() {
 		return base;
+	}
+
+	/**
+	 * the `super` of this instance, built on first use, null when this component has no base
+	 *
+	 * @return the cached proxy around this instance's base segment
+	 */
+	SuperComponent superInstance() {
+		SuperComponent sup = superInstance;
+		// a racy first build is safe, SuperComponent.comp is final and the objects are interchangeable
+		if (sup == null && base != null) superInstance = sup = new SuperComponent(base);
+		return sup;
 	}
 
 	private boolean triggerDataMember(PageContext pc) {

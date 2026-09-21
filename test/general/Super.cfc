@@ -251,5 +251,36 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 			});
 
 		});
+
+		describe( "super keyword — three-level chain", function(){
+
+			// ChainLeaf extends ChainMid extends ChainTop. Every `super` must resolve one
+			// level up from the level whose method is running, not from the CFC instance,
+			// and two instances that stop at different levels must not see each other's.
+
+			it( title="super.trace() on a leaf instance walks one level per super", body=function( currentSpec ){
+				var leaf = new super.ChainLeaf();
+				expect( leaf.trace() ).toBe( "leaf>mid>top" );
+			});
+
+			it( title="super.trace() on a mid instance starts at the mid level", body=function( currentSpec ){
+				var mid = new super.ChainMid();
+				expect( mid.trace() ).toBe( "mid>top" );
+			});
+
+			it( title="interleaved leaf and mid instances each resolve super at their own level", body=function( currentSpec ){
+				var leaf = new super.ChainLeaf( tag="leaf-tag" );
+				var mid = new super.ChainMid( tag="mid-tag" );
+				expect( leaf.trace() ).toBe( "leaf>mid>top" );
+				expect( mid.trace() ).toBe( "mid>top" );
+				expect( leaf.trace() ).toBe( "leaf>mid>top" );
+				// traceTag is declared on ChainMid, so its `super` is ChainTop for both
+				// instances, while `this.tag` must still be each instance's own
+				expect( leaf.traceTag() ).toBe( "leaf-tag" );
+				expect( mid.traceTag() ).toBe( "mid-tag" );
+				expect( leaf.traceTag() ).toBe( "leaf-tag" );
+			});
+
+		});
 	}
 }

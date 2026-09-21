@@ -46,9 +46,9 @@ import lucee.runtime.type.util.StructUtil;
 
 public final class SuperComponent extends MemberSupport implements Component, Member {
 
-	private ComponentImpl comp;
+	private final ComponentImpl comp;
 
-	private SuperComponent(ComponentImpl comp) {
+	SuperComponent(ComponentImpl comp) {
 		super(Component.ACCESS_PRIVATE);
 		this.comp = comp;
 	}
@@ -58,14 +58,26 @@ public final class SuperComponent extends MemberSupport implements Component, Me
 		return java.util.Objects.hash(comp);
 	}
 
-	public static Member superMember(ComponentImpl comp) {
-		if (comp == null) return new DataMember(Component.ACCESS_PRIVATE, Member.MODIFIER_NONE, new StructImpl());
-		return new SuperComponent(comp);
+	/**
+	 * the `super` of the component whose method is executing, taken from that instance's cache
+	 *
+	 * @param ac the component asking for `super`, not the base it resolves to
+	 */
+	public static Member superMemberOf(ComponentImpl ac) {
+		SuperComponent sup = ac.superInstance();
+		if (sup == null) return new DataMember(Component.ACCESS_PRIVATE, Member.MODIFIER_NONE, new StructImpl());
+		return sup;
 	}
 
-	public static Collection superInstance(ComponentImpl comp) {
-		if (comp == null) return new StructImpl();
-		return new SuperComponent(comp);
+	/**
+	 * the `super` of the component whose method is executing, taken from that instance's cache
+	 *
+	 * @param ac the component asking for `super`, not the base it resolves to
+	 */
+	public static Collection superInstanceOf(ComponentImpl ac) {
+		SuperComponent sup = ac.superInstance();
+		if (sup == null) return new StructImpl();
+		return sup;
 	}
 
 	@Override
