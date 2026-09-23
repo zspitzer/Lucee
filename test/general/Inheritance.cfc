@@ -273,6 +273,209 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				});
 			});
 
+			describe( "5-level chain (Level1 → Level5), synchronized declared on the leaf", function(){
+				it( title="super chain resolves through five levels", body=function( currentSpec ){
+					expect( new inheritance.Level5().chain() ).toBe( "l1:l2:l3:l4:l5" );
+					expect( new inheritance.Level5Open().chain() ).toBe( "l1:l2:l3:l4:l5" );
+					expect( new inheritance.Level5().depth() ).toBe( 5 );
+				});
+				it( title="`this` from a Level1 method resolves to the Level5 instance", body=function( currentSpec ){
+					var a = new inheritance.Level5( tag="a" );
+					var b = new inheritance.Level5( tag="b" );
+					expect( a.whoAmI() ).toBe( "a" );
+					expect( b.whoAmI() ).toBe( "b" );
+					a.tagMe( "a2" );
+					expect( a.tag ).toBe( "a2" );
+					expect( b.tag ).toBe( "b" );
+				});
+				it( title="accessors at every one of the five levels dispatch on the leaf instance", body=function( currentSpec ){
+					var l5 = new inheritance.Level5();
+					expect( l5.getL1prop() ).toBe( "l1-default" );
+					expect( l5.getL2prop() ).toBe( "l2-default" );
+					expect( l5.getL3prop() ).toBe( "l3-default" );
+					expect( l5.getL4prop() ).toBe( "l4-default" );
+					expect( l5.getL5prop() ).toBe( "l5-default" );
+					l5.setL1prop( "x1" );
+					l5.setL3prop( "x3" );
+					expect( l5.getL1prop() ).toBe( "x1" );
+					expect( l5.getL3prop() ).toBe( "x3" );
+				});
+				it( title="getMetaData nests extends four deep down to Level1", body=function( currentSpec ){
+					var meta = getMetaData( new inheritance.Level5() );
+					expect( meta.name ).toInclude( "Level5" );
+					expect( meta.extends.name ).toInclude( "Level4" );
+					expect( meta.extends.extends.name ).toInclude( "Level3" );
+					expect( meta.extends.extends.extends.name ).toInclude( "Level2" );
+					expect( meta.extends.extends.extends.extends.name ).toInclude( "Level1" );
+					expect( meta.synchronized ).toBeTrue();
+					expect( meta.extends.synchronized ).toBeFalse();
+				});
+				it( title="duplicate of a Level5 keeps the chain and its own tag", body=function( currentSpec ){
+					var orig = new inheritance.Level5( tag="orig" );
+					var dup = duplicate( orig );
+					dup.tagMe( "dup" );
+					expect( dup.chain() ).toBe( "l1:l2:l3:l4:l5" );
+					expect( dup.whoAmI() ).toBe( "dup" );
+					expect( orig.whoAmI() ).toBe( "orig" );
+					expect( getMetaData( dup ).synchronized ).toBeTrue();
+				});
+				it( title="100 threads × new Level5Open() — chain and `this` correct per thread", body=function( currentSpec ){
+					var threadCount = 100;
+					var threadNames = [];
+					for ( var t=1; t<=threadCount; t++ ) {
+						var tname = "inheritance-l5race-" & t;
+						arrayAppend( threadNames, tname );
+						thread name="#tname#" tid=t {
+							var c = new inheritance.Level5Open( tag="t-" & attributes.tid );
+							thread.chain = c.chain();
+							thread.who = c.whoAmI();
+							thread.depth = c.depth();
+						}
+					}
+					thread action="join" name="#arrayToList( threadNames )#";
+					for ( var t=1; t<=threadCount; t++ ) {
+						var tname = "inheritance-l5race-" & t;
+						var th = cfthread[ tname ];
+						if ( th.status != "COMPLETED" ) throw( object=th.error );
+						expect( th.chain ).toBe( "l1:l2:l3:l4:l5" );
+						expect( th.who ).toBe( "t-" & t );
+						expect( th.depth ).toBe( 5 );
+					}
+				});
+				it( title="50 threads × new Level5() (synchronized leaf) — chain, `this` and a bump each", body=function( currentSpec ){
+					var threadCount = 50;
+					var threadNames = [];
+					for ( var t=1; t<=threadCount; t++ ) {
+						var tname = "inheritance-l5sync-" & t;
+						arrayAppend( threadNames, tname );
+						thread name="#tname#" tid=t {
+							var c = new inheritance.Level5( tag="s-" & attributes.tid );
+							thread.chain = c.chain();
+							thread.who = c.whoAmI();
+							thread.count = c.bumpChain();
+						}
+					}
+					thread action="join" name="#arrayToList( threadNames )#";
+					for ( var t=1; t<=threadCount; t++ ) {
+						var tname = "inheritance-l5sync-" & t;
+						var th = cfthread[ tname ];
+						if ( th.status != "COMPLETED" ) throw( object=th.error );
+						expect( th.chain ).toBe( "l1:l2:l3:l4:l5" );
+						expect( th.who ).toBe( "s-" & t );
+						expect( th.count ).toBe( 1 );
+					}
+				});
+				it( title="20 threads × bumpChain() on one synchronized Level5 — the super chain down to Level1.bump() runs serialised", body=function( currentSpec ){
+					// the lock is the leaf class's flag taken on the leaf instance; the four super hops inside
+					// stay under it, so the racy counter in Level1 loses nothing
+					request.l5shared = new inheritance.Level5( tag="shared" );
+					var threadCount = 20;
+					var threadNames = [];
+					for ( var t=1; t<=threadCount; t++ ) {
+						var tname = "inheritance-l5shared-" & t;
+						arrayAppend( threadNames, tname );
+						thread name="#tname#" {
+							request.l5shared.bumpChain();
+						}
+					}
+					thread action="join" name="#arrayToList( threadNames )#";
+					expect( request.l5shared.callCount ).toBe( threadCount );
+				});
+			});
+
+			describe( "structClear on the CFC instance — sibling isolation", function(){
+				// structClear( cfc ) empties the instance's own member map: this-scope values and the functions
+				// registered on the instance. structClear( variables ) inside the CFC empties the variables shadow only.
+				// either way the sibling, a duplicate taken earlier and a fresh instance keep everything.
+				it( title="structClear( a ) removes a's this-scope state and functions, b keeps both", body=function( currentSpec ){
+					var a = new inheritance.ClearChild( tag="a" );
+					var b = new inheritance.ClearChild( tag="b" );
+					structClear( a );
+					expect( structKeyExists( a, "tag" ) ).toBeFalse();
+					expect( structKeyExists( a, "chain" ) ).toBeFalse();
+					expect( function(){ a.chain(); } ).toThrow();
+					expect( b.tag ).toBe( "b" );
+					expect( b.chain() ).toBe( "grand:parent:clear" );
+					expect( b.whoAmI() ).toBe( "b" );
+					expect( b.getCprop() ).toBe( "c-default" );
+					expect( b.getGprop() ).toBe( "g-default" );
+				});
+				it( title="structClear( this ) inside a's method has the same shape", body=function( currentSpec ){
+					var a = new inheritance.ClearChild( tag="a" );
+					var b = new inheritance.ClearChild( tag="b" );
+					a.clearThis();
+					expect( structKeyExists( a, "tag" ) ).toBeFalse();
+					expect( function(){ a.chain(); } ).toThrow();
+					expect( b.chain() ).toBe( "grand:parent:clear" );
+					expect( b.tag ).toBe( "b" );
+				});
+				it( title="structClear( variables ) inside a empties a's variables only, b and a's this scope are untouched", body=function( currentSpec ){
+					var a = new inheritance.ClearChild( tag="a" );
+					var b = new inheritance.ClearChild( tag="b" );
+					b.setCprop( "b-set" );
+					a.clearVariables();
+					expect( a.hasInVariables( "cprop" ) ).toBeFalse();
+					// LDEV-6300: the accessor is class level and read through on a shadow miss, structClear cannot remove it
+					expect( a.hasInVariables( "getCprop" ) ).toBeTrue();
+					expect( a.hasInThis( "chain" ) ).toBeTrue();
+					expect( a.chain() ).toBe( "grand:parent:clear" );
+					expect( a.tag ).toBe( "a" );
+					expect( b.hasInVariables( "cprop" ) ).toBeTrue();
+					expect( b.hasInVariables( "getCprop" ) ).toBeTrue();
+					expect( b.getCprop() ).toBe( "b-set" );
+					expect( b.getPprop() ).toBe( "p-default" );
+				});
+				it( title="a fresh instance created after a sibling was cleared has full state", body=function( currentSpec ){
+					var a = new inheritance.ClearChild( tag="a" );
+					structClear( a );
+					a = new inheritance.ClearChild( tag="a" );
+					a.clearVariables();
+					var c = new inheritance.ClearChild( tag="c" );
+					expect( c.tag ).toBe( "c" );
+					expect( c.chain() ).toBe( "grand:parent:clear" );
+					expect( c.getCprop() ).toBe( "c-default" );
+					expect( c.hasInVariables( "getCprop" ) ).toBeTrue();
+				});
+				it( title="a duplicate taken before the clear is untouched by it", body=function( currentSpec ){
+					var a = new inheritance.ClearChild( tag="a" );
+					a.setCprop( "before" );
+					var dup = duplicate( a );
+					// variables first: once this is cleared the instance has no functions left to call
+					a.clearVariables();
+					structClear( a );
+					expect( dup.tag ).toBe( "a" );
+					expect( dup.chain() ).toBe( "grand:parent:clear" );
+					expect( dup.getCprop() ).toBe( "before" );
+					expect( dup.hasInVariables( "getCprop" ) ).toBeTrue();
+				});
+				it( title="20 threads each clearing their own instance — no cross-thread bleed", body=function( currentSpec ){
+					var threadCount = 20;
+					var threadNames = [];
+					request.clearKeep = new inheritance.ClearChild( tag="keep" );
+					for ( var t=1; t<=threadCount; t++ ) {
+						var tname = "inheritance-clear-" & t;
+						arrayAppend( threadNames, tname );
+						thread name="#tname#" tid=t {
+							var mine = new inheritance.ClearChild( tag="m-" & attributes.tid );
+							structClear( mine );
+							thread.cleared = !structKeyExists( mine, "tag" );
+							thread.keepChain = request.clearKeep.chain();
+							thread.keepTag = request.clearKeep.tag;
+						}
+					}
+					thread action="join" name="#arrayToList( threadNames )#";
+					for ( var t=1; t<=threadCount; t++ ) {
+						var tname = "inheritance-clear-" & t;
+						var th = cfthread[ tname ];
+						if ( th.status != "COMPLETED" ) throw( object=th.error );
+						expect( th.cleared ).toBeTrue();
+						expect( th.keepChain ).toBe( "grand:parent:clear" );
+						expect( th.keepTag ).toBe( "keep" );
+					}
+					expect( request.clearKeep.chain() ).toBe( "grand:parent:clear" );
+				});
+			});
+
 		});
 	}
 }

@@ -18,6 +18,7 @@
  */
 package lucee.runtime;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -163,6 +164,12 @@ public final class ComponentScopeShadow extends StructSupport implements Compone
 		if (key.equalsIgnoreCase(KeyConstants._THIS)) return component.top;
 		if (key.equalsIgnoreCase(KeyConstants._STATIC)) return component.staticScope();
 
+		// flattened accessor pool of a persistent component, what the shadow carries per instance otherwise
+		if (component.top.accessorPool != ComponentImpl.NO_ACCESSORS) {
+			val = component.top.accessorPool.get(key);
+			if (val != null) return val;
+		}
+
 		// static scope fallback
 		val = component.staticScope().getOrDefault(key, CollectionUtil.NULL);
 		if (val != CollectionUtil.NULL && (NullSupportHelper.full(pc) || val != null)) return val;
@@ -190,16 +197,28 @@ public final class ComponentScopeShadow extends StructSupport implements Compone
 		return new ValueIterator(this, keys());
 	}
 
+	// one array on the common path: shadow keys, then the class level accessor keys the shadow does not
+	// carry, then this. The shadow is a live concurrent map, so its size is a hint, not a bound: the fill
+	// grows if the map gained entries since size() and trims if it lost some or if pool keys were shadowed
 	@Override
 	public Collection.Key[] keys() {
-		Collection.Key[] keys = new Collection.Key[shadow.size() + 1];
+		Key[] poolKeys = component.top.accessorPoolKeys;
+		Collection.Key[] keys = new Collection.Key[shadow.size() + poolKeys.length + 1];
+		int n = 0;
 		Iterator<Key> it = shadow.keySet().iterator();
-		int index = 0;
 		while (it.hasNext()) {
-			keys[index++] = it.next();
+			if (n == keys.length) keys = Arrays.copyOf(keys, n + 8);
+			keys[n++] = it.next();
 		}
-		keys[index] = KeyConstants._THIS;
-		return keys;
+		for (Key k: poolKeys) {
+			if (!shadow.containsKey(k)) {
+				if (n == keys.length) keys = Arrays.copyOf(keys, n + 8);
+				keys[n++] = k;
+			}
+		}
+		if (n == keys.length) keys = Arrays.copyOf(keys, n + 1);
+		keys[n++] = KeyConstants._THIS;
+		return n == keys.length ? keys : Arrays.copyOf(keys, n);
 	}
 
 	@Override
@@ -208,13 +227,21 @@ public final class ComponentScopeShadow extends StructSupport implements Compone
 			throw new ExpressionException("key [" + key.getString() + "] is part of the component and can't be removed");
 
 		if (NullSupportHelper.full()) {
-			if (!shadow.containsKey(key)) throw new ExpressionException("can't remove key [" + key.getString() + "] from struct, key doesn't exist");
+			if (!shadow.containsKey(key)) throw notRemovable(key);
 			return shadow.remove(key);
 		}
 
 		Object o = shadow.remove(key);
 		if (o != null) return o;
-		throw new ExpressionException("can't remove key [" + key.getString() + "] from struct, key doesn't exist");
+		throw notRemovable(key);
+	}
+
+	// a generated accessor is part of the class, not of this instance; structDelete goes through removeEL and
+	// reports false, the same as ACF, this is the loud path
+	private ExpressionException notRemovable(Key key) {
+		if (component.top.accessorPool.containsKey(key))
+			return new ExpressionException("key [" + key.getString() + "] is a generated accessor of the component and can't be removed");
+		return new ExpressionException("can't remove key [" + key.getString() + "] from struct, key doesn't exist");
 	}
 
 	@Override
@@ -250,7 +277,11 @@ public final class ComponentScopeShadow extends StructSupport implements Compone
 
 	@Override
 	public int size() {
-		return keys().length;
+		int size = shadow.size() + 1;
+		for (Key k: component.top.accessorPoolKeys) {
+			if (!shadow.containsKey(k)) size++;
+		}
+		return size;
 	}
 
 	@Override
@@ -329,6 +360,7 @@ public final class ComponentScopeShadow extends StructSupport implements Compone
 	public Object call(PageContext pc, Collection.Key key, Object[] arguments) throws PageException {
 		// first check variables
 		Object o = shadow.get(key);
+		if (o == null && component.top.accessorPool != ComponentImpl.NO_ACCESSORS) o = component.top.accessorPool.get(key);
 		if (o instanceof UDF) {
 			return ((UDF) o).call(pc, key, arguments, false);
 		}
@@ -352,6 +384,7 @@ public final class ComponentScopeShadow extends StructSupport implements Compone
 	public Object callWithNamedValues(PageContext pc, Key key, Struct args) throws PageException {
 		// first check variables
 		Object o = shadow.get(key);
+		if (o == null && component.top.accessorPool != ComponentImpl.NO_ACCESSORS) o = component.top.accessorPool.get(key);
 		if (o instanceof UDF) {
 			return ((UDF) o).callWithNamedValues(pc, key, args, false);
 		}

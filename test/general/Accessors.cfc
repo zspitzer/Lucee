@@ -950,6 +950,193 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				});
 			});
 
+			describe( "accessor dispatch from inside the CFC", function(){
+				// variables.getX() / bare getX() inside a method resolve through the variables scope shadow,
+				// this.getX() through the component. Both must keep answering however the accessor is stored.
+				it( title="variables.getX() inside a method returns the property", body=function( currentSpec ){
+					var cfc = new accessors.testInternalDispatch();
+					expect( cfc.viaVariables() ).toBe( "internal-default" );
+					cfc.setName( "external" );
+					expect( cfc.viaVariables() ).toBe( "external" );
+				});
+				it( title="bare getX() inside a method returns the property", body=function( currentSpec ){
+					var cfc = new accessors.testInternalDispatch();
+					expect( cfc.viaBare() ).toBe( "internal-default" );
+					cfc.setName( "external" );
+					expect( cfc.viaBare() ).toBe( "external" );
+				});
+				it( title="this.getX() inside a method returns the property", body=function( currentSpec ){
+					var cfc = new accessors.testInternalDispatch();
+					expect( cfc.viaThis() ).toBe( "internal-default" );
+					cfc.setName( "external" );
+					expect( cfc.viaThis() ).toBe( "external" );
+				});
+				it( title="ref taken from variables inside a method dispatches against the instance", body=function( currentSpec ){
+					var a = new accessors.testInternalDispatch();
+					var b = new accessors.testInternalDispatch();
+					a.setName( "a" );
+					b.setName( "b" );
+					expect( a.viaVariablesRef() ).toBe( "a" );
+					expect( b.viaVariablesRef() ).toBe( "b" );
+				});
+				it( title="variables['getX']() bracket dispatch inside a method", body=function( currentSpec ){
+					var cfc = new accessors.testInternalDispatch();
+					cfc.setName( "bracket" );
+					expect( cfc.viaBracket() ).toBe( "bracket" );
+				});
+				it( title="variables.setX() / bare setX() / this.setX() inside a method all write the property", body=function( currentSpec ){
+					var cfc = new accessors.testInternalDispatch();
+					cfc.setViaVariables( "v1" );
+					expect( cfc.getName() ).toBe( "v1" );
+					cfc.setViaBare( "v2" );
+					expect( cfc.getName() ).toBe( "v2" );
+					cfc.setViaThis( "v3" );
+					expect( cfc.getName() ).toBe( "v3" );
+				});
+				it( title="typed setter called via variables inside a method still casts", body=function( currentSpec ){
+					var cfc = new accessors.testInternalDispatch();
+					cfc.setAgeViaVariables( "42" );
+					expect( cfc.getAge() ).toBe( 42 );
+					expect( isNumeric( cfc.getAge() ) ).toBeTrue();
+				});
+				it( title="internal writes on siblings stay isolated", body=function( currentSpec ){
+					var a = new accessors.testInternalDispatch();
+					var b = new accessors.testInternalDispatch();
+					a.setViaVariables( "a" );
+					b.setViaBare( "b" );
+					expect( a.viaVariables() ).toBe( "a" );
+					expect( b.viaVariables() ).toBe( "b" );
+				});
+				it( title="structKeyExists( variables, 'getX' ) and structKeyExists( this, 'getX' ) are true", body=function( currentSpec ){
+					var cfc = new accessors.testInternalDispatch();
+					expect( cfc.existsInVariables( "getName" ) ).toBeTrue();
+					expect( cfc.existsInVariables( "setName" ) ).toBeTrue();
+					expect( cfc.existsInThis( "getName" ) ).toBeTrue();
+					expect( cfc.existsInThis( "setName" ) ).toBeTrue();
+					expect( cfc.existsInVariables( "nope" ) ).toBeFalse();
+					expect( cfc.existsInThis( "nope" ) ).toBeFalse();
+				});
+				it( title="the property value lives in variables, the accessor is a function there", body=function( currentSpec ){
+					var cfc = new accessors.testInternalDispatch();
+					expect( cfc.existsInVariables( "name" ) ).toBeTrue();
+					expect( cfc.isFunctionInVariables( "getName" ) ).toBeTrue();
+					expect( cfc.isFunctionInVariables( "name" ) ).toBeFalse();
+				});
+				it( title="structKeyArray( variables ) lists the accessors", body=function( currentSpec ){
+					var keys = new accessors.testInternalDispatch().variablesKeys();
+					expect( arrayFindNoCase( keys, "getName" ) ).toBeGT( 0 );
+					expect( arrayFindNoCase( keys, "setName" ) ).toBeGT( 0 );
+					expect( arrayFindNoCase( keys, "getAge" ) ).toBeGT( 0 );
+					expect( arrayFindNoCase( keys, "name" ) ).toBeGT( 0 );
+				});
+				it( title="internal dispatch survives duplicate() and stays isolated from the source", body=function( currentSpec ){
+					var orig = new accessors.testInternalDispatch();
+					orig.setViaVariables( "orig" );
+					var copy = duplicate( orig );
+					expect( copy.viaVariables() ).toBe( "orig" );
+					expect( copy.viaBare() ).toBe( "orig" );
+					expect( copy.viaThis() ).toBe( "orig" );
+					copy.setViaVariables( "copy" );
+					expect( copy.viaVariables() ).toBe( "copy" );
+					expect( orig.viaVariables() ).toBe( "orig" );
+					expect( copy.existsInVariables( "getName" ) ).toBeTrue();
+					expect( copy.existsInThis( "getName" ) ).toBeTrue();
+				});
+				it( title="subclass body reaches the inherited accessor via variables and bare call", body=function( currentSpec ){
+					var child = new accessors.testInternalDispatchChild();
+					expect( child.parentViaVariables() ).toBe( "internal-default" );
+					expect( child.parentViaBare() ).toBe( "internal-default" );
+					child.setParentViaVariables( "from-child" );
+					expect( child.getName() ).toBe( "from-child" );
+					expect( child.viaVariables() ).toBe( "from-child" );
+				});
+				it( title="subclass body reaches its own accessor via variables and bare call", body=function( currentSpec ){
+					var child = new accessors.testInternalDispatchChild();
+					expect( child.ownViaVariables() ).toBe( "child-default" );
+					expect( child.ownViaBare() ).toBe( "child-default" );
+					child.setChildProp( "own" );
+					expect( child.ownViaVariables() ).toBe( "own" );
+				});
+				it( title="subclass sees parent and own accessors in both scopes", body=function( currentSpec ){
+					var child = new accessors.testInternalDispatchChild();
+					expect( child.existsInVariables( "getName" ) ).toBeTrue();
+					expect( child.existsInVariables( "getChildProp" ) ).toBeTrue();
+					expect( child.existsInThis( "getName" ) ).toBeTrue();
+					expect( child.existsInThis( "getChildProp" ) ).toBeTrue();
+				});
+			});
+
+			describe( "structDelete on an accessor key", function(){
+				// LDEV-6300: a generated accessor belongs to the class, not to the instance, so it cannot be deleted
+				// from either scope. structDelete reports false with indicateNotExists and true without, as ACF
+				// does, and nothing changes. Lucee 7 removed it because it happened to live in per instance maps;
+				// that was storage showing through, not a contract. Behaviour change from 7.x, release noted.
+				it( title="structDelete( cfc, 'getX' ) is a no-op, every call form still works", body=function( currentSpec ){
+					var cfc = new accessors.testInternalDispatch();
+					cfc.setName( "kept" );
+					structDelete( cfc, "getName" );
+					expect( structKeyExists( cfc, "getName" ) ).toBeTrue();
+					expect( cfc.existsInThis( "getName" ) ).toBeTrue();
+					expect( cfc.existsInVariables( "getName" ) ).toBeTrue();
+					expect( cfc.getName() ).toBe( "kept" );
+					expect( cfc.viaVariables() ).toBe( "kept" );
+					expect( cfc.viaBare() ).toBe( "kept" );
+					expect( cfc.viaThis() ).toBe( "kept" );
+					expect( cfc.viaVariablesRef() ).toBe( "kept" );
+				});
+				it( title="structDelete return value: true without indicateNotExists, false with, same as ACF", body=function( currentSpec ){
+					var cfc = new accessors.testInternalDispatch();
+					expect( structDelete( cfc, "getName" ) ).toBeTrue();
+					expect( structDelete( cfc, "getName", true ) ).toBeFalse();
+					expect( structDelete( cfc, "nope", true ) ).toBeFalse();
+					expect( cfc.getName() ).toBe( "internal-default" );
+				});
+				it( title="structDelete( variables, 'getX' ) inside the CFC is a no-op too", body=function( currentSpec ){
+					var cfc = new accessors.testInternalDispatch();
+					cfc.setName( "kept" );
+					cfc.deleteFromVariables( "getName" );
+					expect( cfc.existsInVariables( "getName" ) ).toBeTrue();
+					expect( cfc.existsInThis( "getName" ) ).toBeTrue();
+					expect( cfc.getName() ).toBe( "kept" );
+					expect( cfc.viaVariables() ).toBe( "kept" );
+					expect( cfc.viaBare() ).toBe( "kept" );
+					expect( cfc.viaVariablesRef() ).toBe( "kept" );
+				});
+				it( title="structDelete( this, 'getX' ) inside the CFC is a no-op too", body=function( currentSpec ){
+					var cfc = new accessors.testInternalDispatch();
+					cfc.deleteFromThis( "getName" );
+					expect( structKeyExists( cfc, "getName" ) ).toBeTrue();
+					expect( cfc.getName() ).toBe( "internal-default" );
+					expect( cfc.viaThis() ).toBe( "internal-default" );
+				});
+				it( title="structClear( cfc ) leaves the accessors callable", body=function( currentSpec ){
+					var cfc = new accessors.testInternalDispatch();
+					cfc.setName( "kept" );
+					structClear( cfc );
+					expect( structKeyExists( cfc, "getName" ) ).toBeTrue();
+					expect( cfc.getName() ).toBe( "kept" );
+				});
+				it( title="a duplicate taken after the no-op delete still has the accessor", body=function( currentSpec ){
+					var orig = new accessors.testInternalDispatch();
+					orig.setName( "orig" );
+					structDelete( orig, "getName" );
+					orig.deleteFromVariables( "getName" );
+					var copy = duplicate( orig );
+					expect( structKeyExists( copy, "getName" ) ).toBeTrue();
+					expect( copy.getName() ).toBe( "orig" );
+					expect( copy.viaVariables() ).toBe( "orig" );
+					expect( copy.viaVariablesRef() ).toBe( "orig" );
+				});
+				it( title="re-assigning a function under the key overrides the accessor, delete of the override works", body=function( currentSpec ){
+					var cfc = new accessors.testInternalDispatch();
+					cfc.getName = function(){ return "mixin"; };
+					expect( cfc.getName() ).toBe( "mixin" );
+					// the mixin is a per instance entry and can be deleted, which uncovers the accessor again
+					expect( structDelete( cfc, "getName", true ) ).toBeTrue();
+					expect( cfc.getName() ).toBe( "internal-default" );
+				});
+			});
+
 		});
 	}
 }

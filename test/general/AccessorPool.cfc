@@ -289,14 +289,17 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="java,component" {
 			});
 
 			describe( "per instance storage", function(){
-				it( title="structDelete of an accessor only affects that instance", body=function( currentSpec ){
+				it( title="structDelete of an accessor is a no-op, the pool entry is class level (LDEV-6300, matches ACF)", body=function( currentSpec ){
 					var A = new accessorpool.pooled();
 					var B = new accessorpool.pooled();
-					structDelete( A, "getName" );
+					A.setName( "alpha" );
+					expect( structDelete( A, "getName", true ) ).toBeFalse();
 					B.setName( "bravo" );
 
-					expect( function(){ A.getName(); } ).toThrow();
+					expect( A.getName() ).toBe( "alpha" );
+					expect( structKeyExists( A, "getName" ) ).toBeTrue();
 					expect( B.getName() ).toBe( "bravo" );
+					expect( duplicate( A ).getName() ).toBe( "alpha" );
 					expect( duplicate( B ).getName() ).toBe( "bravo" );
 				});
 
@@ -344,11 +347,15 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="java,component" {
 	// === Java-reflection helpers, same shape as test/tickets/LDEV6300.cfc ===
 
 	private any function probeUdf( required any cfc, required string key ) {
+		// the raw member as the component resolves it for a super access read: a per instance entry in _udfs,
+		// else the class level pool flyweight of the declaring class. Never the BoundUDF wrapper a CFML read gets.
 		var clazz = createObject( "java", "java.lang.Class" ).forName( "lucee.runtime.ComponentImpl" );
-		var udfsField = clazz.getDeclaredField( "_udfs" );
-		udfsField.setAccessible( true );
+		var keyClass = createObject( "java", "java.lang.Class" ).forName( "lucee.runtime.type.Collection$Key" );
+		var intType = createObject( "java", "java.lang.Integer" ).TYPE;
+		var boolType = createObject( "java", "java.lang.Boolean" ).TYPE;
+		var getMember = clazz.getMethod( "getMember", [ intType, keyClass, boolType, boolType ] );
 		var keyImpl = createObject( "java", "lucee.runtime.type.KeyImpl" ).init( arguments.key );
-		return udfsField.get( arguments.cfc ).get( keyImpl );
+		return getMember.invoke( arguments.cfc, [ javaCast( "int", 0 ), keyImpl, javaCast( "boolean", true ), javaCast( "boolean", true ) ] );
 	}
 
 	private any function srcOf( required any udf ) {

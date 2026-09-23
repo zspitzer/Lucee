@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -1172,6 +1173,56 @@ public abstract class ComponentPageImpl extends ComponentPage {
 	 */
 	public Map<Key, UDF> getStaticAccessorUDFs() {
 		return null;
+	}
+
+	static final Key[] NO_ACCESSOR_KEYS = new Key[0];
+
+	private volatile Key[] staticAccessorKeys;
+
+	// the key set of getStaticAccessorUDFs as an array in declaration order, built once per class. The pool
+	// is never written after the class is loaded, so the array is a constant of the class and enumeration
+	// (ComponentScopeShadow.keys, keySet, keysPreservingOrder) walks it instead of a LinkedHashMap key set
+	public Key[] getStaticAccessorKeys() {
+		Key[] keys = staticAccessorKeys;
+		if (keys == null) {
+			Map<Key, UDF> pool = getStaticAccessorUDFs();
+			keys = pool == null || pool.isEmpty() ? NO_ACCESSOR_KEYS : pool.keySet().toArray(NO_ACCESSOR_KEYS);
+			staticAccessorKeys = keys;
+		}
+		return keys;
+	}
+
+	// LDEV-6300: this class's accessor pool merged over the flattened pool of its base, root most entry wins.
+	// The base pool is itself a class level map (a static pool or another cached merge), so its identity is
+	// stable across instances of the same class and a reload of either class changes it and misses the cache
+	static final class MergedAccessorPool {
+		final Map<Key, UDF> base;
+		final Map<Key, UDF> merged;
+		final Key[] keys;
+
+		MergedAccessorPool(Map<Key, UDF> base, Map<Key, UDF> merged) {
+			this.base = base;
+			this.merged = merged;
+			this.keys = merged.keySet().toArray(NO_ACCESSOR_KEYS);
+		}
+	}
+
+	private volatile MergedAccessorPool mergedAccessorPool;
+
+	public MergedAccessorPool mergedAccessorPool(Map<Key, UDF> basePool) {
+		MergedAccessorPool m = mergedAccessorPool;
+		if (m != null && m.base == basePool) return m;
+		synchronized (this) {
+			m = mergedAccessorPool;
+			if (m != null && m.base == basePool) return m;
+			Map<Key, UDF> merged = new LinkedHashMap<Key, UDF>(basePool);
+			for (Entry<Key, UDF> e: getStaticAccessorUDFs().entrySet()) {
+				merged.putIfAbsent(e.getKey(), e.getValue());
+			}
+			m = new MergedAccessorPool(basePool, merged);
+			mergedAccessorPool = m;
+			return m;
+		}
 	}
 
 	/**

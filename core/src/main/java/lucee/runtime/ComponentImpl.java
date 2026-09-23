@@ -174,6 +174,18 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 	private boolean hasInjectedFunctions;
 	private boolean isExtended; // is this component extended by another component?
 
+	// LDEV-6300: the accessor flyweights of this level and every base above it, flattened once at init from the
+	// class level pools (ComponentPageImpl.getStaticAccessorUDFs) and read on a per instance miss by getMember
+	// and ComponentScopeShadow.peek. Never written after init: aliased when one level contributes, merged and
+	// cached per class when more than one does. Always a LinkedHashMap so the read sites stay monomorphic.
+	// Only a persistent component reads through the pool; every other component registers its accessors per
+	// instance in initProperties and keeps the pool at NO_ACCESSORS, so the read sites test identity and skip
+	// the probe. Every empty pool is NO_ACCESSORS by construction in initAccessorPool
+	Map<Key, UDF> accessorPool = NO_ACCESSORS;
+	static final Map<Key, UDF> NO_ACCESSORS = new LinkedHashMap<Key, UDF>();
+	// the key set of accessorPool as a class level array, same lifetime and identity rules as the map
+	Key[] accessorPoolKeys = ComponentPageImpl.NO_ACCESSOR_KEYS;
+
 	StaticScope _static = null;
 	ThreadInsideStaticConstr insideStaticConstrThread = new ThreadInsideStaticConstr();
 
@@ -317,6 +329,8 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 			trg.isExtended = isExtended;
 			trg.afterConstructor = afterConstructor;
 			trg.dataMemberDefaultAccess = dataMemberDefaultAccess;
+			trg.accessorPool = accessorPool;
+			trg.accessorPoolKeys = accessorPoolKeys;
 			// LDEV-6298 follow-up: ComponentProperties is treated as immutable post-init
 			// (its only post-init mutator setInline() runs in ComponentLoader before any
 			// duplicate, and the inner property/meta maps are populated once during init).
@@ -623,6 +637,8 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 				udfb.used = true;
 				iUdf = udfb.udf;
 				cUdf = _udfs.get(entry.getKey());
+				// an interface function satisfied by an accessor lives in the pool of this level or a base
+				if (cUdf == null) cUdf = accessorPool.get(entry.getKey());
 				checkFunction(pc, componentPage, iUdf, cUdf);
 			}
 		}
@@ -973,6 +989,10 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 			entry = it.next();
 			if (entry.getValue().getAccess() <= access) set.add(entry.getKey());
 		}
+		// the flattened accessor pool, a per instance entry of the same name wins
+		for (Key k: top.accessorPoolKeys) {
+			if (!_data.containsKey(k)) set.add(k);
+		}
 		return set;
 	}
 
@@ -990,6 +1010,12 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 		while (it.hasNext()) {
 			e = it.next().getValue();
 			if (e.getAccess() <= access) members.add(e);
+		}
+		Map<Key, UDF> pool = top.accessorPool;
+		if (!pool.isEmpty()) {
+			for (Entry<Key, UDF> pe: pool.entrySet()) {
+				if (!_data.containsKey(pe.getKey())) members.add(pe.getValue());
+			}
 		}
 		return members;
 	}
@@ -1013,16 +1039,20 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 	}
 
 	private Collection.Key[] keysPreservingOrder(int access) {
-		if (_udfs.isEmpty() && _data.isEmpty()) {
+		Key[] poolKeys = top.accessorPoolKeys;
+		if (_udfs.isEmpty() && _data.isEmpty() && poolKeys.length == 0) {
 			return new Collection.Key[0];
 		}
 
-		List<Key> orderedKeys = new ArrayList<Key>(_udfs.size() + _data.size());
+		List<Key> orderedKeys = new ArrayList<Key>(_udfs.size() + _data.size() + poolKeys.length);
 
 		for (Entry<Key, UDF> entry: _udfs.entrySet()) {
 			if (entry.getValue().getAccess() <= access) {
 				orderedKeys.add(entry.getKey());
 			}
+		}
+		for (Key k: poolKeys) {
+			if (!_udfs.containsKey(k) && !_data.containsKey(k)) orderedKeys.add(k);
 		}
 		for (Entry<Key, Member> entry: _data.entrySet()) {
 			Member member = entry.getValue();
@@ -1071,6 +1101,56 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 		_udfs.clear();
 	}
 
+	// LDEV-6300: the accessor flyweights of a class live in its pool (ComponentPageImpl.getStaticAccessorUDFs) and
+	// are read through on a per instance miss, instead of being written into _data, _udfs and the shadow of every
+	// instance. Dispatch reads the flattened accessorPool of the level, built once in initAccessorPool. The two
+	// walkers below are for introspection only, where an accessor has to be attributed to the class that declares
+	// it; the root most entry wins, which is the precedence the per instance writes encoded: an inherited accessor
+	// beat the subclass's pool entry, and a declared function of any level, being in _data, beats both.
+	private static UDF accessorFromPool(ComponentImpl from, Collection.Key key) {
+		UDF found = null;
+		UDF udf;
+		Map<Key, UDF> pool;
+		for (ComponentImpl c = from; c != null; c = c.base) {
+			if (c.cp == null) continue;
+			pool = c.cp.getStaticAccessorUDFs();
+			if (pool == null) continue;
+			udf = pool.get(key);
+			if (udf != null) found = udf;
+		}
+		return found;
+	}
+
+	private static void accessorKeysFromPool(ComponentImpl from, Set<Key> into) {
+		Map<Key, UDF> pool;
+		for (ComponentImpl c = from; c != null; c = c.base) {
+			if (c.cp == null) continue;
+			pool = c.cp.getStaticAccessorUDFs();
+			if (pool != null) into.addAll(pool.keySet());
+		}
+	}
+
+	// the flattened pool of this level: its own class pool plus the base's flattened pool, root most wins. Runs
+	// once per level at init, after the base is resolved. No allocation unless both this level and a base
+	// contribute, and that merge is cached on the class so only the first instance of a class pays it
+	private void initAccessorPool() {
+		Map<Key, UDF> own = cp == null ? null : cp.getStaticAccessorUDFs();
+		Map<Key, UDF> inherited = base == null ? NO_ACCESSORS : base.accessorPool;
+		if (own == null || own.isEmpty()) {
+			accessorPool = inherited;
+			accessorPoolKeys = base == null ? ComponentPageImpl.NO_ACCESSOR_KEYS : base.accessorPoolKeys;
+		}
+		else if (inherited.isEmpty()) {
+			accessorPool = own;
+			accessorPoolKeys = cp.getStaticAccessorKeys();
+		}
+		else {
+			ComponentPageImpl.MergedAccessorPool merged = cp.mergedAccessorPool(inherited);
+			accessorPool = merged.merged;
+			accessorPoolKeys = merged.keys;
+		}
+	}
+
 	@Override
 	public Member getMember(int access, Collection.Key key, boolean dataMember, boolean superAccess) {
 		// check super
@@ -1080,13 +1160,21 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 			// return SuperComponent . superMember(base);
 		}
 		if (superAccess) {
-			return _udfs.get(key);
+			UDF udf = _udfs.get(key);
+			if (udf == null && accessorPool != NO_ACCESSORS) udf = accessorPool.get(key);
+			return udf;
 		}
 		// check data
 		Member member = _data.get(key);
 		if (member != null) {
 			if (member.getAccess() <= access) return member;
 			return null;
+		}
+
+		// flattened accessor pool, the flyweights are public
+		if (top.accessorPool != NO_ACCESSORS) {
+			member = top.accessorPool.get(key);
+			if (member != null) return member;
 		}
 
 		// static
@@ -1114,11 +1202,19 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 			return SuperComponent.superMember((ComponentImpl) ac.getBaseComponent());
 		}
 		if (superAccess) {
-			return _udfs.get(key);
+			UDF udf = _udfs.get(key);
+			if (udf == null && accessorPool != NO_ACCESSORS) udf = accessorPool.get(key);
+			return udf;
 		}
 		// check data
 		Member member = _data.get(key);
 		if (member != null && isAccessible(pc, member)) return member;
+
+		// flattened accessor pool, the flyweights are public
+		if (member == null && top.accessorPool != NO_ACCESSORS) {
+			member = top.accessorPool.get(key);
+			if (member != null) return member;
+		}
 
 		// static
 		member = staticScope().getMember(pc, key, null);
@@ -1872,6 +1968,19 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 				}
 				arr.append(udf.getMetaData(pc));
 			}
+			// the class level pool of this class and its bases; a declared function of the same name was
+			// listed above, and an entry the base already answers for is the base's to list
+			if (!comp.accessorPool.isEmpty()) {
+				Set<Key> poolKeys = new LinkedHashSet<Key>();
+				accessorKeysFromPool(comp, poolKeys);
+				for (Key k: poolKeys) {
+					if (comp._udfs.containsKey(k)) continue;
+					udf = accessorFromPool(comp, k);
+					if (udf.getAccess() > access) continue;
+					if (comp.base != null && udf == comp.base.getMember(access, k, true, true)) continue;
+					arr.append(udf.getMetaData(pc));
+				}
+			}
 		}
 
 		// static functions
@@ -1927,6 +2036,17 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 					if (udf == comp.base.getMember(access, entry.getKey(), true, true)) continue;
 				}
 				methods.add(new SimpleMethodUDF(cl, udf));
+			}
+			if (!comp.accessorPool.isEmpty()) {
+				Set<Key> poolKeys = new LinkedHashSet<Key>();
+				accessorKeysFromPool(comp, poolKeys);
+				for (Key k: poolKeys) {
+					if (comp._udfs.containsKey(k)) continue;
+					udf = accessorFromPool(comp, k);
+					if (udf.getAccess() > access) continue;
+					if (comp.base != null && udf == comp.base.getMember(access, k, true, true)) continue;
+					methods.add(new SimpleMethodUDF(cl, udf));
+				}
 			}
 		}
 
@@ -2016,6 +2136,7 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 		}
 		else {
 			Member existing = _data.get(key);
+			if (existing == null && top.accessorPool != NO_ACCESSORS) existing = top.accessorPool.get(key);
 			if (loaded && !isAccessible(pc, existing != null ? existing.getAccess() : dataMemberDefaultAccess))
 				throw new ExpressionException("Component [" + getCallName() + "] has no accessible Member with name [" + key + "]",
 						"enable [trigger data member] in administrator to also invoke getters and setters");
@@ -2114,7 +2235,12 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 
 	@Override
 	public Object remove(Key key) throws PageException {
-		return _data.remove(key);
+		Object o = _data.remove(key);
+		// a generated accessor is part of the class, not of this instance; structDelete goes through removeEL and
+		// reports false, the same as ACF, this path is the loud one
+		if (o == null && top.accessorPool != NO_ACCESSORS && top.accessorPool.containsKey(key))
+			throw new ExpressionException("key [" + key.getString() + "] is a generated accessor of the component and can't be removed");
+		return o;
 	}
 
 	@Override
@@ -2540,11 +2666,18 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 	private void initProperties() throws PageException {
 		top.properties.properties = new LinkedHashMap<String, Property>();
 		if (top.cp != null) {
-			// LDEV-3335: take the class level accessor flyweights first, so that the
-			// !(m instanceof UDF) guard in PropertyFactory.addX short circuits below and no per instance
-			// accessor is allocated. Only when the class asks for accessors, the fallback in setProperty
-			// stays the single source of truth for the inherited and override cases the pool cannot cover
-			if (top.properties.accessors || top.properties.persistent) {
+			// LDEV-3335 / LDEV-6300: two ways to give an instance the class level accessor flyweights, either way
+			// the !(m instanceof UDF) guard in PropertyFactory.addX short circuits below and no per instance
+			// accessor is allocated. The fallback in setProperty stays the single source of truth for the
+			// inherited and override cases the pool cannot cover.
+			// A persistent component is duplicated per loaded ORM entity, so it keeps the flyweights in the pool
+			// and getMember / ComponentScopeShadow.peek read through on a per instance miss: nothing to copy on
+			// duplicate. Every other component is constructed once and read many times, so it writes the
+			// flyweights into its maps up front and the read sites never probe the pool
+			if (top.properties.persistent) {
+				initAccessorPool();
+			}
+			else if (top.properties.accessors) {
 				Map<Key, UDF> pool = top.cp.getStaticAccessorUDFs();
 				if (pool != null && !pool.isEmpty()) {
 					// write the three maps registerUDF would write, minus the owner stamp and minus the
@@ -2751,6 +2884,10 @@ public final class ComponentImpl extends StructSupport implements IteratorablePr
 	private void _readExternal(ComponentImpl other) {
 		this._data = other._data;
 		this._udfs = other._udfs;
+		// the accessor pool is class level state, the deserialised instance reads the same flattened map
+		this.cp = other.cp;
+		this.accessorPool = other.accessorPool;
+		this.accessorPoolKeys = other.accessorPoolKeys;
 		setOwner(_udfs);
 		setOwner(_data);
 		this.isRestEnabled = other.isRestEnabled;

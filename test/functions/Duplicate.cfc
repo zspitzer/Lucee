@@ -614,6 +614,128 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="xml" {
 				});
 			});
 
+			describe( "Duplicate( cfc, true ) — deep copy of nested CFC members", function(){
+				// a CFC holding a CFC, an array of CFCs and a nested struct in its property values.
+				// deepCopy=false shares those references, deepCopy=true must clone them recursively
+				// and every accessor on the clones must dispatch against the clone.
+				// components compare by value, so identity is asserted by writing to one side and reading the other.
+				it( title="shallow duplicate shares the nested CFC (baseline parity)", body=function( currentSpec ){
+					var orig = new Duplicate.Nested();
+					var dup = duplicate( orig, false );
+					dup.getChild().setA( "shared" );
+					dup.getChild().tag = "shared-tag";
+					expect( orig.getChild().getA() ).toBe( "shared" );
+					expect( orig.getChild().tag ).toBe( "shared-tag" );
+				});
+				it( title="deep duplicate gives the copy its own nested CFC", body=function( currentSpec ){
+					var orig = new Duplicate.Nested();
+					var dup = duplicate( orig, true );
+					expect( dup.getChild().getA() ).toBe( "1" );
+					expect( dup.getChild().tag ).toBe( "child" );
+					dup.getChild().tag = "dup-only";
+					expect( orig.getChild().tag ).toBe( "child" );
+				});
+				it( title="deep duplicate — accessor writes on the nested CFC copy do not reach the source", body=function( currentSpec ){
+					var orig = new Duplicate.Nested();
+					orig.getChild().setA( "orig-a" );
+					var dup = duplicate( orig, true );
+					dup.getChild().setA( "dup-a" );
+					dup.getChild().setB( "dup-b" );
+					expect( orig.getChild().getA() ).toBe( "orig-a" );
+					expect( orig.getChild().getB() ).toBe( "1" );
+					expect( dup.getChild().getA() ).toBe( "dup-a" );
+					expect( dup.getChild().getB() ).toBe( "dup-b" );
+				});
+				it( title="deep duplicate — this-scope writes on the nested CFC copy do not reach the source", body=function( currentSpec ){
+					var orig = new Duplicate.Nested();
+					var dup = duplicate( orig, true );
+					dup.getChild().tag = "dup-tag";
+					expect( orig.getChild().tag ).toBe( "child" );
+					expect( dup.getChild().tag ).toBe( "dup-tag" );
+				});
+				it( title="deep duplicate — nested CFC reached via variables inside the outer CFC is the copy", body=function( currentSpec ){
+					var orig = new Duplicate.Nested();
+					var dup = duplicate( orig, true );
+					dup.childGetterViaVariables().tag = "via-variables";
+					expect( dup.getChild().tag ).toBe( "via-variables" );
+					expect( orig.getChild().tag ).toBe( "child" );
+				});
+				it( title="deep duplicate — array of CFCs is cloned element by element", body=function( currentSpec ){
+					var orig = new Duplicate.Nested();
+					var dup = duplicate( orig, true );
+					expect( arrayLen( dup.getItems() ) ).toBe( 2 );
+					for ( var i=1; i<=2; i++ ) {
+						expect( dup.getItems()[ i ].tag ).toBe( orig.getItems()[ i ].tag );
+						dup.getItems()[ i ].tag = "dup-" & i;
+						expect( orig.getItems()[ i ].tag ).toBe( "item-" & i );
+					}
+				});
+				it( title="deep duplicate — accessor writes on array elements of the copy do not reach the source", body=function( currentSpec ){
+					var orig = new Duplicate.Nested();
+					var dup = duplicate( orig, true );
+					dup.getItems()[ 1 ].setA( "dup-item-1" );
+					dup.getItems()[ 2 ].setA( "dup-item-2" );
+					expect( orig.getItems()[ 1 ].getA() ).toBe( "1" );
+					expect( orig.getItems()[ 2 ].getA() ).toBe( "1" );
+					expect( dup.getItems()[ 1 ].getA() ).toBe( "dup-item-1" );
+					expect( dup.getItems()[ 2 ].getA() ).toBe( "dup-item-2" );
+				});
+				it( title="deep duplicate — the array itself is independent", body=function( currentSpec ){
+					var orig = new Duplicate.Nested();
+					var dup = duplicate( orig, true );
+					arrayAppend( dup.getItems(), new Duplicate.Tagged( "item-3" ) );
+					expect( arrayLen( dup.getItems() ) ).toBe( 3 );
+					expect( arrayLen( orig.getItems() ) ).toBe( 2 );
+				});
+				it( title="deep duplicate — nested struct is independent", body=function( currentSpec ){
+					var orig = new Duplicate.Nested();
+					var dup = duplicate( orig, true );
+					dup.getMeta().nested.n = 2;
+					dup.getMeta().added = true;
+					expect( orig.getMeta().nested.n ).toBe( 1 );
+					expect( structKeyExists( orig.getMeta(), "added" ) ).toBeFalse();
+				});
+				it( title="deep duplicate — getter ref taken from a nested CFC copy reads the copy's value", body=function( currentSpec ){
+					var orig = new Duplicate.Nested();
+					orig.getChild().setA( "orig" );
+					var dup = duplicate( orig, true );
+					dup.getChild().setA( "dup" );
+					var origRef = orig.getChild().getA;
+					var dupRef = dup.getChild().getA;
+					expect( origRef() ).toBe( "orig" );
+					expect( dupRef() ).toBe( "dup" );
+				});
+				it( title="deep duplicate — setter ref taken from a nested CFC copy writes the copy", body=function( currentSpec ){
+					var orig = new Duplicate.Nested();
+					var dup = duplicate( orig, true );
+					var dupSet = dup.getChild().setA;
+					dupSet( "via-ref" );
+					expect( dup.getChild().getA() ).toBe( "via-ref" );
+					expect( orig.getChild().getA() ).toBe( "1" );
+				});
+				it( title="deep duplicate — outer accessor replaced on the copy does not leak to the source", body=function( currentSpec ){
+					var orig = new Duplicate.Nested();
+					var dup = duplicate( orig, true );
+					dup.getChild = function(){ return "overridden"; };
+					expect( dup.getChild() ).toBe( "overridden" );
+					expect( isObject( orig.getChild() ) ).toBeTrue();
+				});
+				it( title="deep duplicate of a deep duplicate — three independent generations", body=function( currentSpec ){
+					var a = new Duplicate.Nested();
+					var b = duplicate( a, true );
+					var c = duplicate( b, true );
+					a.getChild().setA( "a" );
+					b.getChild().setA( "b" );
+					c.getChild().setA( "c" );
+					expect( a.getChild().getA() ).toBe( "a" );
+					expect( b.getChild().getA() ).toBe( "b" );
+					expect( c.getChild().getA() ).toBe( "c" );
+					b.getChild().tag = "b-tag";
+					expect( a.getChild().tag ).toBe( "child" );
+					expect( c.getChild().tag ).toBe( "child" );
+				});
+			});
+
 		});
 	}
 }

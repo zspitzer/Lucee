@@ -90,11 +90,15 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="java,component" {
 	// UDFGSProperty. Both are needed to assert structural invariants that have no CFML surface.
 
 	private any function probeUdf( required any cfc, required string key ) {
+		// the raw member as the component resolves it for a super access read: a per instance entry in _udfs,
+		// else the class level pool flyweight of the declaring class. Never the BoundUDF wrapper a CFML read gets.
 		var clazz = createObject( "java", "java.lang.Class" ).forName( "lucee.runtime.ComponentImpl" );
-		var udfsField = clazz.getDeclaredField( "_udfs" );
-		udfsField.setAccessible( true );
+		var keyClass = createObject( "java", "java.lang.Class" ).forName( "lucee.runtime.type.Collection$Key" );
+		var intType = createObject( "java", "java.lang.Integer" ).TYPE;
+		var boolType = createObject( "java", "java.lang.Boolean" ).TYPE;
+		var getMember = clazz.getMethod( "getMember", [ intType, keyClass, boolType, boolType ] );
 		var keyImpl = createObject( "java", "lucee.runtime.type.KeyImpl" ).init( arguments.key );
-		return udfsField.get( arguments.cfc ).get( keyImpl );
+		return getMember.invoke( arguments.cfc, [ javaCast( "int", 0 ), keyImpl, javaCast( "boolean", true ), javaCast( "boolean", true ) ] );
 	}
 
 	private any function srcOf( required any udf ) {
