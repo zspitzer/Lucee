@@ -58,6 +58,7 @@ import lucee.runtime.type.scope.Local;
 import lucee.runtime.type.scope.LocalImpl;
 import lucee.runtime.type.scope.Undefined;
 import lucee.runtime.type.util.ComponentUtil;
+import lucee.runtime.type.util.KeyConstants;
 import lucee.runtime.type.util.UDFUtil;
 import lucee.runtime.writer.BodyContentUtil;
 
@@ -166,7 +167,17 @@ public class UDFImpl extends MemberSupport implements UDFPlus, Externalizable, C
 
 	private void defineArguments(PageContextImpl pc, FunctionArgument[] funcArgs, Struct values, Argument newArgs) throws PageException {
 		// argumentCollection
-		UDFUtil.argumentCollection(values, funcArgs);
+		Object coll = values.removeEL(KeyConstants._argumentCollection);
+		if (coll != null) {
+			coll = Caster.unwrap(coll, coll);
+			// pure forward f( argumentCollection = arguments ): resolve the scope directly against
+			// the declared arguments, no transport copy through values
+			if (coll instanceof Argument && values.size() == 0) {
+				defineArgumentsZeroCopy(pc, funcArgs, (Argument) coll, newArgs);
+				return;
+			}
+			UDFUtil.argumentCollectionMerge(values, coll, funcArgs);
+		}
 		// print.out(values.size());
 		Object value;
 		Collection.Key name;
@@ -204,6 +215,135 @@ public class UDFImpl extends MemberSupport implements UDFPlus, Externalizable, C
 			e = it.next();
 			newArgs.set(e.getKey(), e.getValue());
 		}
+	}
+
+	/**
+	 * resolves an Argument collection directly against the declared arguments — the pure forward shape
+	 * f( argumentCollection = arguments ) — with two read-only passes over the collection and per-call
+	 * staging arrays, writing only into newArgs. replicates the merge path exactly: iteration order
+	 * decides collisions (a later int key strands under its own key, a later named key is dropped), a
+	 * stranded or plain-numeric key fills its slot positionally only when the name lane misses, and
+	 * leftovers drain in collection order after the declared slots
+	 */
+	private void defineArgumentsZeroCopy(PageContextImpl pc, FunctionArgument[] funcArgs, Argument argColl, Argument newArgs) throws PageException {
+		boolean fns = pc.getFullNullSupport();
+		Object _null = NullSupportHelper.NULL(fns);
+		int len = funcArgs.length;
+
+		// claim pass: name lane (named keys and int keys routed to their own index) plus positional
+		// lane (collision strands and plain keys holding a canonical in-range position)
+		Object[] staged = new Object[len];
+		Key[] claimer = new Key[len];
+		Key[] posKey = null;
+		Object[] posVal = null;
+		Iterator<Key> it = argColl.keyIterator();
+		Key k;
+		int slot;
+		while (it.hasNext()) {
+			k = it.next();
+			slot = slotOf(funcArgs, k);
+			if (slot != -1) {
+				if (claimer[slot] == null) {
+					claimer[slot] = k;
+					staged[slot] = argColl.get(k, Argument.NULL);
+					continue;
+				}
+				// only an int key routed to its own index strands; a named key (or an out-of-range
+				// int key matched by name) that lost its slot is dropped, like the merge's
+				// containsKey skip
+				if (!(k instanceof ArgumentIntKey) || ((ArgumentIntKey) k).getIntKey() - 1 != slot) continue;
+			}
+			else {
+				slot = positionalIndex(k, len);
+				if (slot == -1) continue; // plain leftover, drains in the leftover pass
+			}
+			if (posKey == null) {
+				posKey = new Key[len];
+				posVal = new Object[len];
+			}
+			posKey[slot] = k;
+			posVal[slot] = argColl.get(k, Argument.NULL);
+		}
+
+		// declared-order fill, same branch structure and observable insertion order as the merge path
+		Key name;
+		Object value;
+		for (int i = 0; i < len; i++) {
+			name = funcArgs[i].getName();
+			value = claimer[i] != null ? staged[i] : _null;
+			if (value != _null) {
+				newArgs.set(name, castToAndClone(pc, funcArgs[i], value, i + 1, fns));
+				continue;
+			}
+			if (posKey != null && posKey[i] != null) {
+				value = posVal[i];
+				if (value != _null) {
+					newArgs.set(name, castToAndClone(pc, funcArgs[i], value, i + 1, fns));
+					continue;
+				}
+			}
+
+			// default argument or exception
+			Object defaultValue = getDefaultValue(pc, i, _null);
+			if (defaultValue == _null) {
+				if (funcArgs[i].isRequired()) {
+					throw new ExpressionException("The parameter [" + funcArgs[i].getName() + "] to function [" + getFunctionName() + "] is required but was not passed in.");
+				}
+				if (!fns) newArgs.set(name, Argument.NULL);
+			}
+			else newArgs.set(name, castTo(pc, funcArgs[i], defaultValue, i + 1));
+		}
+
+		// leftover pass: iteration order again — undeclared names, out-of-range int keys, and
+		// positional-lane keys whose slot was filled through the name lane (when the name lane
+		// missed, the fill consumed or discarded the positional key instead)
+		it = argColl.keyIterator();
+		while (it.hasNext()) {
+			k = it.next();
+			slot = slotOf(funcArgs, k);
+			if (slot != -1) {
+				if (k.equals(claimer[slot])) continue;
+				if (!(k instanceof ArgumentIntKey) || ((ArgumentIntKey) k).getIntKey() - 1 != slot) continue;
+			}
+			else {
+				slot = positionalIndex(k, len);
+			}
+			if (slot != -1 && (claimer[slot] == null || staged[slot] == _null)) continue;
+			newArgs.set(k, argColl.get(k, Argument.NULL));
+		}
+	}
+
+	private static int slotOf(FunctionArgument[] funcArgs, Key k) {
+		if (k instanceof ArgumentIntKey) {
+			int i = ((ArgumentIntKey) k).getIntKey() - 1;
+			if (i >= 0 && i < funcArgs.length) return i;
+			// an out-of-range int key can still match a declared argument by name
+		}
+		for (int i = 0; i < funcArgs.length; i++) {
+			if (k.equals(funcArgs[i].getName())) return i;
+		}
+		return -1;
+	}
+
+	/**
+	 * declared slot a plain key fills positionally: the merge path's int-key probe
+	 * (values.remove(ArgumentIntKey.init(i + 1))) matches any key by hash equality, so a plain string
+	 * key holding the canonical decimal of an in-range position — e.g. arguments[ 3 ] = "x" past the
+	 * scope size stores the string key "3" — fills that slot when its name lane misses
+	 */
+	private static int positionalIndex(Key k, int len) {
+		String str = k.getString();
+		int l = str.length();
+		if (l == 0 || l > 9) return -1;
+		char c = str.charAt(0);
+		if (c < '1' || c > '9') return -1;
+		int v = c - '0';
+		for (int i = 1; i < l; i++) {
+			c = str.charAt(i);
+			if (c < '0' || c > '9') return -1;
+			v = v * 10 + (c - '0');
+		}
+		return v <= len ? v - 1 : -1;
 	}
 
 	public static Collection.Key toKey(Object obj) {

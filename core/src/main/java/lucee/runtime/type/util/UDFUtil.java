@@ -173,66 +173,71 @@ public final class UDFUtil {
 		Object value = values.removeEL(KeyConstants._argumentCollection);
 		if (value != null) {
 			value = Caster.unwrap(value, value);
+			argumentCollectionMerge(values, value, funcArgs);
+		}
+	}
 
-			if (value instanceof Argument) {
-				Argument argColl = (Argument) value;
-				Iterator<Key> it = argColl.keyIterator();
-				Key k;
-				int i = -1;
-				while (it.hasNext()) {
-					i++;
-					k = it.next();
-					if (funcArgs.length > i && k instanceof ArgumentIntKey) {
-						if (!values.containsKey(funcArgs[i].getName())) values.setEL(funcArgs[i].getName(), argColl.get(k, Argument.NULL));
-						else values.setEL(k, argColl.get(k, Argument.NULL));
-					}
-					else if (!values.containsKey(k)) {
-						values.setEL(k, argColl.get(k, Argument.NULL));
-					}
+	public static void argumentCollectionMerge(Struct values, Object value, FunctionArgument[] funcArgs) {
+		if (value instanceof Argument) {
+			Argument argColl = (Argument) value;
+			Iterator<Key> it = argColl.keyIterator();
+			Key k;
+			int i;
+			while (it.hasNext()) {
+				k = it.next();
+				// a positional key maps to the declared argument at its own index, not at its
+				// position within the iteration (the collection can hold both kinds of key)
+				i = (k instanceof ArgumentIntKey) ? ((ArgumentIntKey) k).getIntKey() - 1 : -1;
+				if (i >= 0 && i < funcArgs.length) {
+					if (!values.containsKey(funcArgs[i].getName())) values.setEL(funcArgs[i].getName(), argColl.get(k, Argument.NULL));
+					else values.setEL(k, argColl.get(k, Argument.NULL));
+				}
+				else if (!values.containsKey(k)) {
+					values.setEL(k, argColl.get(k, Argument.NULL));
 				}
 			}
-			else if (value instanceof Collection) {
-				Collection argColl = (Collection) value;
-				// Collection.Key[] keys = argColl.keys();
-				Iterator<Key> it = argColl.keyIterator();
-				Key k;
-				while (it.hasNext()) {
-					k = it.next();
-					if (!values.containsKey(k)) {
-						values.setEL(k, argColl.get(k, Argument.NULL));
-					}
+		}
+		else if (value instanceof Collection) {
+			Collection argColl = (Collection) value;
+			// Collection.Key[] keys = argColl.keys();
+			Iterator<Key> it = argColl.keyIterator();
+			Key k;
+			while (it.hasNext()) {
+				k = it.next();
+				if (!values.containsKey(k)) {
+					values.setEL(k, argColl.get(k, Argument.NULL));
 				}
 			}
-			else if (value instanceof Map) {
-				Map map = (Map) value;
-				Iterator it = map.entrySet().iterator();
-				Map.Entry entry;
-				Key key;
-				while (it.hasNext()) {
-					entry = (Entry) it.next();
-					key = Caster.toKey(entry.getKey(), null);
-					if (!values.containsKey(key)) {
-						values.setEL(key, entry.getValue());
-					}
+		}
+		else if (value instanceof Map) {
+			Map map = (Map) value;
+			Iterator it = map.entrySet().iterator();
+			Map.Entry entry;
+			Key key;
+			while (it.hasNext()) {
+				entry = (Entry) it.next();
+				key = Caster.toKey(entry.getKey(), null);
+				if (!values.containsKey(key)) {
+					values.setEL(key, entry.getValue());
 				}
 			}
-			else if (value instanceof java.util.List) {
-				java.util.List list = (java.util.List) value;
-				Iterator it = list.iterator();
-				Object v;
-				int index = 0;
-				Key k;
-				while (it.hasNext()) {
-					v = it.next();
-					k = ArgumentIntKey.init(++index);
-					if (!values.containsKey(k)) {
-						values.setEL(k, v);
-					}
+		}
+		else if (value instanceof java.util.List) {
+			java.util.List list = (java.util.List) value;
+			Iterator it = list.iterator();
+			Object v;
+			int index = 0;
+			Key k;
+			while (it.hasNext()) {
+				v = it.next();
+				k = ArgumentIntKey.init(++index);
+				if (!values.containsKey(k)) {
+					values.setEL(k, v);
 				}
 			}
-			else {
-				values.setEL(KeyConstants._argumentCollection, value);
-			}
+		}
+		else {
+			values.setEL(KeyConstants._argumentCollection, value);
 		}
 	}
 
