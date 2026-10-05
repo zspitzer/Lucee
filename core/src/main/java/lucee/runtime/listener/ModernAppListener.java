@@ -92,6 +92,7 @@ public class ModernAppListener extends AppListenerSupport {
 	private boolean singelton = false;
 
 	private Map<String, Pair<Long, Component>> components = new ConcurrentHashMap<>();
+	private Map<String, ModernApplicationContext> sharedACs = new ConcurrentHashMap<>();
 
 	@Override
 	public void onRequest(PageContext pc, PageSource requestedPage, RequestListener rl) throws PageException {
@@ -516,7 +517,16 @@ public class ModernAppListener extends AppListenerSupport {
 
 		// use existing app context
 		RefBoolean throwsErrorWhileInit = new RefBooleanImpl(false);
-		ModernApplicationContext appContext = new ModernApplicationContext(pc, app, throwsErrorWhileInit);
+		// SPIKE shared AC
+		ModernApplicationContext appContext = sharedACs.get(app.getPageSource().getDisplayPath());
+		if (appContext == null) {
+			appContext = new ModernApplicationContext(pc, app, throwsErrorWhileInit);
+			sharedACs.put(app.getPageSource().getDisplayPath(), appContext);
+		}
+		else {
+			pc.addPageSource(app.getPageSource(), true);
+			appContext.initContext(pc);
+		}
 
 		pc.setApplicationContext(appContext);
 
