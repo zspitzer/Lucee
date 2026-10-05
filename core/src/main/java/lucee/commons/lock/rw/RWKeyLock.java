@@ -21,7 +21,6 @@ package lucee.commons.lock.rw;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -34,42 +33,33 @@ import lucee.runtime.op.Caster;
 
 public final class RWKeyLock<K> {
 
-	private Map<K, RWLock<K>> locks = new ConcurrentHashMap<K, RWLock<K>>();
+	// per-key atomicity comes from compute / computeIfPresent: a name must not be removed between one
+	// thread's lookup and its inc, and different names must not contend
+	private final ConcurrentHashMap<K, RWLock<K>> locks = new ConcurrentHashMap<K, RWLock<K>>();
 
 	public Lock lock(K token, long timeout, boolean readOnly) throws LockException, LockInterruptedException {
 		if (timeout <= 0) throw new LockException("timeout must be a positive number");
 
-		RWWrap<K> wrap;
-		// K token=key;
-		synchronized (locks) {
-			RWLock<K> lock;
-			lock = locks.get(token);
-			if (lock == null) {
-				locks.put(token, lock = new RWLock<K>(token));
-			}
-			lock.inc();
-			wrap = new RWWrap<K>(lock, readOnly);
-		}
+		RWLock<K> lock = locks.compute(token, (k, l) -> {
+			if (l == null) l = new RWLock<K>(k);
+			l.inc();
+			return l;
+		});
+		RWWrap<K> wrap = new RWWrap<K>(lock, readOnly);
 		try {
 			wrap.lock(timeout);
 		}
 		catch (LockException e) {
-			synchronized (locks) {
-				wrap.getLock().dec();
-			}
+			release(lock);
 			throw e;
 		}
 		catch (LockInterruptedException e) {
-			synchronized (locks) {
-				wrap.getLock().dec();
-			}
+			release(lock);
 			throw e;
 		}
 		catch (Throwable t) {
 			ExceptionUtil.rethrowIfNecessary(t);
-			synchronized (locks) {
-				wrap.getLock().dec();
-			}
+			release(lock);
 			throw new PageRuntimeException(Caster.toPageException(t));
 		}
 		return wrap;
@@ -81,13 +71,15 @@ public final class RWKeyLock<K> {
 		}
 
 		lock.unlock();
+		release(((RWWrap<K>) lock).getLock());
+	}
 
-		synchronized (locks) {
-			((RWWrap) lock).getLock().dec();
-			if (lock.getQueueLength() == 0) {
-				locks.remove(((RWWrap) lock).getLabel());
-			}
-		}
+	private void release(RWLock<K> lock) {
+		locks.computeIfPresent(lock.getLabel(), (k, l) -> {
+			if (l != lock) return l;
+			l.dec();
+			return l.getQueueLength() == 0 ? null : l;
+		});
 	}
 
 	public List<K> getOpenLockNames() {
@@ -134,11 +126,7 @@ public final class RWKeyLock<K> {
 		while (it.hasNext()) {
 			entry = it.next();
 			if (entry.getValue().getQueueLength() == 0) {
-				synchronized (locks) {
-					if (entry.getValue().getQueueLength() == 0) {
-						locks.remove(entry.getKey());
-					}
-				}
+				locks.computeIfPresent(entry.getKey(), (k, l) -> l.getQueueLength() == 0 ? null : l);
 			}
 		}
 	}
