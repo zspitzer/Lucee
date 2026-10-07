@@ -619,7 +619,7 @@ public class CFMLEngineFactory extends CFMLEngineFactorySupport {
 				// copy core
 				InputStream is = null;
 				OutputStream os = null;
-				final File rc = new File(getTempDirectory(), "tmp_" + System.currentTimeMillis() + "." + coreExt);
+				final File rc = new File(getDeployStagingDirectory(), "core." + coreExt);
 				try {
 					is = new TP().getClass().getResourceAsStream("/core/core." + coreExt);
 					if (is == null) {
@@ -670,16 +670,8 @@ public class CFMLEngineFactory extends CFMLEngineFactorySupport {
 				}
 				else {
 					lucee = new File(patcheDir, v + "." + coreExt);
-					try {
-						is = new FileInputStream(rc);
-						os = new BufferedOutputStream(new FileOutputStream(lucee));
-						copy(is, os);
-					}
-					finally {
-						closeEL(is);
-						closeEL(os);
-						rc.delete();
-					}
+					// same volume as the staging dir, so this is a rename, not a second copy of the core
+					Util.fileMove(rc, lucee);
 				}
 
 				setEngine(loadAndGetEngine(lucee));
@@ -1138,8 +1130,8 @@ public class CFMLEngineFactory extends CFMLEngineFactorySupport {
 		if (is != null) {
 			File temp = null;
 			try {
-				// copy to temp file
-				temp = File.createTempFile("bundle", ".tmp");
+				// stage next to the bundle directory so the move below is a rename
+				temp = new File(getDeployStagingDirectory(), osgiFileName);
 				log(org.apache.felix.resolver.Logger.LOG_DEBUG, "Copying [lucee.jar!/bundles/" + osgiFileName + "] to [" + temp + "]");
 				Util.copy(new BufferedInputStream(is), new FileOutputStream(temp), true, true);
 
@@ -1178,7 +1170,7 @@ public class CFMLEngineFactory extends CFMLEngineFactorySupport {
 						name = path.substring(index);
 						temp = null;
 						try {
-							temp = File.createTempFile("bundle", ".tmp");
+							temp = new File(getDeployStagingDirectory(), name);
 							Util.copy(zis, new FileOutputStream(temp), false, true);
 
 							bundleInfo = BundleLoader.loadBundleInfo(temp);
@@ -1505,6 +1497,21 @@ public class CFMLEngineFactory extends CFMLEngineFactorySupport {
 		bd = new File(getResourceRoot(), "bundles");
 		if (!bd.exists()) bd.mkdirs();
 		return bd;
+	}
+
+	/**
+	 * staging directory for files extracted from lucee.jar before they are moved into place. Kept inside the
+	 * server directory rather than java.io.tmpdir so the move is a same-volume rename instead of a copy, and
+	 * anything left behind by a hard kill lands in the config's temp directory (context/temp), which the core
+	 * empties on first use.
+	 *
+	 * @return staging directory
+	 * @throws IOException exception thrown
+	 */
+	public File getDeployStagingDirectory() throws IOException {
+		File dir = new File(getResourceRoot(), "context/temp/deploy");
+		if (!dir.exists()) dir.mkdirs();
+		return dir;
 	}
 
 	/**

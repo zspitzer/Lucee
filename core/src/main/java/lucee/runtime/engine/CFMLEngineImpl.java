@@ -785,16 +785,14 @@ public final class CFMLEngineImpl implements CFMLEngine {
 				}
 
 				try {
-					// copy to temp
-					temp = SystemUtil.getTempDirectory().getRealResource(name);
+					// stage in the config temp dir (same volume as the server dir), then rename into place
+					temp = cs.getTempDirectory().getRealResource(name);
 					log.info("extract-extension", "Copy extension [" + name + "] to temp directory [" + temp.getParent() + "]");
 					ResourceUtil.touch(temp);
 					Util.copy(is, temp.getOutputStream(), false, true);
+					temp.moveTo(availableFile);
 					// check by file
-					rhExisting = RHExtension.getInstance(cs, temp, log);
-					if (!rhExisting.installed() && !rhExisting.available(cs)) {
-						rhExisting.makevailable(cs);
-					}
+					rhExisting = RHExtension.getInstance(cs, availableFile, log);
 					// now we check all extension name (for extension no longer delivered by lucee)
 					/*
 					 * it = existing.iterator(); while (it.hasNext()) { exist = it.next(); trgName = exist.getId() + "-"

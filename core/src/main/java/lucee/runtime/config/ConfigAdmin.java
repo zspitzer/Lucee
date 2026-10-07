@@ -1376,7 +1376,7 @@ public final class ConfigAdmin {
 	 */
 	public static Object installBundle(Config config, InputStream is, String name, String extensionVersion, boolean closeStream, boolean convert2bundle)
 			throws IOException, BundleException {
-		Resource tmp = SystemUtil.getTempDirectory().getRealResource(name);
+		Resource tmp = config.getTempDirectory().getRealResource(name);
 		OutputStream os = tmp.getOutputStream();
 		IOUtil.copy(is, os, closeStream, true);
 
@@ -1389,7 +1389,7 @@ public final class ConfigAdmin {
 	}
 
 	static void updateJar(Config config, InputStream is, String name, boolean closeStream) throws IOException, BundleException {
-		Resource tmp = SystemUtil.getTempDirectory().getRealResource(name);
+		Resource tmp = config.getTempDirectory().getRealResource(name);
 		try {
 			IOUtil.copy(is, tmp, closeStream);
 			updateJar(config, tmp, true);
@@ -4988,7 +4988,7 @@ public final class ConfigAdmin {
 	}
 
 	void updateArchive(InputStream is, String name, boolean closeStream) throws IOException, PageException {
-		Resource res = write(SystemUtil.getTempDirectory(), is, name, closeStream, true);
+		Resource res = write(config.getTempDirectory(), is, name, closeStream, true);
 		// Resource res = write(DeployHandler.getDeployDirectory(config),is,name,closeStream);
 		updateArchive(config, res);
 	}
