@@ -10,7 +10,6 @@ import java.util.Map;
 
 import lucee.commons.io.IOUtil;
 import lucee.commons.lang.NumberUtil;
-import lucee.loader.engine.CFMLEngineFactory;
 import lucee.runtime.converter.JavaConverter;
 import lucee.runtime.exp.PageException;
 import lucee.runtime.op.Caster;
@@ -71,7 +70,7 @@ public final class IKStorageValue implements Serializable {
 		ObjectInputStream ois = null;
 		Map<Collection.Key, IKStorageScopeItem> data = null;
 		try {
-			ois = new JavaConverter.ObjectInputStreamImpl(CFMLEngineFactory.getInstance().getClass().getClassLoader(), new ByteArrayInputStream(barr));
+			ois = new JavaConverter.ObjectInputStreamImpl(new ByteArrayInputStream(barr));
 			data = (Map<Collection.Key, IKStorageScopeItem>) ois.readObject();
 		}
 		catch (Exception e) {

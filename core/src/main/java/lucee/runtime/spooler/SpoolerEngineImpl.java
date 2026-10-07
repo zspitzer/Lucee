@@ -40,7 +40,6 @@ import lucee.commons.io.res.util.ResourceUtil;
 import lucee.commons.lang.ExceptionUtil;
 import lucee.commons.lang.SerializableObject;
 import lucee.commons.lang.StringUtil;
-import lucee.loader.engine.CFMLEngineFactory;
 import lucee.runtime.config.Config;
 import lucee.runtime.config.ConfigUtil;
 import lucee.runtime.config.ConfigWeb;
@@ -216,7 +215,7 @@ public final class SpoolerEngineImpl implements SpoolerEngine {
 		try {
 			if (!res.isFile()) return defaultValue;
 			is = res.getInputStream();
-			ois = new TaskInputStream(CFMLEngineFactory.getInstance().getClass().getClassLoader(), is);
+			ois = new TaskInputStream(is);
 
 			return (SpoolerTask) ois.readObject();
 		}
@@ -743,6 +742,10 @@ public final class SpoolerEngineImpl implements SpoolerEngine {
  * fails as before).
  */
 final class TaskInputStream extends JavaConverter.ObjectInputStreamImpl {
+
+	public TaskInputStream(InputStream in) throws IOException {
+		super(JavaConverter.coreClassLoader(), in);
+	}
 
 	public TaskInputStream(ClassLoader cl, InputStream in) throws IOException {
 		super(cl, in);

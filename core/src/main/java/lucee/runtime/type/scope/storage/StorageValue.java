@@ -8,7 +8,6 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 import lucee.commons.io.IOUtil;
-import lucee.loader.engine.CFMLEngineFactory;
 import lucee.runtime.converter.JavaConverter;
 import lucee.runtime.exp.PageException;
 import lucee.runtime.op.Caster;
@@ -47,7 +46,7 @@ public final class StorageValue implements Serializable {
 		ObjectInputStream ois = null;
 		Struct sct = null;
 		try {
-			ois = new JavaConverter.ObjectInputStreamImpl(CFMLEngineFactory.getInstance().getClass().getClassLoader(), new ByteArrayInputStream(barr));
+			ois = new JavaConverter.ObjectInputStreamImpl(new ByteArrayInputStream(barr));
 			sct = (Struct) ois.readObject();
 		}
 		catch (Exception e) {

@@ -37,7 +37,6 @@ import java.util.concurrent.TimeUnit;
 import lucee.commons.io.IOUtil;
 import lucee.commons.io.res.Resource;
 import lucee.commons.lang.ExceptionUtil;
-import lucee.loader.engine.CFMLEngineFactory;
 import lucee.runtime.PageContext;
 import lucee.runtime.coder.Base64Coder;
 import lucee.runtime.coder.CoderException;
@@ -118,7 +117,7 @@ public final class JavaConverter extends ConverterSupport implements BinaryConve
 		ObjectInputStream ois = null;
 		Object o = null;
 		try {
-			ois = new ObjectInputStreamImpl(CFMLEngineFactory.getInstance().getClass().getClassLoader(), is);
+			ois = new ObjectInputStreamImpl(is);
 			o = ois.readObject();
 		}
 		finally {
@@ -131,10 +130,23 @@ public final class JavaConverter extends ConverterSupport implements BinaryConve
 		return deserialize(res.getInputStream());
 	}
 
+	/**
+	 * the core classloader: sees core, the loader jar (via boot delegation) and the JDK, so every class a
+	 * Lucee-produced stream can name resolves on the first try. The loader jar's own classloader cannot
+	 * see core and would throw a ClassNotFoundException for every core class before the fallback found it.
+	 */
+	public static ClassLoader coreClassLoader() {
+		return JavaConverter.class.getClassLoader();
+	}
+
 	public static class ObjectInputStreamImpl extends ObjectInputStream {
 
 		private ClassLoader cl;
 		private ClassLoader extensionLoader;
+
+		public ObjectInputStreamImpl(InputStream in) throws IOException {
+			this(coreClassLoader(), in);
+		}
 
 		public ObjectInputStreamImpl(ClassLoader cl, InputStream in) throws IOException {
 			super(in);
