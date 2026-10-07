@@ -79,17 +79,17 @@ public final class PageSourceImpl implements PageSource {
 	private String relPath;
 	private String packageName;
 	private String javaName;
-	private String className;
+	private volatile String className;
 	private String fileName;
 
-	private Resource physcalSource;
-	private Resource archiveSource;
-	private Resource archiveClass;
+	private volatile Resource physcalSource;
+	private volatile Resource archiveSource;
+	private volatile Resource archiveClass;
 	private String compName;
 	private PageAndClassName pcn = new PageAndClassName();
 	private long lastAccess;
 	private RefIntegerSync accessCount = new RefIntegerSync();
-	private boolean flush = false;
+	private volatile boolean flush = false;
 	// Negative-lookup cache for NEVER mappings. When loadPhysical confirms the underlying file is
 	// missing (srcLastModified == 0), this flag short-circuits future calls so repeated lookups of
 	// the same non-existent path skip the lastModified() syscall. Cleared by resetLoaded() and
