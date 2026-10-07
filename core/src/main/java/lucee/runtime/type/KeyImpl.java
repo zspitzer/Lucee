@@ -51,10 +51,10 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 	// Reference fields (8 bytes each) - group together to minimize padding
 	private String key;
 	private transient String lcKey;
-	private transient String ucKey;
+	private final transient String ucKey;
 
 	// long field (8 bytes)
-	private transient long h64;
+	private final transient long h64;
 
 	// int field (4 bytes)
 	private transient int wjh;
@@ -64,7 +64,9 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 
 	public KeyImpl() {
 		// DO NOT USE, JUST FOR UNSERIALIZE
-
+		// the deserialized shell is replaced by readResolve, so these are never observed
+		this.ucKey = null;
+		this.h64 = 0;
 	}
 
 	public KeyImpl(String key) {
@@ -127,8 +129,14 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 	@Override
 	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
 		key = (String) in.readObject();
-		ucKey = key.toUpperCase();
-		h64 = createHash64(ucKey);
+	}
+
+	/**
+	 * replaces the deserialized shell with the cached instance for this key, so deserialized keys share
+	 * the same instance as the compiled code that looks them up; subclasses must override
+	 */
+	protected Object readResolve() {
+		return init(key);
 	}
 
 	/**

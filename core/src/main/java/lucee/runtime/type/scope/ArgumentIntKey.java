@@ -66,4 +66,9 @@ public final class ArgumentIntKey extends KeyImpl {
 		intKey = in.readInt();
 		super.readExternal(in);
 	}
+
+	@Override
+	protected Object readResolve() {
+		return init(intKey);
+	}
 }
