@@ -1,0 +1,1 @@
+<cfoutput>#attributes.greeting# #attributes.who#</cfoutput>

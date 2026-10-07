@@ -1,0 +1,1 @@
+<cfoutput>#thisTag.executionMode#:#thisTag.hasEndTag#;</cfoutput>
