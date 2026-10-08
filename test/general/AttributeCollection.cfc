@@ -95,6 +95,24 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				}
 			});
 
+			it( "lock timeout: Double then TimeSpan, the effective timeout (twice)", function() {
+				// must be the first lock attributeCollection call in the JVM: a Double resolves to
+				// setTimeout( double ) (a literal number is a Long, which resolves to setTimeout( Object )).
+				// Pinned to double, a TimeSpan converts to days, truncates to 0ms and Lock falls back to
+				// the request's remaining time.
+				// Reads the effective timeout from the page context's ActiveLock (Java internals) rather
+				// than timing a contended lock: no threads or sleeps, and exact instead of a time window
+				var seq = [ javacast( "double", 2 ), createTimeSpan( 0, 0, 0, 2 ), javacast( "double", 2 ), createTimeSpan( 0, 0, 0, 2 ) ];
+				for ( var v in seq ) {
+					var timeoutInMillis = 0;
+					lock attributeCollection={ name: "attrcoll-timeout", timeout: v, type: "exclusive" } {
+						var activeLocks = getPageContext().getActiveLocks();
+						timeoutInMillis = activeLocks[ arrayLen( activeLocks ) ].timeoutInMillis;
+					}
+					expect( timeoutInMillis ).toBe( 2000 );
+				}
+			});
+
 			it( "lock timeout: number, numeric string, decimal, timespan (twice)", function() {
 				var seq = [ 5, "5", 1.5, createTimeSpan( 0, 0, 0, 2 ), 5, "5", 1.5, createTimeSpan( 0, 0, 0, 2 ) ];
 				for ( var v in seq ) {
