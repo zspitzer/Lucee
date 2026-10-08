@@ -1,0 +1,1 @@
+<cfsetting attributeCollection="#request.attrcollSetting#">A<cfoutput>B</cfoutput><cfsetting enablecfoutputonly="reset">
