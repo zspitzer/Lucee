@@ -18,6 +18,7 @@
  */
 package lucee.runtime.tag;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -64,6 +65,7 @@ import lucee.runtime.type.StructImpl;
 import lucee.runtime.type.UDF;
 import lucee.runtime.type.util.ArrayUtil;
 import lucee.runtime.type.util.KeyConstants;
+import lucee.transformer.dynamic.DynamicInvoker;
 import lucee.transformer.library.tag.TagLib;
 import lucee.transformer.library.tag.TagLibTag;
 import lucee.transformer.library.tag.TagLibTagAttr;
@@ -73,6 +75,8 @@ public final class TagUtil {
 	public static final short ORIGINAL_CASE = 0;
 	public static final short UPPER_CASE = 1;
 	public static final short LOWER_CASE = 2;
+
+	private static final Object NO_CONVERSION = new Object();
 
 	// used by compiled cfml code
 	public static void setAttributeCollection(PageContext pc, Object tag, MissingAttribute[] missingAttrs, Struct _attrs, int attrType) throws PageException {
@@ -139,13 +143,16 @@ public final class TagUtil {
 			}
 		}
 
-		setAttributes(pc, tag, att, attrType);
+		setAttributes(pc, tag, att, attrType, tlt);
 	}
 
 	public static void setAttributes(PageContext pc, Tag tag, Map<Key, Object> att, int attrType) throws PageException {
+		setAttributes(pc, tag, att, attrType, null);
+	}
+
+	public static void setAttributes(PageContext pc, Tag tag, Map<Key, Object> att, int attrType, TagLibTag tlt) throws PageException {
 		Iterator<Entry<Key, Object>> it;
 		Entry<Key, Object> e;
-		// TagLibTag tlt=null;
 		if (TagLibTag.ATTRIBUTE_TYPE_DYNAMIC == attrType) {
 			DynamicAttributes da = (DynamicAttributes) tag;
 			it = att.entrySet().iterator();
@@ -158,6 +165,7 @@ public final class TagUtil {
 			it = att.entrySet().iterator();
 			while (it.hasNext()) {
 				e = it.next();
+				if (tlt != null && fastSetAttribute(pc, tag, tlt, e.getKey(), e.getValue())) continue;
 				setAttribute(pc, false, true, tag, e.getKey().getLowerString(), e.getValue());
 			}
 		}
@@ -165,9 +173,68 @@ public final class TagUtil {
 			it = att.entrySet().iterator();
 			while (it.hasNext()) {
 				e = it.next();
+				if (tlt != null && fastSetAttribute(pc, tag, tlt, e.getKey(), e.getValue())) continue;
 				setAttribute(pc, true, true, tag, e.getKey().getLowerString(), e.getValue());
 			}
 		}
+	}
+
+	/**
+	 * Fast-path setter dispatch for a declared TLD attribute. The setter is resolved once by
+	 * {@link #resolveSetter} and cached on the {@link TagLibTagAttr}; subsequent calls coerce the
+	 * value and invoke directly, skipping the per-call linear method scan. Returns false when the
+	 * attribute is not declared on the tag (a dynamic attr), no cacheable setter resolves, or the
+	 * value doesn't convert to the cached setter's type — the caller then falls back to the standard
+	 * {@link #setAttribute} path, which preserves the dynamic-attribute and error handling unchanged.
+	 */
+	private static boolean fastSetAttribute(PageContext pc, Tag tag, TagLibTag tlt, Key name, Object value) throws PageException {
+		if (tag instanceof Proxy) return false; // proxies dispatch dynamically
+		TagLibTagAttr attr = tlt.getAttribute(name.getLowerString());
+		if (attr == null) return false; // undeclared attribute, let the caller handle it
+
+		if (!attr.isSetterResolved()) attr.setResolvedSetter(resolveSetter(tag, name));
+		lucee.transformer.dynamic.meta.Method setter = attr.getResolvedSetter();
+		if (setter == null) return false; // no cacheable setter, use standard path
+
+		Class<?> pt = setter.getArgumentClasses()[0];
+		if (value == null && pt.isPrimitive()) return true; // matches setAttribute null+primitive suppression
+		Object arg = Reflector.convert(value, Reflector.toReferenceClass(pt), null, NO_CONVERSION);
+		if (arg == NO_CONVERSION) return false; // standard path drops it (silently) or throws, as before
+		try {
+			setter.invoke(tag, arg);
+		}
+		catch (Exception ex) {
+			throw Caster.toPageException(ex);
+		}
+		return true;
+	}
+
+	/**
+	 * Resolves the setter to cache by name and arity, independent of any value: the one public void
+	 * {@code set<name>(x)}, or for an overloaded setter its {@code Object} overload, which is the
+	 * canonical one that handles every type itself (e.g. {@code cfsetting enablecfoutputonly="reset"},
+	 * {@code cflock timeout=TimeSpan}). Pinning whichever overload the first value picked sent later
+	 * values of other types through the wrong conversion. Null when there is no setter, or it's
+	 * overloaded without an {@code Object} overload; those stay on {@link #setAttribute}.
+	 */
+	private static lucee.transformer.dynamic.meta.Method resolveSetter(Tag tag, Key name) throws PageException {
+		List<lucee.transformer.dynamic.meta.Method> candidates;
+		try {
+			candidates = DynamicInvoker.getExistingInstance().toClazz(tag.getClass()).getMethods("set" + name.getLowerString(), false, 1);
+		}
+		catch (IOException e) {
+			throw Caster.toPageException(e);
+		}
+		lucee.transformer.dynamic.meta.Method first = null, objectOverload = null;
+		boolean overloaded = false;
+		for (lucee.transformer.dynamic.meta.Method m: candidates) {
+			if (!m.isPublic() || m.getReturnClass() != void.class) continue;
+			Class<?> pt = m.getArgumentClasses()[0];
+			if (pt == Object.class) objectOverload = m;
+			if (first == null) first = m;
+			else if (pt != first.getArgumentClasses()[0]) overloaded = true;
+		}
+		return overloaded ? objectOverload : first;
 	}
 
 	public static void setAttribute(PageContext pc, Tag tag, String name, Object value) throws PageException {
