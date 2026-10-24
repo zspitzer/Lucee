@@ -69,8 +69,7 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 
 	public KeyImpl(String key) {
 		this.key = key;
-		this.ucKey = key.toUpperCase();
-		h64 = createHash64(ucKey);
+		h64 = createHash64UC(key);
 		// print.e(key + ":" + (++count) + ":" + keys.size());
 	}
 
@@ -105,6 +104,26 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 		return h;
 	}
 
+	/**
+	 * same value as createHash64(key.toUpperCase()), without the upper case copy for ASCII keys;
+	 * anything non-ASCII takes the old path, as toUpperCase can change its length (ß to SS)
+	 */
+	public static final long createHash64UC(String key) {
+		long h = HSTART;
+		final long hmult = HMULT;
+		final long[] ht = byteTable;
+		final long ht0 = ht[0];
+		final int len = key.length();
+		for (int i = 0; i < len; i++) {
+			char ch = key.charAt(i);
+			if (ch >= 0x80) return createHash64(key.toUpperCase());
+			if (ch >= 'a' && ch <= 'z') ch -= 32;
+			h = (h * hmult) ^ ht[ch];
+			h = (h * hmult) ^ ht0;
+		}
+		return h;
+	}
+
 	@Override
 	public int wangJenkinsHash() {
 		if (wjh == 0) {
@@ -127,8 +146,7 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 	@Override
 	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
 		key = (String) in.readObject();
-		ucKey = key.toUpperCase();
-		h64 = createHash64(ucKey);
+		h64 = createHash64UC(key);
 	}
 
 	/**
@@ -207,7 +225,7 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 
 	@Override
 	public char upperCharAt(int index) {
-		return ucKey.charAt(index);
+		return getUpperString().charAt(index);
 	}
 
 	@Override
@@ -218,6 +236,7 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 
 	@Override
 	public String getUpperString() {
+		if (ucKey == null) ucKey = key.toUpperCase();
 		return ucKey;
 	}
 
@@ -231,34 +250,41 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 		return key;
 	}
 
+	// kept under MaxInlineSize (35 bytes): the JDK maps call equals behind their == check, a cold site
 	@Override
 	public boolean equals(Object other) {
-		if (this == other) return true;
 		if (other instanceof KeyImpl) {
 			return h64 == ((KeyImpl) other).h64;
 		}
+		return equalsNonKeyImpl(other);
+	}
+
+	private boolean equalsNonKeyImpl(Object other) {
 		if (other instanceof String) {
 			return key.equalsIgnoreCase((String) other);
 		}
 		if (other instanceof Key) {
 			// Both strings are guaranteed to be upper case
-			return ucKey.equals(((Key) other).getUpperString());
+			return getUpperString().equals(((Key) other).getUpperString());
 		}
 		return false;
 	}
 
 	@Override
 	public boolean equalsIgnoreCase(Key other) {
-		if (this == other) return true;
 		if (other instanceof KeyImpl) {
 			return h64 == ((KeyImpl) other).h64;// return lcKey.equals((((KeyImpl)other).lcKey));
 		}
-		return ucKey.equalsIgnoreCase(other.getLowerString());
+		return equalsIgnoreCaseNonKeyImpl(other);
+	}
+
+	private boolean equalsIgnoreCaseNonKeyImpl(Key other) {
+		return getUpperString().equalsIgnoreCase(other.getLowerString());
 	}
 
 	@Override
 	public int hashCode() {
-		return ucKey.hashCode();
+		return (int) (h64 ^ (h64 >>> 32));
 	}
 
 	@Override
