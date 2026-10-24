@@ -131,6 +131,7 @@ public final class PageImpl extends BodyBase implements Page {
 	public static final Method KEY_INIT = new Method("init", Types.COLLECTION_KEY, new Type[] { Types.STRING });
 
 	public static final Method KEY_INIT_KEYS = new Method("initKeys", Types.COLLECTION_KEY, new Type[] { Types.STRING });
+	public static final Method KEY_INIT_KEYS_H64 = new Method("initKeys", Types.COLLECTION_KEY, new Type[] { Types.STRING, Type.LONG_TYPE, Type.LONG_TYPE, Type.INT_TYPE });
 	public static final Method KEY_SOURCE = new Method("source", Types.COLLECTION_KEY, new Type[] { Types.STRING });
 
 	// public static ImportDefintion getInstance(String fullname,ImportDefintion defaultValue)
@@ -1056,7 +1057,8 @@ public final class PageImpl extends BodyBase implements Page {
 			ga.push(index++);
 			// value.setExternalize(false);
 			ExpressionUtil.writeOutSilent(value, bc, Expression.MODE_REF);
-			ga.invokeStatic(KEY_IMPL, KEY_INIT_KEYS);
+			pushKeyHashes(ga, value.getString());
+			ga.invokeStatic(KEY_IMPL, KEY_INIT_KEYS_H64);
 			ga.visitInsn(Opcodes.AASTORE);
 		}
 		ga.visitFieldInsn(Opcodes.PUTFIELD, bc.getClassName(), "keys", Types.COLLECTION_KEY_ARRAY.toString());
@@ -1472,9 +1474,10 @@ public final class PageImpl extends BodyBase implements Page {
 					ga.dup();
 					ga.push(index++);
 					ga.push(ls.getString());
+					pushKeyHashes(ga, ls.getString());
 
 					// ExpressionUtil.writeOutSilent(ls, bc, Expression.MODE_REF);
-					ga.invokeStatic(KEY_IMPL, KEY_INIT_KEYS);
+					ga.invokeStatic(KEY_IMPL, KEY_INIT_KEYS_H64);
 					ga.arrayStore(Types.COLLECTION_KEY);
 				}
 			}
@@ -1626,14 +1629,22 @@ public final class PageImpl extends BodyBase implements Page {
 		return null;
 	}
 
+	/** both key hashes and the hash version they were made with, for KeyImpl.initKeys(String, long, long, int) */
+	private static void pushKeyHashes(GeneratorAdapter ga, String key) {
+		ga.push(KeyImpl.createHash64UC(key));
+		ga.push(KeyImpl.createHash64CS(key));
+		ga.push(KeyImpl.HASH_VERSION);
+	}
+
 	private static void writeKeysBatch(GeneratorAdapter ga, List<LitString> keyList, int from, int to) {
 		for (int i = from; i < to; i++) {
 			ga.loadArg(0); // CollectionKey[] array
 			ga.push(i);
 			ga.push(keyList.get(i).getString());
+			pushKeyHashes(ga, keyList.get(i).getString());
 
 			// ExpressionUtil.writeOutSilent(ls, bc, Expression.MODE_REF);
-			ga.invokeStatic(KEY_IMPL, KEY_INIT_KEYS);
+			ga.invokeStatic(KEY_IMPL, KEY_INIT_KEYS_H64);
 			ga.arrayStore(Types.COLLECTION_KEY);
 		}
 	}

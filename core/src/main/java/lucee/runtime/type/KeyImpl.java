@@ -24,6 +24,7 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import lucee.commons.digest.WangJenkins;
@@ -42,9 +43,18 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 
 	private static final long serialVersionUID = -8864844181140115609L; // do not change
 
-	private static final long[] byteTable = createLookupTable();
+	/**
+	 * bump whenever createHash64UC or createHash64CS change: compiled classes bake both hashes with
+	 * this version, and initKeys recomputes them for a class from another version
+	 */
+	public static final int HASH_VERSION = 2;
+
 	private static final long HSTART = 0xBB40E64DA205B064L;
+	// exact-spelling hash starts elsewhere, so it never lines up with the case-folded one
+	private static final long CSTART = HSTART ^ 0x9E3779B97F4A7C15L;
 	private static final long HMULT = 7664345821815920749L;
+	private static final long[] HASH_TABLE = createHashTable();
+	private static final long[] FOLD_TABLE = createFoldTable();
 
 	private static final int MAX = Caster.toInteger(SystemUtil.getSystemPropOrEnvVar("lucee.cache.variableKeys", null), 50000);
 
@@ -61,6 +71,7 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 
 	// static field
 	private static Map<String, Key> keys = new HashMap<String, Key>();
+	private static final KeyTable literals = new KeyTable();
 
 	public KeyImpl() {
 		// DO NOT USE, JUST FOR UNSERIALIZE
@@ -73,53 +84,93 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 		// print.e(key + ":" + (++count) + ":" + keys.size());
 	}
 
+	private KeyImpl(String key, long h64) {
+		this.key = key;
+		this.h64 = h64;
+	}
+
 	public static Map<String, Key> getKeys() {
 		return keys;
 	}
 
-	private static final long[] createLookupTable() {
-		long[] _byteTable = new long[256];
-		long h = 0x544B2FBACAAF1684L;
-		for (int i = 0; i < 256; i++) {
-			for (int j = 0; j < 31; j++) {
-				h = (h >>> 7) ^ h;
-				h = (h << 11) ^ h;
-				h = (h >>> 10) ^ h;
-			}
-			_byteTable[i] = h;
+	/**
+	 * splitmix64 stream, low byte table in [0,256), high byte table in [256,512). One continuous
+	 * stream: seeding a stream per table makes the high table the low one shifted by one index
+	 */
+	private static final long[] createHashTable() {
+		long[] t = new long[512];
+		long x = 0x2545F4914F6CDD1DL;
+		for (int i = 0; i < t.length; i++) {
+			x += 0x9E3779B97F4A7C15L;
+			long z = x;
+			z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
+			z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
+			t[i] = z ^ (z >>> 31);
 		}
-		return _byteTable;
+		return t;
 	}
 
-	public static final long createHash64(CharSequence cs) {
-		long h = HSTART;
-		final long hmult = HMULT;
-		final long[] ht = byteTable;
-		final int len = cs.length();
-		for (int i = 0; i < len; i++) {
-			char ch = cs.charAt(i);
-			h = (h * hmult) ^ ht[ch & 0xff];
-			h = (h * hmult) ^ ht[(ch >>> 8) & 0xff];
+	/** ASCII view of the low byte table with a-z folded onto A-Z */
+	private static final long[] createFoldTable() {
+		long[] t = new long[128];
+		for (int c = 0; c < 128; c++) {
+			t[c] = HASH_TABLE[(c >= 'a' && c <= 'z') ? c - 32 : c];
 		}
-		return h;
+		return t;
 	}
 
 	/**
-	 * same value as createHash64(key.toUpperCase()), without the upper case copy for ASCII keys;
-	 * anything non-ASCII takes the old path, as toUpperCase can change its length (ß to SS)
+	 * case insensitive, same value as createHash64UC
+	 */
+	public static final long createHash64(CharSequence cs) {
+		return createHash64UC(cs.toString());
+	}
+
+	/**
+	 * one multiply per char over the original-case key, ASCII case folded by the table, so no
+	 * toUpperCase. Any char of 0x80 or above upper-cases (ROOT), and if that lands in ASCII (dotless
+	 * i, long s, sharp s) it goes back through the fast loop, so equality still follows toUpperCase
 	 */
 	public static final long createHash64UC(String key) {
+		long h = foldLoop(key);
+		if (h != 0) return h;
+		String uc = key.toUpperCase(Locale.ROOT);
+		h = foldLoop(uc);
+		return h != 0 ? h : hashChars(uc, HSTART);
+	}
+
+	/**
+	 * case sensitive, the exact spelling: zac and ZAC differ. Used to intern literal keys without
+	 * String.hashCode or equals
+	 */
+	public static final long createHash64CS(String key) {
+		return hashChars(key, CSTART);
+	}
+
+	/** 0 means not pure ASCII; a real result of 0 is remapped to 1 */
+	private static long foldLoop(String s) {
 		long h = HSTART;
-		final long hmult = HMULT;
-		final long[] ht = byteTable;
-		final long ht0 = ht[0];
-		final int len = key.length();
+		final long m = HMULT;
+		final long[] t = FOLD_TABLE;
+		final int len = s.length();
+		int or = 0;
 		for (int i = 0; i < len; i++) {
-			char ch = key.charAt(i);
-			if (ch >= 0x80) return createHash64(key.toUpperCase());
-			if (ch >= 'a' && ch <= 'z') ch -= 32;
-			h = (h * hmult) ^ ht[ch];
-			h = (h * hmult) ^ ht0;
+			int c = s.charAt(i);
+			or |= c;
+			h = (h * m) ^ t[c & 0x7F];
+		}
+		if (or >= 0x80) return 0;
+		return h == 0 ? 1 : h;
+	}
+
+	private static long hashChars(String s, long start) {
+		long h = start;
+		final long m = HMULT;
+		final long[] t = HASH_TABLE;
+		final int len = s.length();
+		for (int i = 0; i < len; i++) {
+			char c = s.charAt(i);
+			h = (h * m) ^ (t[c & 0xff] ^ t[256 + (c >>> 8)]);
 		}
 		return h;
 	}
@@ -182,11 +233,22 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 	 * used to create the keys for the method initKeys()
 	 */
 	public static Collection.Key initKeys(String key) {
-		Key k = keys.get(key);
-		if (k == null) {
-			keys.put(key, k = new KeyImpl(key));
-		}
-		return k;
+		return intern(key, createHash64UC(key), createHash64CS(key));
+	}
+
+	/**
+	 * literal keys with both hashes baked in by the compiler, interned on the exact spelling. A class
+	 * compiled under another HASH_VERSION has hashes from another function, so they get recomputed
+	 */
+	public static Collection.Key initKeys(String key, long h64, long cs64, int version) {
+		if (version != HASH_VERSION) return initKeys(key);
+		return intern(key, h64, cs64);
+	}
+
+	private static Collection.Key intern(String key, long h64, long cs64) {
+		KeyImpl k = literals.get(cs64);
+		if (k != null) return k;
+		return literals.put(cs64, new KeyImpl(key, h64));
 	}
 
 	/**

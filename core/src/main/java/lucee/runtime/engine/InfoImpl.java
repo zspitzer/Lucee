@@ -36,6 +36,7 @@ import org.osgi.framework.Bundle;
 import org.osgi.framework.Version;
 
 import lucee.Info;
+import lucee.commons.digest.HashUtil;
 import lucee.commons.io.IOUtil;
 import lucee.commons.lang.ExceptionUtil;
 import lucee.commons.lang.StringUtil;
@@ -44,7 +45,6 @@ import lucee.runtime.config.Constants;
 import lucee.runtime.extension.ExtensionDefintion;
 import lucee.runtime.extension.RHExtension;
 import lucee.runtime.op.Caster;
-import lucee.runtime.type.KeyImpl;
 import lucee.runtime.type.dt.DateTime;
 import lucee.runtime.type.util.ListUtil;
 
@@ -77,7 +77,7 @@ public final class InfoImpl implements Info {
 
 		// version
 		this.version = bundle.getVersion();
-		this.fullVersionInfo = KeyImpl.createHash64(this.version.toString());
+		this.fullVersionInfo = HashUtil.create64BitHash(this.version.toString());
 		this.versionName = headers.get("Minor-Name");
 		if (this.versionName == null) throw new RuntimeException("missing Minor-Name");
 		this.versionNameExplanation = headers.get("Minor-Name-Explanation");

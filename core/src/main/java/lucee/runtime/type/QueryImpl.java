@@ -159,8 +159,9 @@ public final class QueryImpl implements Query, Objects, QueryResult {
 	// open-addressed h64 → column index map for O(1) column lookup
 	// colMapHashes and colMapIndices are always the same length (power of 2)
 	// mask is derived from hashes.length - 1, no separate field needed
-	private long[] colMapHashes;
-	private int[] colMapIndices;
+	// transient: h64 is not stable across versions, rebuilt lazily after deserialization
+	private transient long[] colMapHashes;
+	private transient int[] colMapIndices;
 
 	static {
 		useMSSQLModern = Caster.toBooleanValue(SystemUtil.getSystemPropOrEnvVar("lucee.datasource.mssql.modern", null), false);

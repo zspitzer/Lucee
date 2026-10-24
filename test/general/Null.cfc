@@ -60,6 +60,8 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 			assertTrue(isDefined("null.x"));
 		}
 		finally {
+			// null.x lands in variables, it would resolve a bare null in later tests
+			structDelete(variables, "null");
 			application action="update" NULLSupport=ns;
 		}
 	}
