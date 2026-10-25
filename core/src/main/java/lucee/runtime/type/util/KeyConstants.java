@@ -31,7 +31,8 @@ public final class KeyConstants {
 	private static Map<String, Key> keys = new HashMap<>();
 
 	private static Collection.Key init(String key) {
-		Key k = new KeyImpl(key);
+		// interned with the compiled literals, so source() and page literals share the instance
+		Key k = KeyImpl.initKeys(key);
 		keys.put(key, k);
 		return k;
 	}

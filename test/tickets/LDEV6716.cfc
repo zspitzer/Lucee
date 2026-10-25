@@ -1,5 +1,6 @@
 component extends="org.lucee.cfml.test.LuceeTestCase" labels="java" {
 	import lucee.runtime.type.KeyImpl;
+	import lucee.runtime.type.util.KeyConstants;
 
 	function run( testResults, testBox ) {
 		describe( title = "LDEV-6716 KeyImpl h64 across serialization", body = function() {
@@ -69,6 +70,21 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="java" {
 				expect( k.equals( KeyImpl::init( uCase( name ) ) ) ).toBeTrue();
 			} );
 
+			it( title = "source() returns the compiled instance for compiled names", body = function() {
+				// a literal
+				var name = "ldev6716_" & replace( createUUID(), "-", "", "all" );
+				var lit = KeyImpl::initKeys( name );
+				expect( KeyImpl::source( name ) === lit ).toBeTrue( "literal" );
+				// a KeyConstants name; getKeys() holds what _controller was assigned, read through a method so it stays a Key
+				var constant = KeyConstants::getKeys().get( "controller" );
+				expect( KeyImpl::source( "controller" ) === constant ).toBeTrue( "KeyConstants" );
+				// a declared function name
+				expect( KeyImpl::source( "ldev6716DeclaredFunction" ) === KeyImpl::initKeys( "ldev6716DeclaredFunction" ) ).toBeTrue( "function name" );
+				// another spelling isn't the compiled instance, but still equal
+				expect( KeyImpl::source( "CONTROLLER" ) === constant ).toBeFalse( "case variant" );
+				expect( KeyImpl::source( "CONTROLLER" ).equals( constant ) ).toBeTrue( "case variant equal" );
+			} );
+
 			it( title = "compiled literal keys resolve", body = function() {
 				var sct = { ldev6716LiteralKey: 1, "Mixed_Case": 2 };
 				expect( sct.LDEV6716LITERALKEY ).toBe( 1 );
@@ -76,6 +92,10 @@ component extends="org.lucee.cfml.test.LuceeTestCase" labels="java" {
 			} );
 
 		} );
+	}
+
+	// only declared: its name is registered as a compiled name when the class loads
+	private void function ldev6716DeclaredFunction() {
 	}
 
 	// any, not numeric: h64 must stay a java.lang.Long, a double drops the low bits

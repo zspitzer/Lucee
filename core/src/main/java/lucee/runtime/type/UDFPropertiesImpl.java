@@ -122,6 +122,8 @@ public final class UDFPropertiesImpl extends UDFPropertiesBase {
 		this.description = description;
 		this.displayName = displayName;
 		this.functionName = functionName;
+		// a declared function name is a compiled name: frameworks look it up by string at runtime
+		KeyImpl.initKeys(functionName);
 		this.hint = hint;
 		this.index = index;
 		this.meta = meta;

@@ -266,6 +266,14 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 	 * used to inside the rest of the source created, can be dynamic values, so a lot
 	 */
 	public static Collection.Key source(String key) {
+		// a compiled name (literal, KeyConstants, declared function) gets the compiled instance; the table
+		// never admits a runtime name, so it can't fill with junk
+		KeyImpl k = literals.get(createHash64CS(key));
+		if (k != null) return k;
+		return sourceRuntime(key);
+	}
+
+	private static Collection.Key sourceRuntime(String key) {
 		if (MAX == 0) return new KeyImpl(key);
 		Key k = keys.get(key);
 		if (k == null) {
