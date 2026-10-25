@@ -191,8 +191,12 @@ public abstract class ApplicationContextSupport implements ApplicationContext {
 
 	@Override
 	public Map<Collection.Key, Object> getTagAttributeDefaultValues(PageContext pc, String fullname) {
-		if (tagDefaultAttributeValues == null) return null;
-		return tagDefaultAttributeValues.get(KeyImpl.init(fullname));
+		return getTagAttributeDefaultValues(pc, KeyImpl.init(fullname));
+	}
+
+	public Map<Collection.Key, Object> getTagAttributeDefaultValues(PageContext pc, Collection.Key fullname) {
+		if (tagDefaultAttributeValues == null || tagDefaultAttributeValues.isEmpty()) return null;
+		return tagDefaultAttributeValues.get(fullname);
 	}
 
 	@Override

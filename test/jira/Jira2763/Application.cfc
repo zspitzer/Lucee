@@ -23,6 +23,8 @@ component {
 	request.currentPath=GetDirectoryFromPath(getCurrentTemplatePath());
 	
 	this.tag.savecontent.trim=url.trim;
+	if ( structKeyExists( url, "queryReturnType" ) )
+		this.tag.query.returntype = url.queryReturnType;
 	
 	public function onRequestStart() {
 		setting requesttimeout=10;

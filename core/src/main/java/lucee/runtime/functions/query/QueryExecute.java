@@ -38,6 +38,7 @@ import lucee.runtime.tag.TagUtil;
 import lucee.runtime.type.Collection.Key;
 import lucee.runtime.type.Struct;
 import lucee.runtime.type.StructImpl;
+import lucee.runtime.type.util.KeyConstants;
 import lucee.transformer.library.tag.TagLibTag;
 
 public final class QueryExecute extends BIF {
@@ -59,7 +60,7 @@ public final class QueryExecute extends BIF {
 	// name is set by evaluator
 	public static Object call(PageContext pc, String sql, Object params, Struct options, String name) throws PageException {
 		PageContextImpl pci = (PageContextImpl) pc;
-		lucee.runtime.tag.Query qry = (lucee.runtime.tag.Query) pci.use(lucee.runtime.tag.Query.class.getName(), "cfquery", TagLibTag.ATTRIBUTE_TYPE_FIXED);
+		lucee.runtime.tag.Query qry = (lucee.runtime.tag.Query) pci.use(lucee.runtime.tag.Query.class.getName(), KeyConstants._cfquery, TagLibTag.ATTRIBUTE_TYPE_FIXED, null);
 
 		try {
 			try {

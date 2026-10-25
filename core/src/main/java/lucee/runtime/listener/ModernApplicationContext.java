@@ -1901,7 +1901,8 @@ public final class ModernApplicationContext extends ApplicationContextSupport {
 	}
 
 	@Override
-	public Map<Collection.Key, Object> getTagAttributeDefaultValues(PageContext pc, String tagClassName) {
+	public Map<Collection.Key, Object> getTagAttributeDefaultValues(PageContext pc, Collection.Key tagClassName) {
+		// TODO revisit for shared AC COW, an eager app snapshot resolves this.tag once and drops the flag
 		if (!initDefaultAttributeValues) {
 			// this.tag.<tagname>.<attribute-name>=<value>
 			Struct sct = Caster.toStruct(get(component, KeyConstants._tag, null), null);

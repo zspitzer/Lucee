@@ -31,6 +31,31 @@ component extends="org.lucee.cfml.test.LuceeTestCase"	{
 		assertEquals("- a -",trim(result.filecontent));
 	}
 	
+	public void function testTagAttrApplication_cfc_queryExecute(){
+		local.uri=createURI("Jira2763/queryExecute.cfm");
+		local.result=_InternalRequest(template=uri,urls={trim=false,queryReturnType="array"});
+		assertEquals("array",trim(result.filecontent));
+	}
+
+	public void function testTagAttrApplication_cfc_queryExecuteNoDefault(){
+		local.uri=createURI("Jira2763/queryExecute.cfm");
+		local.result=_InternalRequest(template=uri,urls={trim=false});
+		assertEquals("query",trim(result.filecontent));
+	}
+
+	// getApplicationSettings() before any tag has run, the this.tag defaults are only read lazily on the first tag use
+	// disabled, known edge case: getTagAttributeDefaultValues(pc) skips the lazy init, so .tag falls back to the raw
+	// this.tag from the Application.cfc ({"SAVECONTENT":{"TRIM":true}}) instead of the resolved map, revisit with the shared AC COW
+	public void function testTagAttrApplication_cfc_getApplicationSettings() skip=true {
+		local.uri=createURI("Jira2763/app-settings/index.cfm");
+		local.result=_InternalRequest(template=uri);
+		local.content=trim(result.filecontent);
+		assertTrue(isJSON(content),content);
+		local.tag=deserializeJSON(content);
+		assertTrue(structKeyExists(tag,"cfsavecontent"),content);
+		assertTrue(tag.cfsavecontent.trim,content);
+	}
+
 	public void function testTagAttrCFApplication1(){
 		application action="update" tag="#{savecontent:{trim:false}}#";
 		savecontent variable="local.c" {

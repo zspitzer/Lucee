@@ -74,9 +74,9 @@ public final class TagHelper {
 			new Type[] { Types.PAGE_CONTEXT, Types.OBJECT, MISSING_ATTRIBUTE_ARRAY, Types.STRUCT, Types.INT_VALUE });
 
 	// Tag use(String)
-	private static final Method USE_REG = new Method("use", TAG, new Type[] { Types.STRING, Types.STRING, Types.INT_VALUE, Types.STRING });
-	private static final Method USE_MVN = new Method("use", TAG, new Type[] { Types.STRING, Types.STRING, Types.STRING, Types.INT_VALUE, Types.STRING });
-	private static final Method USE_OSGI = new Method("use", TAG, new Type[] { Types.STRING, Types.STRING, Types.STRING, Types.STRING, Types.INT_VALUE, Types.STRING });
+	private static final Method USE_REG = new Method("use", TAG, new Type[] { Types.STRING, Types.COLLECTION_KEY, Types.INT_VALUE, Types.STRING });
+	private static final Method USE_MVN = new Method("use", TAG, new Type[] { Types.STRING, Types.STRING, Types.COLLECTION_KEY, Types.INT_VALUE, Types.STRING });
+	private static final Method USE_OSGI = new Method("use", TAG, new Type[] { Types.STRING, Types.STRING, Types.STRING, Types.COLLECTION_KEY, Types.INT_VALUE, Types.STRING });
 
 	// void setAppendix(String appendix)
 	private static final Method SET_APPENDIX1 = new Method("setAppendix", Type.VOID_TYPE, new Type[] { Types.STRING });
@@ -199,7 +199,7 @@ public final class TagHelper {
 		else if (type == TYPE_MVN) {
 			adapter.push(((ClassDefinitionImpl) cd).getMavenRaw());
 		}
-		adapter.push(tlt.getFullName());
+		bc.getFactory().registerKey(bc, bc.getFactory().createLitString(tlt.getFullName()), false);
 		adapter.push(tlt.getAttributeType());
 		adapter.push((bc.getPageSource() == null ? "<memory>" : bc.getPageSource().getDisplayPath()) + ":" + ((tag.getStart() == null) ? 0 : tag.getStart().line));
 
