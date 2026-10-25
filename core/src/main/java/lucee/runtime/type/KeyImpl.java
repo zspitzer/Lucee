@@ -245,6 +245,21 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 		return intern(key, h64, cs64);
 	}
 
+	/** census only: is this exact spelling a literal of any loaded class */
+	static boolean isLiteral(String key) {
+		return literals.get(createHash64CS(key)) != null;
+	}
+
+	/** census only */
+	static int literalCount() {
+		return literals.size();
+	}
+
+	/** census only */
+	static void forEachLiteral(java.util.function.Consumer<KeyImpl> c) {
+		literals.forEach(c);
+	}
+
 	private static Collection.Key intern(String key, long h64, long cs64) {
 		KeyImpl k = literals.get(cs64);
 		if (k != null) return k;
@@ -266,6 +281,7 @@ public class KeyImpl implements Collection.Key, Castable, Comparable, Externaliz
 	 * used to inside the rest of the source created, can be dynamic values, so a lot
 	 */
 	public static Collection.Key source(String key) {
+		if (KeyCensus.ENABLED) KeyCensus.source(key);
 		// a compiled name (literal, KeyConstants, declared function) gets the compiled instance; the table
 		// never admits a runtime name, so it can't fill with junk
 		KeyImpl k = literals.get(createHash64CS(key));

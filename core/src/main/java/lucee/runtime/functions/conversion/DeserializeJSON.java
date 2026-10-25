@@ -38,6 +38,7 @@ import lucee.runtime.type.Array;
 import lucee.runtime.type.ArrayImpl;
 import lucee.runtime.type.Collection;
 import lucee.runtime.type.Collection.Key;
+import lucee.runtime.type.KeyCensus;
 import lucee.runtime.type.KeyImpl;
 import lucee.runtime.type.Query;
 import lucee.runtime.type.QueryImpl;
@@ -103,7 +104,17 @@ public final class DeserializeJSON extends BIF implements Function {
 			}
 			throw new FunctionException(pc, "DeserializeJSON", 1, "JSONVar", "input value cannot be empty string.", "Must be the valid JSON string");
 		}
-		Object result = new JSONExpressionInterpreter(false, format).interpret(pc, JSONVar);
+		Object result;
+		if (KeyCensus.ENABLED) {
+			KeyCensus.begin();
+			try {
+				result = new JSONExpressionInterpreter(false, format).interpret(pc, JSONVar);
+			}
+			finally {
+				KeyCensus.end();
+			}
+		}
+		else result = new JSONExpressionInterpreter(false, format).interpret(pc, JSONVar);
 		if (mapping == MAPPING_LOOSE) return toQuery(pc, result);
 		if (mapping == MAPPING_QUERY) return toQueryStrict(pc, result);
 		return result;

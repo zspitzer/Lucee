@@ -64,6 +64,20 @@ final class KeyTable {
 		return k;
 	}
 
+	/** census only */
+	int size() {
+		return size;
+	}
+
+	/** census only: every key in the current table */
+	void forEach(java.util.function.Consumer<KeyImpl> c) {
+		Tab t = tab;
+		for (int i = 0; i < t.keys.length; i++) {
+			KeyImpl k = (KeyImpl) KEYS.getAcquire(t.keys, i);
+			if (k != null) c.accept(k);
+		}
+	}
+
 	private static Tab resize(Tab old) {
 		Tab t = new Tab(old.hashes.length << 1);
 		int mask = t.hashes.length - 1;
