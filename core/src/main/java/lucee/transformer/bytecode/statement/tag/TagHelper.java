@@ -32,6 +32,7 @@ import jakarta.servlet.jsp.tagext.IterationTag;
 import lucee.commons.lang.ExceptionUtil;
 import lucee.runtime.db.ClassDefinition;
 import lucee.runtime.exp.Abort;
+import lucee.runtime.ext.tag.TagImpl;
 import lucee.runtime.reflection.Reflector;
 import lucee.runtime.tag.MissingAttribute;
 import lucee.runtime.type.util.ArrayUtil;
@@ -75,6 +76,15 @@ public final class TagHelper {
 
 	// Tag use(String)
 	private static final Method USE_REG = new Method("use", TAG, new Type[] { Types.STRING, Types.STRING, Types.INT_VALUE, Types.STRING });
+	// Tag use(Tag), the compiled page creates the tag itself
+	private static final Method USE_NEW = new Method("use", TAG, new Type[] { Types.TAG, Types.STRING, Types.INT_VALUE, Types.STRING });
+	private static final Method TAG_INIT = new Method("<init>", Types.VOID, new Type[] {});
+	private static final Type TAG_IMPL = Type.getType(TagImpl.class);
+	private static final Method SET_PAGE_CONTEXT = new Method("setPageContext", Types.VOID, new Type[] { Types.PAGE_CONTEXT });
+	private static final Method SET_PARENT = new Method("setParent", Types.VOID, new Type[] { TAG });
+	private static final Method SET_SOURCE_TEMPLATE = new Method("setSourceTemplate", Types.VOID, new Type[] { Types.STRING });
+	private static final Method PUSH_TAG = new Method("pushTag", TAG, new Type[] { TAG });
+	private static final Method SET_TAG_DEFAULTS = new Method("setTagDefaults", Types.VOID, new Type[] { TAG, Types.STRING, Types.INT_VALUE });
 	private static final Method USE_MVN = new Method("use", TAG, new Type[] { Types.STRING, Types.STRING, Types.STRING, Types.INT_VALUE, Types.STRING });
 	private static final Method USE_OSGI = new Method("use", TAG, new Type[] { Types.STRING, Types.STRING, Types.STRING, Types.STRING, Types.INT_VALUE, Types.STRING });
 
@@ -183,32 +193,44 @@ public final class TagHelper {
 		// tagEnd, currLocal);
 
 		adapter.visitLabel(tagBegin);
-		// tag=pc.use(String tagClassName,String tagBundleName, String tagBundleVersion, String fullname,int
-		// attrType) throws PageException {
-		adapter.loadArg(0);
-		adapter.checkCast(Types.PAGE_CONTEXT_IMPL);
-		adapter.push(cd.getClassName());
-		// has bundle info/version
-		if (type == TYPE_OSGI) {
-			// name
-			adapter.push(cd.getName());
-			// version
-			if (cd.getVersion() != null) adapter.push(cd.getVersionAsString());
-			else ASMConstants.NULL(adapter);
+		final String template = (bc.getPageSource() == null ? "<memory>" : bc.getPageSource().getDisplayPath()) + ":" + ((tag.getStart() == null) ? 0 : tag.getStart().line);
+		// regular tags are created and set up here, so each tag use site has its own monomorphic allocation and setter calls
+		if (type == TYPE_REG && isTagImpl(bc, tag)) {
+			writeOutNewTag(adapter, tlt, currType, currLocal, template);
 		}
-		else if (type == TYPE_MVN) {
-			adapter.push(((ClassDefinitionImpl) cd).getMavenRaw());
+		else {
+			// tag=pc.use(String tagClassName,String tagBundleName, String tagBundleVersion, String fullname,int
+			// attrType) throws PageException {
+			adapter.loadArg(0);
+			adapter.checkCast(Types.PAGE_CONTEXT_IMPL);
+			if (type == TYPE_REG) {
+				adapter.newInstance(currType);
+				adapter.dup();
+				adapter.invokeConstructor(currType, TAG_INIT);
+			}
+			else adapter.push(cd.getClassName());
+			// has bundle info/version
+			if (type == TYPE_OSGI) {
+				// name
+				adapter.push(cd.getName());
+				// version
+				if (cd.getVersion() != null) adapter.push(cd.getVersionAsString());
+				else ASMConstants.NULL(adapter);
+			}
+			else if (type == TYPE_MVN) {
+				adapter.push(((ClassDefinitionImpl) cd).getMavenRaw());
+			}
+			adapter.push(tlt.getFullName());
+			adapter.push(tlt.getAttributeType());
+			adapter.push(template);
+
+			if (type == TYPE_OSGI) adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, USE_OSGI);
+			else if (type == TYPE_MVN) adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, USE_MVN);
+			else adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, USE_NEW);
+
+			if (currType != TAG) adapter.checkCast(currType);
+			adapter.storeLocal(currLocal);
 		}
-		adapter.push(tlt.getFullName());
-		adapter.push(tlt.getAttributeType());
-		adapter.push((bc.getPageSource() == null ? "<memory>" : bc.getPageSource().getDisplayPath()) + ":" + ((tag.getStart() == null) ? 0 : tag.getStart().line));
-
-		if (type == TYPE_OSGI) adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, USE_OSGI);
-		else if (type == TYPE_MVN) adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, USE_MVN);
-		else adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, USE_REG);
-
-		if (currType != TAG) adapter.checkCast(currType);
-		adapter.storeLocal(currLocal);
 
 		TryFinallyVisitor outerTcfv = new TryFinallyVisitor(new OnFinally() {
 			@Override
@@ -505,6 +527,48 @@ public final class TagHelper {
 
 		adapter.push(IterationTag.EVAL_BODY_AGAIN);
 		adapter.visitJumpInsn(Opcodes.IF_ICMPEQ, beginDoWhile);
+	}
+
+	// tag=new X(); tag.setPageContext(pc); tag.setParent(pc.pushTag(tag)); tag.setSourceTemplate(template);
+	// pc.setTagDefaults(tag, fullname, attrType);
+	private static void writeOutNewTag(GeneratorAdapter adapter, TagLibTag tlt, Type currType, int currLocal, String template) {
+		adapter.newInstance(currType);
+		adapter.dup();
+		adapter.invokeConstructor(currType, TAG_INIT);
+		adapter.storeLocal(currLocal);
+
+		adapter.loadLocal(currLocal);
+		adapter.loadArg(0);
+		adapter.invokeVirtual(currType, SET_PAGE_CONTEXT);
+
+		adapter.loadLocal(currLocal);
+		adapter.loadArg(0);
+		adapter.checkCast(Types.PAGE_CONTEXT_IMPL);
+		adapter.loadLocal(currLocal);
+		adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, PUSH_TAG);
+		adapter.invokeVirtual(currType, SET_PARENT);
+
+		adapter.loadLocal(currLocal);
+		adapter.push(template);
+		adapter.invokeVirtual(currType, SET_SOURCE_TEMPLATE);
+
+		if (tlt.getAttributeType() >= 0) {
+			adapter.loadArg(0);
+			adapter.checkCast(Types.PAGE_CONTEXT_IMPL);
+			adapter.loadLocal(currLocal);
+			adapter.push(tlt.getFullName());
+			adapter.push(tlt.getAttributeType());
+			adapter.invokeVirtual(Types.PAGE_CONTEXT_IMPL, SET_TAG_DEFAULTS);
+		}
+	}
+
+	private static boolean isTagImpl(BytecodeContext bc, Tag tag) throws TransformerException {
+		try {
+			return Reflector.isInstaneOf(tag.getTagLibTag().getTagClassDefinition().getClazz(), TagImpl.class, false);
+		}
+		catch (Exception e) {
+			throw new TransformerException(bc, e, tag.getStart());
+		}
 	}
 
 	private static Type getTagType(BytecodeContext bc, Tag tag) throws TransformerException {
