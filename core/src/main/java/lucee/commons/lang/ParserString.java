@@ -52,6 +52,11 @@ public final class ParserString {
 	protected char[] lcText;
 
 	/**
++	 * Field <code>textLength</code> caching the scalar bounds count of the source string
++	 */
+	protected int textLength;
+
+	/**
 	 * Diesen Konstruktor kann er CFML Code als Zeichenkette uebergeben werden.
 	 * 
 	 * @param text CFML Code
@@ -68,8 +73,9 @@ public final class ParserString {
 	 */
 	protected void init(String str) {
 		int len = str.length();
-		text = new char[len];
-		lcText = new char[len];
+		textLength = len;
+		text = new char[len + 1];
+		lcText = new char[len + 1];
 
 		for (int i = 0; i < len; i++) {
 			char c = str.charAt(i);
@@ -79,6 +85,8 @@ public final class ParserString {
 			}
 			else lcText[i] = ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) ? c : Character.toLowerCase(c);
 		}
+		text[len] = '\0';
+		lcText[len] = '\0';
 	}
 
 	/**
@@ -240,8 +248,7 @@ public final class ParserString {
 	 * @return Gibt zurueck ob das aktuelle Zeichen zwischen den Angegebenen liegt.
 	 */
 	public boolean isCurrentBetween(char left, char right) {
-		if (!isValidIndex()) return false;
-		return lcText[pos] >= left && lcText[pos] <= right;
+		return pos < textLength && lcText[pos] >= left && lcText[pos] <= right;
 	}
 
 	/**
@@ -270,48 +277,31 @@ public final class ParserString {
 	 * @return Gibt zurueck ob das aktuelle Zeichen ein Buchstabe ist.
 	 */
 	public boolean isCurrentLetter() {
-		if (!isValidIndex()) return false;
-		return lcText[pos] >= 'a' && lcText[pos] <= 'z';
+		return pos < textLength && lcText[pos] >= 'a' && lcText[pos] <= 'z';
 	}
 
 	public boolean isCurrentNumber() {
-		if (!isValidIndex()) return false;
-		return lcText[pos] >= '0' && lcText[pos] <= '9';
+		return pos < textLength && lcText[pos] >= '0' && lcText[pos] <= '9';
 	}
 
 	public boolean isCurrentWhiteSpace() {
-		if (!isValidIndex()) return false;
-		return (lcText[pos] == ' ' || lcText[pos] == '\b');
-		// return lcText[pos]>='a' && lcText[pos]<='z';
-	}
-
-	public boolean forwardIfCurrentWhiteSpace() {
-		boolean rtn = false;
-		while (isCurrentWhiteSpace()) {
-			pos++;
-			rtn = true;
-		}
-		return rtn;
+		return pos < textLength && (lcText[pos] == ' ' || lcText[pos] == '\b');
 	}
 
 	public boolean isNextWhiteSpace() {
-		if (!hasNext()) return false;
-		return (lcText[pos + 1] == ' ' || lcText[pos + 1] == '\b');
+		return pos + 1 < textLength && (lcText[pos + 1] == ' ' || lcText[pos + 1] == '\b');
 	}
 
 	public boolean isNextNextWhiteSpace() {
-		if (!hasNextNext()) return false;
-		return (lcText[pos + 2] == ' ' || lcText[pos + 2] == '\b');
+		return pos + 2 < textLength && (lcText[pos + 2] == ' ' || lcText[pos + 2] == '\b');
 	}
 
 	public boolean isPreviousWhiteSpace() {
-		if (!hasPrevious()) return false;
-		return (lcText[pos - 1] == ' ' || lcText[pos - 1] == '\b');
+		return pos - 1 >= 0 && (lcText[pos - 1] == ' ' || lcText[pos - 1] == '\b');
 	}
 
 	public boolean isPreviousPreviousWhiteSpace() {
-		if (!hasPreviousPrevious()) return false;
-		return (lcText[pos - 2] == ' ' || lcText[pos - 2] == '\b');
+		return pos - 2 >= 0 && (lcText[pos - 2] == ' ' || lcText[pos - 2] == '\b');
 	}
 
 	/**
@@ -320,8 +310,9 @@ public final class ParserString {
 	 * @return Gibt zurueck ob das aktuelle Zeichen ein Buchstabe ist.
 	 */
 	public boolean isCurrentSpecial() {
-		if (!isValidIndex()) return false;
-		return lcText[pos] == '_' || lcText[pos] == '$' || lcText[pos] == SystemUtil.SYMBOL_EURO || lcText[pos] == SystemUtil.SYMBOL_POUND;
+		if (pos >= textLength) return false;
+		char c = lcText[pos];
+		return c == '_' || c == '$' || c == SystemUtil.SYMBOL_EURO || c == SystemUtil.SYMBOL_POUND;
 	}
 
 	/**
@@ -331,13 +322,11 @@ public final class ParserString {
 	 * @return boolean
 	 */
 	public boolean isCurrent(char c) {
-		if (!isValidIndex()) return false;
-		return lcText[pos] == c;
+		return pos < textLength && lcText[pos] == c;
 	}
 
 	public boolean isLast(char c) {
-		if (lcText.length == 0) return false;
-		return lcText[lcText.length - 1] == c;
+		return textLength > 0 && lcText[textLength - 1] == c;
 	}
 
 	/**
@@ -348,7 +337,7 @@ public final class ParserString {
 	 * @return boolean
 	 */
 	public boolean forwardIfCurrent(char c) {
-		if (isCurrent(c)) {
+		if (pos < textLength && lcText[pos] == c) {
 			pos++;
 			return true;
 		}
@@ -363,8 +352,9 @@ public final class ParserString {
 	 * @return boolean
 	 */
 	public boolean isCurrent(String str) {
-		if (pos + str.length() > text.length) return false;
-		for (int i = str.length() - 1; i >= 0; i--) {
+		int len = str.length();
+		if (pos + len > textLength) return false;
+		for (int i = 0; i < len; i++) {
 			if (str.charAt(i) != lcText[pos + i]) return false;
 		}
 		return true;
@@ -695,7 +685,7 @@ public final class ParserString {
 	 */
 	public boolean removeSpace() {
 		int start = pos;
-		while (pos < text.length && lcText[pos] == ' ') {
+		while (pos < textLength && lcText[pos] == ' ') {
 			pos++;
 		}
 		return (start < pos);
@@ -714,12 +704,12 @@ public final class ParserString {
 	 * @return Existiert eine weitere Zeile.
 	 */
 	public boolean nextLine() {
-		while (isValidIndex() && text[pos] != '\n') {
-			next();
+		while (pos < textLength && text[pos] != '\n') {
+			pos++;
 		}
-		if (isValidIndex() && text[pos] == '\n') {
-			next();
-			return isValidIndex();
+		if (pos < textLength && text[pos] == '\n') {
+			pos++;
+			return pos < textLength;
 		}
 		return false;
 	}
@@ -732,7 +722,7 @@ public final class ParserString {
 	public Range line(int pos) {
 		// Handle the case when position is after last character
 		int from = pos;
-		if (isAfterLast()) from--;
+		if (pos >= textLength) from--;
 
 		// Find start of line by scanning backwards to newline
 		while (from >= 0) {
@@ -746,20 +736,16 @@ public final class ParserString {
 
 		// Find end of line by scanning forward to newline
 		int to = pos;
-		while (to < text.length) {
+		while (to < textLength) {
 			if (text[to] == '\n') {
 				to--;
 				break; // Stop at newline without decrementing
 			}
 			to++;
 		}
-		if (to >= length()) to = length() - 1; // If no newline found, to at end
+		if (to >= textLength) to = textLength - 1;
 
-		// empty line
-		if (from > to) {
-			return null;
-		}
-
+		if (from > to) return null;
 		return new Range(from, to);
 	}
 
@@ -775,12 +761,12 @@ public final class ParserString {
 	}
 
 	public boolean previousLine() {
-		while (!isBeforeFirst() && text[pos] != '\n') {
-			previous();
+		while (pos >= 0 && text[pos] != '\n') {
+			pos--;
 		}
-		if (!isBeforeFirst() && text[pos] == '\n') {
-			previous();
-			return !isBeforeFirst();
+		if (pos >= 0 && text[pos] == '\n') {
+			pos--; // Step backward past the newline onto the actual previous line text
+			return pos >= 0;
 		}
 		return false;
 	}
@@ -891,7 +877,7 @@ public final class ParserString {
 	 * @return Gibt zurueck ob der Zeiger auf dem letzten Zeichen steht.
 	 */
 	public boolean isLast() {
-		return pos == text.length - 1;
+		return ((pos ^ (textLength - 1)) == 0);
 	}
 
 	/**
@@ -900,7 +886,7 @@ public final class ParserString {
 	 * @return Gibt zurueck ob der Zeiger nach dem letzten Zeichen steht.
 	 */
 	public boolean isAfterLast() {
-		return pos >= text.length;
+		return pos >= textLength;
 	}
 
 	public boolean isBeforeFirst() {
@@ -913,7 +899,7 @@ public final class ParserString {
 	 * @return Gibt zurueck ob der Zeiger einen korrekten Index hat.
 	 */
 	public boolean isValidIndex() {
-		return pos < text.length;
+		return ((pos - textLength) >> 31) != 0;
 	}
 
 	/**
@@ -925,7 +911,7 @@ public final class ParserString {
 	 * @return Zeichen das gesucht werden soll.
 	 */
 	public int indexOfNext(char c) {
-		for (int i = pos; i < lcText.length; i++) {
+		for (int i = pos; i < textLength; i++) {
 			if (lcText[i] == c) return i;
 		}
 		return -1;
