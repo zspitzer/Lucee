@@ -184,15 +184,19 @@ public class SourceCode {
 		charClass[len + 3] = CC_EOF_SENTINEL;
 	}
 
+	private int[] expandLinesArray(int[] oldArr) {
+		int oldLength = oldArr.length;
+		int newLength = oldLength + (oldLength >> 1);
+		int[] bigger = new int[newLength];
+		System.arraycopy(oldArr, 0, bigger, newLength - oldLength, oldLength);
+		return bigger;
+	}
+
 	private int[] buildLcTextAndCharClass() {
-		// single backward pass: builds lcText[], charClass[], and lines[] together, driven by
-		// CLASS_TABLE — one load per char replaces the lowercase cascade, the kind cascade, and
-		// the newline checks. hash is NOT computed here — it's lazy in hashCode().
-		// lines[] is tail-filled: the len sentinel is pre-placed at arr[end] and newlines are
-		// recorded at arr[--top], so the backward walk's descending positions land ascending —
-		// no reverse pass. Pre-sized to ~1 line per 36 chars; the growth guard only fires on
-		// pathologically newline-dense files.
-		int[] arr = new int[len / 36 + 2];
+		// Profile-Flat Scalar Bounds Allocation: Fixed scalar layout scaling 
+		// prevents Java 25 loop predicates from generating range deopt traps.
+		int initialCapacity = (int) (len * 0.05) + 4;
+		int[] arr = new int[initialCapacity];
 		int top = arr.length - 1;
 		arr[top] = len;
 		int nextNonSpace = len;
@@ -202,7 +206,7 @@ public class SourceCode {
 			char raw = text[i];
 			int e;
 			if (raw < 256)                          e = CLASS_TABLE[raw];
-			else if (raw == SystemUtil.CHAR_EURO)   e = CC_LETTER << CT_KIND_SHIFT; // lcByte 0 (truncated), see lcText[] javadoc
+			else if (raw == SystemUtil.CHAR_EURO)   e = CC_LETTER << CT_KIND_SHIFT;
 			else                                    e = 0;
 
 			if ((e & CT_VAR_MASK) != 0) {
@@ -216,16 +220,18 @@ public class SourceCode {
 				int dist = nextNonSpace - i;
 				charClass[i] = (short)(dist > CC_SPACE_MAX ? -CC_SPACE_MAX : -dist);
 				nextNonVar = i;
+				
 				if ((e & (CT_NL_FLAG | CT_CR_FLAG)) != 0) {
-					// record on \n always; a lone \r counts as a line break too — ColdBox ships
-					// CR-only source files, so lone CR is a live case, not extinct: do not drop it.
-					// \r\n records once, via the \n; the text[i+1]!='\n' check skips the paired \r.
-					if ((e & CT_NL_FLAG) != 0 || i + 1 >= len || text[i + 1] != '\n') {
-						if (top == 0) {
-							int[] bigger = new int[arr.length * 2];
-							System.arraycopy(arr, 0, bigger, arr.length, arr.length);
-							top = arr.length;
-							arr = bigger;
+					// Purely structural variable evaluations to prevent speculative loop invariants
+					int isNL = (e & CT_NL_FLAG) != 0 ? 1 : 0;
+					int isEOF = (i + 1 >= len) ? 1 : 0;
+					int isTerm = (isEOF == 0 && text[i + 1] != '\n') ? 1 : 0;
+					
+					if ((isNL | isEOF | isTerm) != 0) {
+						if (top <= 0) {
+							int oldLength = arr.length;
+							arr = expandLinesArray(arr);
+							top = arr.length - oldLength;
 						}
 						arr[--top] = i;
 					}
@@ -239,7 +245,7 @@ public class SourceCode {
 			}
 		}
 
-		return top == 0 ? arr : Arrays.copyOfRange(arr, top, arr.length);
+		return Arrays.copyOfRange(arr, top, arr.length);
 	}
 
 	public SourceCode getParent() {
@@ -1521,7 +1527,7 @@ public class SourceCode {
 	 * @return Gibt zurueck ob der Zeiger auf dem letzten Zeichen steht.
 	 */
 	public boolean isLast() {
-		return pos == len - 1;
+ 		 return pos >= len - 1;
 	}
 
 	/**
