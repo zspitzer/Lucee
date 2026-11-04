@@ -98,6 +98,7 @@ public final class ExpressionUtil {
 	}
 
 	public static void writeOut(final Statement s, BytecodeContext bc) throws TransformerException {
+		// Evaluates using the zero-allocation cached context property
 		if (ExpressionUtil.doLog(bc)) {
 			final String id = CreateUniqueId.invoke();
 			TryFinallyVisitor tfv = new TryFinallyVisitor(new OnFinally() {
@@ -155,6 +156,17 @@ public final class ExpressionUtil {
 	}
 
 	public static boolean doLog(BytecodeContext bc) {
-		return bc.writeLog() && StringUtil.indexOfIgnoreCaseNoCheck(bc.getMethod().getName(), "call") != -1;
+		if (!bc.writeLog()) return false;
+
+		// Lazy-cached on BytecodeContext — a method signature remains invariant during the 
+		// translation phase of a given block, cutting out redundant per-statement string scans.
+		Boolean cached = bc.isCallMethodLoggable();
+		if (cached != null) {
+			return cached.booleanValue();
+		}
+
+		boolean loggable = StringUtil.indexOfIgnoreCaseNoCheck(bc.getMethod().getName(), "call") != -1;
+		bc.setCallMethodLoggable(loggable);
+		return loggable;
 	}
 }

@@ -960,22 +960,19 @@ public final class PageImpl extends BodyBase implements Page {
 	 * @throws TransformerException
 	 */
 	private TagCIObject getTagCFObject(TagCIObject defaultValue) {
-		if (_comp != null) return _comp; // return sub component
+		TagCIObject activeComp = this._comp;
+		if (activeComp != null) return activeComp;
 
-		// look for main
-		Iterator<Statement> it = getStatements().iterator();
-		Statement s;
-		TagCIObject t, sub = null;
-
+		// Use pure pattern matching extraction on the collection element
+		java.util.Iterator<Statement> it = getStatements().iterator();
 		while (it.hasNext()) {
-			s = it.next();
-			if (s instanceof TagCIObject) {
-				t = (TagCIObject) s;
-				if (t.isMain()) return _comp = t;
-				// else if (sub == null) sub = t;
+			if (it.next() instanceof TagCIObject t) {
+				if (t.isMain()) {
+					this._comp = t;
+					return t;
+				}
 			}
 		}
-		// if (sub != null) return _comp = sub;
 		return defaultValue;
 	}
 
@@ -2125,7 +2122,6 @@ public final class PageImpl extends BodyBase implements Page {
 	}
 
 	private List<IFunction> writeOutCall(ConstrBytecodeContext constr, BytecodeContext.KeyPool keys, ClassWriter cw, String name) throws TransformerException {
-		// GeneratorAdapter adapter = bc.getAdapter();
 		GeneratorAdapter adapter = new GeneratorAdapter(Opcodes.ACC_PUBLIC + Opcodes.ACC_FINAL, CALL1, null, new Type[] { Types.THROWABLE }, cw);
 		Label methodBegin = new Label();
 		Label methodEnd = new Label();

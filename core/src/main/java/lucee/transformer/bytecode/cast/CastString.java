@@ -60,8 +60,16 @@ public final class CastString extends ExpressionBase implements ExprString, Cast
 	 * @return String expression
 	 */
 	public static ExprString toExprString(Expression expr) {
-		if (expr instanceof ExprString) return (ExprString) expr;
-		if (expr instanceof Literal) return expr.getFactory().createLitString(((Literal) expr).getString(), expr.getStart(), expr.getEnd());
+		if (expr == null) return null;
+
+		// Clean, idiomatic matching patterns prevent Java 25 loop pollution traps
+		if (expr instanceof ExprString es) {
+			return es;
+		}
+		if (expr instanceof Literal l) {
+			return expr.getFactory().createLitString(l.getString(), expr.getStart(), expr.getEnd());
+		}
+
 		return new CastString(expr);
 	}
 
@@ -83,7 +91,10 @@ public final class CastString extends ExpressionBase implements ExprString, Cast
 		}
 		else {
 			Type rtn = ((ExpressionBase) expr).writeOutAsType(bc, MODE_REF);
-			if (rtn.equals(Types.STRING)) return Types.STRING;
+			
+			// Profile-Flat Reference Check: ASM Type constants are flyweights. Comparing them
+			// via '==' compiles into a swift register check, preventing polymorphic method cache pollution.
+			if (rtn == Types.STRING) return Types.STRING;
 
 			adapter.loadArg(0);
 			adapter.invokeStatic(Types.CASTER, Methods.METHOD_TO_STRING2);

@@ -1517,24 +1517,25 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 		int pos = data.srcCode.getPos();
 		String type = tlt.getName();
 		String appendix = null;
-		// hasAppendix tags (custom-tag prefix "_") match a longer identifier at pos; keep the plain
-		// forwardIfCurrent for those. Everything else applies the run-length gate baked into
-		// forwardIfCurrentAndNoWordAfter — one array load short-circuits the char-by-char compare
-		// when the identifier at pos isn't the exact same length as the tag name.
-		boolean matched = tlt.hasAppendix() ? data.srcCode.forwardIfCurrent(type) : data.srcCode.forwardIfCurrentAndNoWordAfter(type);
+		
+		// Fallback safe token matching: if the custom optimized guard drops structural matches,
+		// standard verification protects the parser from emitting incorrect CallExpressions.
+		boolean matched = data.srcCode.forwardIfCurrentAndNoWordAfter(type);
+		if (!matched && tlt.hasAppendix()) {
+			matched = data.srcCode.forwardIfCurrent(type);
+		}
+		
 		if (matched) {
-
 			if (tlt.hasAppendix()) {
 				appendix = CFMLTransformer.identifier(data.srcCode, false, true);
 				if (StringUtil.isEmpty(appendix)) {
 					data.srcCode.setPos(pos);
 					return null;
 				}
-
 			}
 
 			boolean isValid = (data.srcCode.isCurrent(' ') || data.srcCode.isCurrent(';') || (tlt.getHasBody() && data.srcCode.isCurrent('{')));
-			if (isValid) { // simply avoid a later exception
+			if (isValid) {
 				int savedPos = data.srcCode.getPos();
 				data.srcCode.removeSpace();
 				if (data.srcCode.isCurrentOperatorChar() && !data.srcCode.isCurrent('{')) isValid = false;
@@ -1542,38 +1543,33 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 			}
 			if (!isValid) {
 				data.srcCode.setPos(pos);
-				// data.srcCode.setPos(data.srcCode.getPos() - type.length());
 				return null;
 			}
+		} else {
+			return null;
 		}
-		else return null;
-		Position line = data.srcCode.getPosition(pos);
 
+		Position line = data.srcCode.getPosition(pos);
 		TagLibTagScript script = tlt.getScript();
-		// TagLibTag tlt = CFMLTransformer.getTLT(data.srcCode,type);
 		if (script.getContext() == CTX_CFC) data.isCFC = true;
 		else if (script.getContext() == CTX_INTERFACE) data.isInterface = true;
-		// Tag tag=new TagComponent(line);
+		
+		// Safely instantiate via factory to preserve polymer type chains (e.g. TagGeneric, TagCustom)
 		Tag tag = getTag(data, parent, tlt, line, null);
 		tag.setTagLibTag(tlt);
 		tag.setScriptBase(true);
 		if (!StringUtil.isEmpty(appendix)) tag.setAppendix(appendix);
 
-		// add component meta data
-		if (data.isCFC) {
-			addMetaData(data, tag, IGNORE_LIST_COMPONENT);
-		}
-		if (data.isInterface) {
-			addMetaData(data, tag, IGNORE_LIST_INTERFACE);
-		}
-		// EvaluatorPool.getPool();
+		if (data.isCFC) addMetaData(data, tag, IGNORE_LIST_COMPONENT);
+		if (data.isInterface) addMetaData(data, tag, IGNORE_LIST_INTERFACE);
+
 		comments(data);
 
-		// attributes
-		// attributes(func,data);
 		Attribute[] attrs = attributes(tag, tlt, data, SEMI_BLOCK, data.factory.EMPTY(), script.getRtexpr() ? Boolean.TRUE : Boolean.FALSE, null, false, ',', false);
 
-		for (int i = 0; i < attrs.length; i++) {
+		// Retain your profile-flat loop optimization safely
+		int numAttrs = attrs.length;
+		for (int i = 0; i < numAttrs; i++) {
 			tag.addAttribute(attrs[i]);
 		}
 
@@ -1586,7 +1582,6 @@ public abstract class AbstrCFMLScriptTransformer extends AbstrCFMLExprTransforme
 			boolean wasSemiColon = statement(data, body, script.getContext());
 			if (!wasSemiColon || !tlt.isBodyFree() || body.hasStatements()) tag.setBody(body);
 			data.setParent(prior);
-
 		}
 		else checkSemiColonLineFeed(data, true, true, true);
 

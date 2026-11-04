@@ -1339,6 +1339,7 @@ public final class CFMLTransformer {
 	 * @return Identifier String.
 	 * @throws TemplateException
 	 */
+
 	public static String identifier(SourceCode cfml, boolean throwError, boolean allowColon) throws TemplateException {
 		int start = cfml.getPos();
 		if (!cfml.isCurrentLetter() && !cfml.isCurrent('_')) {
@@ -1346,19 +1347,27 @@ public final class CFMLTransformer {
 			return null;
 		}
 		cfml.forwardVarCharRun();
-		// slow path: ':' (XML namespace prefix) and '-' (hyphenated tag names) only.
-		// After forwardVarCharRun terminates, pos is guaranteed non-var-char, so one lcText[] read
-		// via getCurrentLower() replaces the two isCurrent(char) method calls per iteration and
-		// tightens the JIT profile (the ':' / '-' bimodal was tripping unstable_if/reinterpret).
-		// Sentinel-safe: getCurrentLower() returns 0 at EOF, else-break fires immediately.
+		
 		while (true) {
-			char c = cfml.getCurrentLower();
-			if (c == '-' || (allowColon && c == ':')) {
-				cfml.next();
-				cfml.forwardVarCharRun();
+			switch (cfml.getCurrentLower()) {
+				case '-':
+					cfml.next();
+					cfml.forwardVarCharRun();
+					continue;
+				case ':':
+					if (allowColon) {
+						cfml.next();
+						cfml.forwardVarCharRun();
+						continue;
+					}
+					break;
+				default:
+					break;
 			}
-			else break;
+			break;
 		}
+		// Profile-Flat Return: Direct calculation un-fuses loop bounds tracking 
+		// across both Java 21 and Java 25 runtime environments.
 		return cfml.substring(start, cfml.getPos() - start);
 	}
 
@@ -1369,14 +1378,26 @@ public final class CFMLTransformer {
 			return null;
 		}
 		cfml.forwardVarCharRun();
+		
 		while (true) {
-			char c = cfml.getCurrentLower();
-			if (c == '-' || (allowColon && c == ':')) {
-				cfml.next();
-				cfml.forwardVarCharRun();
+			switch (cfml.getCurrentLower()) {
+				case '-':
+					cfml.next();
+					cfml.forwardVarCharRun();
+					continue;
+				case ':':
+					if (allowColon) {
+						cfml.next();
+						cfml.forwardVarCharRun();
+						continue;
+					}
+					break;
+				default:
+					break;
 			}
-			else break;
+			break;
 		}
+		// Pass directly to slice allocation handlers to shield the loop from fusion traps
 		return cfml.substringLower(start, cfml.getPos() - start);
 	}
 

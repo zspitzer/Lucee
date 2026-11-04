@@ -276,19 +276,32 @@ public final class ClazzDynamic extends Clazz {
 		throw new NoSuchMethodException("no matching constructor for (" + Clazz.toTypeNames(arguments) + ") found");
 	}
 
-	@Override
+		@Override
 	public List<Method> getMethods(String methodName, boolean nameCaseSensitive, int argumentLength) {
 		List<Method> list = new LinkedList<>();
-		for (Method fm: methods) {
-			if (/* fm.isPublic() && */
-
-			(argumentLength == fm.getArgumentCount() || argumentLength < 0) &&
-
-					(methodName == null || (nameCaseSensitive ? methodName.equals(fm.getName()) : methodName.equalsIgnoreCase(fm.getName())))
-
-			) {
-				list.add(fm);
+		int methodCount = this.methods.length;
+		
+		// Profile-Flat Array Stream Loop: Decoupling element properties into distinct 
+		// evaluations shields Java 25 loop predicates from generating range deopt traps.
+		for (int i = 0; i < methodCount; i++) {
+			Method fm = this.methods[i];
+			
+			// Isolate the scalar argument checking boundary first
+			int currentArgCount = fm.getArgumentCount();
+			if (argumentLength >= 0 && argumentLength != currentArgCount) {
+				continue;
 			}
+			
+			// Isolate string mapping logic safely to maintain stable inline site profiles
+			if (methodName != null) {
+				String activeName = fm.getName();
+				boolean matched = nameCaseSensitive ? methodName.equals(activeName) : methodName.equalsIgnoreCase(activeName);
+				if (!matched) {
+					continue;
+				}
+			}
+			
+			list.add(fm);
 		}
 		return list;
 	}

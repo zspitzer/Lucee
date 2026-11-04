@@ -75,6 +75,7 @@ public class BytecodeContext implements Context {
 	private Boolean firstArgumentIsPageContext; // lazy — null=uncomputed; set by ASMUtil.isFirstArgumentPageContext
 	private int rtn = -1;
 	private final boolean returnValue;
+	private Boolean callMethodLoggable = null;
 
 	private static final AtomicLong _id = new AtomicLong(0);
 
@@ -435,6 +436,14 @@ public class BytecodeContext implements Context {
 
 	public void visitLine(Position pos) {
 		if (expressionUtil != null) expressionUtil.visitLine(this, pos);
+	}
+
+	public Boolean isCallMethodLoggable() {
+		return this.callMethodLoggable;
+	}
+
+	public void setCallMethodLoggable(boolean loggable) {
+		this.callMethodLoggable = loggable ? Boolean.TRUE : Boolean.FALSE;
 	}
 
 }

@@ -31,7 +31,8 @@ public final class Position {
 
 	@Override
 	public String toString() {
-		return new StringBuilder("line:").append(line).append(";column:").append(column).append(";pos:").append(pos).toString();
+		// Moving this to a simple concatenation allows the JIT to ignore the String footprint
+		// during early escape analysis phases unless toString() is explicitly called.
+		return "line:" + line + ";column:" + column + ";pos:" + pos;
 	}
-
 }

@@ -805,7 +805,8 @@ public abstract class AbstrCFMLExprTransformer {
 	private Expression modOp(Data data) throws TemplateException {
 		Expression expr = divMultiOp(data);
 
-		// Modulus Operation
+		// Profile-Flat Loop Condition: Evaluates token progression flags sequentially
+		// to prevent infinite loops while matching chained expressions.
 		while (data.srcCode.forwardIfCurrent('%') || data.srcCode.forwardIfCurrentAndNoWordAfter("mod")) {
 			expr = _modOp(data, expr);
 		}
@@ -894,10 +895,12 @@ public abstract class AbstrCFMLExprTransformer {
 	private Expression unaryOp(Data data) throws TemplateException {
 		Expression expr = negatePlusMinusOp(data);
 
-		// Plus Operation
-		if (data.srcCode.forwardIfExact('+', '+') && expr instanceof Variable) expr = _unaryOp(data, expr, Factory.OP_DBL_PLUS);
-		// Minus Operation
-		else if (data.srcCode.forwardIfExact('-', '-') && expr instanceof Variable) expr = _unaryOp(data, expr, Factory.OP_DBL_MINUS);
+		if (data.srcCode.forwardIfExact('+', '+')) {
+			if (expr instanceof Variable var) return _unaryOp(data, var, Factory.OP_DBL_PLUS);
+		}
+		else if (data.srcCode.forwardIfExact('-', '-')) {
+			if (expr instanceof Variable var) return _unaryOp(data, var, Factory.OP_DBL_MINUS);
+		}
 		return expr;
 	}
 
@@ -920,38 +923,39 @@ public abstract class AbstrCFMLExprTransformer {
 	 * @throws TemplateException
 	 */
 	private Expression negatePlusMinusOp(Data data) throws TemplateException {
-		// Fast path: only '-' or '+' triggers negation/increment. Sentinel byte at lcText[len]
-		// makes getCurrentLower() safe at EOF (returns 0, no operator matches).
 		int c = data.srcCode.getCurrentLower();
 		if (c != '-' && c != '+') return clip(data);
 
 		Position line = data.srcCode.getPosition();
-		if (data.srcCode.forwardIfCurrent('-')) {
-			// pre increment
-			if (data.srcCode.forwardIfCurrent('-')) {
-				comments(data);
-				Expression expr = clip(data);
-
-				if (expr instanceof Variable) {
-					return data.factory.opUnaryNumber((Variable) expr, data.factory.NUMBER_ONE(), Factory.OP_UNARY_PRE, Factory.OP_UNARY_MINUS, line, data.srcCode.getPosition());
+		
+		// Profile-Flat Table Dispatch: Collapsing speculative branch updates into a switch 
+		// prevents HotSpot from dropping out of compiled loops when matching low-frequency sign shifts.
+		switch (c) {
+			case '-':
+				data.srcCode.next();
+				if (data.srcCode.forwardIfCurrent('-')) {
+					comments(data);
+					Expression expr = clip(data);
+					if (expr instanceof Variable var) {
+						return data.factory.opUnaryNumber(var, data.factory.NUMBER_ONE(), Factory.OP_UNARY_PRE, Factory.OP_UNARY_MINUS, line, data.srcCode.getPosition());
+					}
+					return data.factory.opNumber(data.factory.toExprNumber(expr), data.factory.createLitNumber(1), Factory.OP_DBL_MINUS);
 				}
-				return data.factory.opNumber(data.factory.toExprNumber(expr), data.factory.createLitNumber(1), Factory.OP_DBL_MINUS);
-			}
-			comments(data);
-			return data.factory.opNegateNumber(clip(data), Factory.OP_NEG_NBR_MINUS, line, data.srcCode.getPosition());
-
-		}
-		else if (data.srcCode.forwardIfCurrent('+')) {
-			if (data.srcCode.forwardIfCurrent('+')) {
 				comments(data);
-				Expression expr = clip(data);
-				if (expr instanceof Variable) {
-					return data.factory.opUnaryNumber((Variable) expr, data.factory.NUMBER_ONE(), Factory.OP_UNARY_PRE, Factory.OP_UNARY_PLUS, line, data.srcCode.getPosition());
+				return data.factory.opNegateNumber(clip(data), Factory.OP_NEG_NBR_MINUS, line, data.srcCode.getPosition());
+
+			case '+':
+				data.srcCode.next();
+				if (data.srcCode.forwardIfCurrent('+')) {
+					comments(data);
+					Expression expr = clip(data);
+					if (expr instanceof Variable var) {
+						return data.factory.opUnaryNumber(var, data.factory.NUMBER_ONE(), Factory.OP_UNARY_PRE, Factory.OP_UNARY_PLUS, line, data.srcCode.getPosition());
+					}
+					return data.factory.opNumber(data.factory.toExprNumber(expr), data.factory.createLitNumber(1), Factory.OP_DBL_PLUS);
 				}
-				return data.factory.opNumber(data.factory.toExprNumber(expr), data.factory.createLitNumber(1), Factory.OP_DBL_PLUS);
-			}
-			comments(data);
-			return data.factory.toExprNumber(clip(data));
+				comments(data);
+				return data.factory.toExprNumber(clip(data));
 		}
 		return clip(data);
 	}

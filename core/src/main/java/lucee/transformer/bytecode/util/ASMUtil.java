@@ -796,50 +796,47 @@ public final class ASMUtil {
 	// version): reflection setup catches Throwable and sets READY=false,
 	// preSizeSymbolTable() early-returns.
 	// ------------------------------------------------------------------------
+	
+		// ------------------------------------------------------------------------
+	// Pre-sizing of ClassWriter.symbolTable internal buffers via VarHandles.
+	// Resolves directly to zero-allocation, type-exact field operations.
+	// ------------------------------------------------------------------------
 	private static final int PRESIZE_ENTRIES = 1024;   // was 256 (4x)
 	private static final int PRESIZE_POOL_BYTES = 8192; // was 64  (128x)
 
-	// MethodHandles (not raw java.lang.reflect.Field) so the JIT can inline
-	// the invokeExact call to a direct field access after warmup. Raw Field.get/set
-	// polymorphic dispatch would pollute the reflection framework's hot profile.
-	private static final java.lang.invoke.MethodHandle SYMBOL_TABLE_GET;
-	private static final java.lang.invoke.MethodHandle ENTRIES_SET;
-	private static final java.lang.invoke.MethodHandle CONSTANT_POOL_SET;
-	// Pre-allocated Entry[] template — Array.newInstance is cheap but reflected,
-	// so we resolve the class once and hand-roll the array creation in preSize().
+	private static final java.lang.invoke.VarHandle SYMBOL_TABLE_FIELD;
+	private static final java.lang.invoke.VarHandle ENTRIES_FIELD;
+	private static final java.lang.invoke.VarHandle CONSTANT_POOL_FIELD;
 	private static final Class<?> ENTRY_CLASS;
 	private static final boolean PRESIZE_READY;
 
 	static {
-		java.lang.invoke.MethodHandle stGet = null, entriesSet = null, poolSet = null;
+		java.lang.invoke.VarHandle stHandle = null;
+		java.lang.invoke.VarHandle entriesHandle = null;
+		java.lang.invoke.VarHandle poolHandle = null;
 		Class<?> entryClass = null;
 		boolean ready = false;
 		try {
-			java.lang.invoke.MethodHandles.Lookup lookup = java.lang.invoke.MethodHandles.lookup();
-			Field stField = ClassWriter.class.getDeclaredField("symbolTable");
-			stField.setAccessible(true);
-			stGet = lookup.unreflectGetter(stField);
+			java.lang.invoke.MethodHandles.Lookup lookup = java.lang.invoke.MethodHandles.privateLookupIn(
+				ClassWriter.class, java.lang.invoke.MethodHandles.lookup()
+			);
+			stHandle = lookup.findVarHandle(ClassWriter.class, "symbolTable", Class.forName("org.objectweb.asm.SymbolTable"));
 
 			Class<?> stClass = Class.forName("org.objectweb.asm.SymbolTable");
-			Field entriesField = stClass.getDeclaredField("entries");
-			entriesField.setAccessible(true);
-			entriesSet = lookup.unreflectSetter(entriesField);
-
-			Field poolField = stClass.getDeclaredField("constantPool");
-			poolField.setAccessible(true);
-			poolSet = lookup.unreflectSetter(poolField);
-
+			java.lang.invoke.MethodHandles.Lookup stLookup = java.lang.invoke.MethodHandles.privateLookupIn(stClass, java.lang.invoke.MethodHandles.lookup());
+			
 			entryClass = Class.forName("org.objectweb.asm.SymbolTable$Entry");
+			entriesHandle = stLookup.findVarHandle(stClass, "entries", java.lang.reflect.Array.newInstance(entryClass, 0).getClass());
+			poolHandle = stLookup.findVarHandle(stClass, "constantPool", ByteVector.class);
+			
 			ready = true;
 		}
 		catch (Throwable t) {
-			// ASM internals changed shape (field renamed / removed) — silently fall back to unsized.
-			// Output correctness is unaffected; only miss the buffer-resize optimisation.
-			// Diagnosable via JFR: if ByteVector.enlarge alloc events don't drop, reflection isn't active.
+			// Fall back safely if internals change in a future ASM release
 		}
-		SYMBOL_TABLE_GET = stGet;
-		ENTRIES_SET = entriesSet;
-		CONSTANT_POOL_SET = poolSet;
+		SYMBOL_TABLE_FIELD = stHandle;
+		ENTRIES_FIELD = entriesHandle;
+		CONSTANT_POOL_FIELD = poolHandle;
 		ENTRY_CLASS = entryClass;
 		PRESIZE_READY = ready;
 	}
@@ -847,19 +844,19 @@ public final class ASMUtil {
 	private static void preSizeSymbolTable(ClassWriter cw) {
 		if (!PRESIZE_READY) return;
 		try {
-			// SymbolTable's constructor sets entries and constantPool to empty (Entry[256] + ByteVector(64B)).
-			// Nothing is pre-populated at this point, so replacing them is a no-op semantically —
-			// only the initial capacity changes. Safe.
-			// Use invoke (not invokeExact) — call site takes Object receiver/args to keep the MH sig
-			// generic; JIT still inlines through invoke() when the MH target is a direct field accessor.
-			Object st = SYMBOL_TABLE_GET.invoke(cw);
-			ENTRIES_SET.invoke(st, java.lang.reflect.Array.newInstance(ENTRY_CLASS, PRESIZE_ENTRIES));
-			CONSTANT_POOL_SET.invoke(st, new ByteVector(PRESIZE_POOL_BYTES));
+			// Using type-exact VarHandle accessors compiles down to pure pointer references
+			// without generating argument array wrappers or triggering polymorphic JIT cache degradation.
+			Object st = SYMBOL_TABLE_FIELD.get(cw);
+			Object customEntries = java.lang.reflect.Array.newInstance(ENTRY_CLASS, PRESIZE_ENTRIES);
+			
+			ENTRIES_FIELD.set(st, customEntries);
+			CONSTANT_POOL_FIELD.set(st, new ByteVector(PRESIZE_POOL_BYTES));
 		}
 		catch (Throwable ignore) {
-			// Per-CW failure is silent — output is still correct, just unsized.
+			// Per-CW failure is silent — output remains correct, just un-optimized
 		}
 	}
+
 
 	public static String createOverfowMethod(String prefix, int id) { // pattern is used in function callstackget
 		if (StringUtil.isEmpty(prefix)) prefix = "call";
