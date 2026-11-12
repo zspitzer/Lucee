@@ -16,6 +16,7 @@ import lucee.runtime.op.Decision;
 import lucee.runtime.osgi.BundleDefinition;
 import lucee.runtime.osgi.VersionRange;
 import lucee.runtime.type.dt.DateTime;
+import lucee.runtime.type.dt.DateTimeImpl;
 import lucee.runtime.type.util.ArrayUtil;
 import lucee.runtime.type.util.ListUtil;
 
@@ -36,7 +37,8 @@ public final class ExtensionMetadata implements Serializable {
 	private String type;
 
 	private boolean trial;
-	private String image;
+	// base64 logo, 17 to 88 KB per extension; not persisted, RHExtension.loadImage() reads it from the .lex on demand
+	private transient String image;
 	private boolean startBundles;
 	private BundleDefinition[] bundles;
 	private VersionRange minCoreVersion;
@@ -104,7 +106,8 @@ public final class ExtensionMetadata implements Serializable {
 	private transient List<Map<String, Object>> eventGatewayInstances;
 	private String eventGatewayInstancesRaw;
 
-	private DateTime builtDate;
+	// epoch millis, 0 = unknown; kept primitive so the serialised form carries no Lucee date hierarchy
+	private long builtDate;
 
 	public List<Map<String, Object>> getEventGatewayInstances() {
 		if (eventGatewayInstances == null) {
@@ -450,11 +453,12 @@ public final class ExtensionMetadata implements Serializable {
 	}
 
 	public DateTime getBuiltDate() {
-		return builtDate;
+		if (builtDate == 0) return null;
+		return new DateTimeImpl(builtDate);
 	}
 
 	public void setBuiltDate(DateTime builtDate) {
-		this.builtDate = builtDate;
+		this.builtDate = builtDate == null ? 0 : builtDate.getTime();
 	}
 
 	public String getSymbolicName() {
