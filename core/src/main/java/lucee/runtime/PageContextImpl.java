@@ -597,6 +597,7 @@ public final class PageContextImpl extends PageContext {
 		if (debugger != null) debugger.init(config);
 		if (clone) {
 			((UndefinedImpl) undefined).initialize(this, tmplPC.getScopeCascadingType(), tmplPC.hasDebugOptions(ConfigPro.DEBUG_IMPLICIT_ACCESS));
+			undefined.setAllowImplicidQueryCall(tmplPC.allowImplicidQueryCall());
 		}
 		else {
 			undefined.initialize(this);

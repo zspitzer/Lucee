@@ -88,7 +88,7 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 	private Scope[] scopes;
 	private QueryStackImpl qryStack = new QueryStackImpl();
 	private Variables variable;
-	// private boolean allowImplicidQueryCall;
+	private boolean allowImplicidQueryCall;
 	private boolean checkArguments;
 
 	private boolean localAlways;
@@ -240,7 +240,7 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 		}
 
 		// get data from queries
-		if (this.pc.allowImplicidQueryCall() && !qryStack.isEmpty()) {
+		if (!qryStack.isEmpty() && allowImplicidQueryCall) {
 			rtn = qryStack.getDataFromACollection(pc, key, _null);
 			if (rtn != _null) {
 				if (debug) debugCascadedAccess(pc, "query", key);
@@ -334,7 +334,7 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 		}
 
 		// get data from queries
-		if (this.pc.allowImplicidQueryCall() && !qryStack.isEmpty()) {
+		if (!qryStack.isEmpty() && allowImplicidQueryCall) {
 			rtn = qryStack.getColumnFromACollection(key);
 			if (rtn != null) sct.setEL(KeyConstants._query, rtn);
 		}
@@ -379,7 +379,7 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 		}
 
 		// get data from queries
-		if (this.pc.allowImplicidQueryCall() && !qryStack.isEmpty()) {
+		if (!qryStack.isEmpty() && allowImplicidQueryCall) {
 			QueryColumn qc = qryStack.getColumnFromACollection(key);
 			if (qc != null) return (Query) qc.getParent();
 		}
@@ -450,7 +450,7 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 		}
 
 		// get data from queries
-		if (this.pc.allowImplicidQueryCall() && !qryStack.isEmpty()) {
+		if (!qryStack.isEmpty() && allowImplicidQueryCall) {
 			rtn = qryStack.getColumnFromACollection(key);
 			if (rtn != null) {
 				if (debug) debugCascadedAccess(pc, "query", key);
@@ -518,7 +518,7 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 		}
 
 		// get data from queries
-		if (this.pc.allowImplicidQueryCall() && !qryStack.isEmpty()) {
+		if (!qryStack.isEmpty() && allowImplicidQueryCall) {
 			rtn = qryStack.getDataFromACollection(pc, key, _null);
 			if (rtn != _null) {
 				if (debug) debugCascadedAccess(pc, "query", key);
@@ -660,7 +660,8 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 		variable = pc.variablesScope();
 		argument = pc.argumentsScope();
 		local = pc.localScope();
-		// allowImplicidQueryCall = pc.getConfig().allowImplicidQueryCall();
+		// the AC isn't set yet here, reinitialize() refreshes it from the AC
+		allowImplicidQueryCall = pc.getConfig().allowImplicidQueryCall();
 		this.type = type;
 		this.debug = debug;
 		// Strict
@@ -686,6 +687,7 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 
 	@Override
 	public void reinitialize(PageContext pc) {
+		allowImplicidQueryCall = pc.getApplicationContext().getAllowImplicidQueryCall();
 		if (type != Config.SCOPE_STANDARD) return;
 		Client cs = pc.clientScopeEL();
 		// print.ln("standard");
@@ -723,7 +725,7 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 	@Override
 	public Collection duplicate(boolean deepCopy) {
 		UndefinedImpl dupl = new UndefinedImpl(pc, type);
-		// dupl.allowImplicidQueryCall = allowImplicidQueryCall;
+		dupl.allowImplicidQueryCall = allowImplicidQueryCall;
 		dupl.checkArguments = checkArguments;
 		dupl.argument = deepCopy ? (Argument) Duplicator.duplicate(argument, deepCopy) : argument;
 		dupl.isInit = isInit;
@@ -836,7 +838,7 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 	 * @return the allowImplicidQueryCall
 	 */
 	public boolean isAllowImplicidQueryCall() {
-		return this.pc.allowImplicidQueryCall();
+		return allowImplicidQueryCall;
 	}
 
 	/**
@@ -844,8 +846,8 @@ public final class UndefinedImpl extends StructSupport implements Undefined, Obj
 	 */
 	@Override
 	public boolean setAllowImplicidQueryCall(boolean allowImplicidQueryCall) {
-		boolean old = pc.allowImplicidQueryCall();
-		pc.getApplicationContext().setAllowImplicidQueryCall(allowImplicidQueryCall);
+		boolean old = this.allowImplicidQueryCall;
+		this.allowImplicidQueryCall = allowImplicidQueryCall;
 		return old;
 	}
 
