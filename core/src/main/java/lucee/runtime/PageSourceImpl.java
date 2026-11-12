@@ -36,7 +36,8 @@ import lucee.commons.lang.StringUtil;
 import lucee.commons.lang.compiler.JavaFunction;
 import lucee.commons.lang.types.RefBoolean;
 import lucee.commons.lang.types.RefBooleanImpl;
-import lucee.commons.lang.types.RefIntegerSync;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import lucee.loader.engine.CFMLEngine;
 import lucee.runtime.compiler.CFMLCompilerImpl.Result;
 import lucee.runtime.config.Config;
@@ -88,7 +89,7 @@ public final class PageSourceImpl implements PageSource {
 	private String compName;
 	private PageAndClassName pcn = new PageAndClassName();
 	private long lastAccess;
-	private RefIntegerSync accessCount = new RefIntegerSync();
+	private final AtomicInteger accessCount = new AtomicInteger();
 	private boolean flush = false;
 	// Negative-lookup cache for NEVER mappings. When loadPhysical confirms the underlying file is
 	// missing (srcLastModified == 0), this flag short-circuits future calls so repeated lookups of
@@ -1057,13 +1058,13 @@ public final class PageSourceImpl implements PageSource {
 
 	@Override
 	public final void setLastAccessTime() {
-		accessCount.plus(1);
+		accessCount.incrementAndGet();
 		this.lastAccess = System.currentTimeMillis();
 	}
 
 	@Override
 	public final int getAccessCount() {
-		return accessCount.toInt();
+		return accessCount.get();
 	}
 
 	@Override
