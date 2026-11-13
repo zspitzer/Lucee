@@ -18,6 +18,7 @@
  */
 package lucee.runtime.type;
 
+import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,6 +32,7 @@ import lucee.commons.collection.AccessOrderLimitedSizeMap;
 import lucee.commons.collection.MapFactory;
 import lucee.commons.collection.RefMap;
 import lucee.commons.collection.RefMap.ReferenceType;
+import lucee.commons.collection.concurrent.ConcurrentHashMapNullSupportJDK;
 import lucee.commons.io.SystemUtil;
 import lucee.commons.lang.ExceptionUtil;
 import lucee.commons.math.MathUtil;
@@ -150,6 +152,47 @@ public class StructImpl extends StructSupport {
 		// Therefore: capacity >= size / 0.75
 		int needed = (int) (size / 0.75f) + 1;
 		return MathUtil.nextPowerOfTwo(needed, min);
+	}
+
+	/**
+	 * Sizes the backing map for {@code incoming} more keys ahead of a bulk insert, so the inserts do not
+	 * grow the table one doubling at a time. HashMap-backed maps presize in place. A concurrent map is
+	 * rebuilt at its final size and swapped in, only when {@code rebuild} is set and the batch is larger
+	 * than what the map holds; the swap is not safe on a map other threads write to.
+	 */
+	public void presize(int incoming, boolean rebuild) {
+		Map<Collection.Key, Object> m = map;
+		int size = m.size();
+		if (m instanceof HashMap || type == TYPE_LINKED) {
+			m.putAll(new SizeOnlyMap(size + incoming));
+		}
+		else if (rebuild && m instanceof ConcurrentHashMapNullSupportJDK && incoming > size && size + incoming > REBUILD_MIN_ENTRIES) {
+			Map<Collection.Key, Object> sized = MapFactory.getConcurrentMap(size + incoming);
+			if (size > 0) sized.putAll(m);
+			map = sized;
+		}
+	}
+
+	// resize threshold of the default CHM table (64 slots x 0.75); smaller batches never resize it
+	private static final int REBUILD_MIN_ENTRIES = 48;
+
+	// putAll argument that carries only a size, so HashMap.putMapEntries presizes without inserting
+	private static final class SizeOnlyMap extends AbstractMap<Collection.Key, Object> {
+		private final int size;
+
+		private SizeOnlyMap(int size) {
+			this.size = size;
+		}
+
+		@Override
+		public int size() {
+			return size;
+		}
+
+		@Override
+		public Set<Entry<Collection.Key, Object>> entrySet() {
+			return Collections.emptySet();
+		}
 	}
 
 	@Override

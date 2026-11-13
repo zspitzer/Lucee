@@ -31,6 +31,8 @@ import lucee.runtime.op.Caster;
 import lucee.runtime.type.Collection.Key;
 import lucee.runtime.type.KeyImpl;
 import lucee.runtime.type.Struct;
+import lucee.runtime.type.StructImpl;
+import lucee.runtime.type.scope.VariablesImpl;
 
 public final class StructAppend extends BIF {
 
@@ -41,6 +43,10 @@ public final class StructAppend extends BIF {
 	}
 
 	public static boolean call(PageContext pc, Struct struct1, Struct struct2, boolean overwrite) throws PageException {
+		int incoming = struct2.size();
+		if (incoming == 0) return true;
+		// rebuilding swaps the backing map, so only for destinations that are not shared scopes
+		if (struct1 instanceof StructImpl) ((StructImpl) struct1).presize(incoming, struct1.getClass() == StructImpl.class || struct1 instanceof VariablesImpl);
 		Iterator<Key> it = struct2.keyIterator();
 		Key key;
 		while (it.hasNext()) {
