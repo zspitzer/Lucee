@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.IdentityHashMap;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.Vector;
@@ -76,7 +77,6 @@ import lucee.runtime.type.util.ComponentUtil;
 import lucee.runtime.type.util.KeyConstants;
 import lucee.runtime.type.util.ListUtil;
 import lucee.runtime.type.util.Type;
-import lucee.runtime.util.ObjectIdentityHashSet;
 import lucee.transformer.bytecode.util.JavaProxyFactory;
 import lucee.transformer.dynamic.DynamicInvoker;
 import lucee.transformer.dynamic.meta.Clazz;
@@ -1692,39 +1692,49 @@ public final class Reflector {
 
 		if (!digg) return args;
 
-		ObjectIdentityHashSet done = new ObjectIdentityHashSet();
+		IdentityHashMap<Object, Object> memo = new IdentityHashMap<Object, Object>();
 		for (int i = 0; i < args.length; i++) {
-			args[i] = _clean(done, args[i]);
+			args[i] = _clean(memo, args[i]);
 		}
 		return args;
 	}
 
-	private static Object _clean(ObjectIdentityHashSet done, Object obj) {
-		if (done.contains(obj)) return obj;
-		done.add(obj);
-		try {
-			if (obj instanceof ObjectWrap) {
+	/** marker for a collection currently being walked, to break cycles */
+	private static final Object CLEAN_CYCLE = new Object();
 
-				return ((ObjectWrap) obj).getEmbededObject(obj);
-			}
-			if (obj instanceof Collection) return _clean(done, (Collection) obj);
-			// if (obj instanceof Map) return _clean(done, (Map) obj);
-			// if (obj instanceof List) return _clean(done, (List) obj);
-			// if (obj instanceof Object[]) return _clean(done, (Object[]) obj);
+	/** marker for a cleaned value that is null, so a memo hit is not mistaken for a miss */
+	private static final Object CLEAN_NONE = new Object();
+
+	private static Object _clean(IdentityHashMap<Object, Object> memo, Object obj) {
+		Object cached = memo.get(obj);
+		if (cached == CLEAN_CYCLE) return obj;
+		if (cached == CLEAN_NONE) return null;
+		if (cached != null) return cached;
+
+		if (obj instanceof ObjectWrap) {
+			Object embedded = ((ObjectWrap) obj).getEmbededObject(obj);
+			memo.put(obj, embedded == null ? CLEAN_NONE : embedded);
+			return embedded;
 		}
-		finally {
-			done.remove(obj);
+		if (obj instanceof Collection) {
+			memo.put(obj, CLEAN_CYCLE);
+			Object cleaned = _clean(memo, (Collection) obj);
+			memo.put(obj, cleaned == null ? CLEAN_NONE : cleaned);
+			return cleaned;
 		}
+		// if (obj instanceof Map) return _clean(memo, (Map) obj);
+		// if (obj instanceof List) return _clean(memo, (List) obj);
+		// if (obj instanceof Object[]) return _clean(memo, (Object[]) obj);
 		return obj;
 	}
 
-	private static Object _clean(ObjectIdentityHashSet done, Collection coll) {
+	private static Object _clean(IdentityHashMap<Object, Object> memo, Collection coll) {
 		Iterator<Object> vit = coll.valueIterator();
 		Object v;
 		boolean change = false;
 		while (vit.hasNext()) {
 			v = vit.next();
-			if (v != _clean(done, v)) {
+			if (v != _clean(memo, v)) {
 				change = true;
 				break;
 			}
@@ -1736,7 +1746,7 @@ public final class Reflector {
 		Entry<Key, Object> e;
 		while (eit.hasNext()) {
 			e = eit.next();
-			coll.setEL(e.getKey(), _clean(done, e.getValue()));
+			coll.setEL(e.getKey(), _clean(memo, e.getValue()));
 		}
 		return coll;
 	}
