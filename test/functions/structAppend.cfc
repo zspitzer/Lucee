@@ -132,6 +132,13 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 				expect( dest.a ).toBe( 1 );
 			});
 
+			it( title = 'structAppend into variables while a cfthread writes to it keeps every write', body = function( currentSpec ) {
+				var result = deserializeJSON( _InternalRequest( template: createURI( "structAppend/variablesWithThread.cfm" ) ).filecontent );
+				expect( result.status ).toBe( "COMPLETED" );
+				expect( result.src ).toBe( 500 );
+				expect( result.thread ).toBe( 20000 );
+			});
+
 			it( title = 'structAppend a struct into itself', body = function( currentSpec ) {
 				var dest = buildStruct( 100 );
 				structAppend( dest, dest );
@@ -140,6 +147,11 @@ component extends="org.lucee.cfml.test.LuceeTestCase" {
 			});
 		});
 
+	}
+
+	private string function createURI( string calledName ) {
+		var baseURI = "/test/#listLast( getDirectoryFromPath( getCurrentTemplatePath() ), "\/" )#/";
+		return baseURI & "" & calledName;
 	}
 
 	private struct function buildStruct( required numeric count ) {
