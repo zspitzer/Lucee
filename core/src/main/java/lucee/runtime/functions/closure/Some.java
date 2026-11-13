@@ -92,57 +92,66 @@ public final class Some extends BIF implements ClosureFunc {
 
 		boolean res;
 
-		// Array
-		if (type == TYPE_ARRAY) {
-			res = invoke(pc, (Array) obj, udf, execute, futures);
-		}
-		// Query
-		else if (type == TYPE_QUERY) {
-			res = invoke(pc, (Query) obj, udf, execute, futures);
-		}
-		// Struct
-		else if (type == TYPE_STRUCT) {
-			res = invoke(pc, (Struct) obj, udf, execute, futures);
-		}
-		// Array
-		else if (obj instanceof Array && !(obj instanceof Argument)) {
-			res = invoke(pc, (Array) obj, udf, execute, futures);
-		}
-		// Query
-		else if (obj instanceof Query) {
-			res = invoke(pc, (Query) obj, udf, execute, futures);
-		}
-		// Struct
-		else if (obj instanceof Struct) {
-			res = invoke(pc, (Struct) obj, udf, execute, futures);
-		}
-		// other Iteratorable
-		else if (obj instanceof Iteratorable) {
-			res = invoke(pc, (Iteratorable) obj, udf, execute, futures);
-		}
-		// Map
-		else if (obj instanceof java.util.Map) {
-			res = invoke(pc, (java.util.Map) obj, udf, execute, futures);
-		}
-		// List
-		else if (obj instanceof List) {
-			res = invoke(pc, (List) obj, udf, execute, futures);
-		}
-		// Iterator
-		else if (obj instanceof Iterator) {
-			res = invoke(pc, (Iterator) obj, udf, execute, futures);
-		}
-		// Enumeration
-		else if (obj instanceof Enumeration) {
-			res = invoke(pc, (Enumeration) obj, udf, execute, futures);
-		}
-		// String List
-		else if (obj instanceof StringListData) {
-			res = invoke(pc, (StringListData) obj, udf, execute, futures);
-		}
-		else throw new FunctionException(pc, "Some", 1, "data", "Cannot iterate over this type [" + Caster.toTypeName(obj.getClass()) + "]");
+		try {
+			// Array
+			if (type == TYPE_ARRAY) {
+				res = invoke(pc, (Array) obj, udf, execute, futures);
+			}
+			// Query
+			else if (type == TYPE_QUERY) {
+				res = invoke(pc, (Query) obj, udf, execute, futures);
+			}
+			// Struct
+			else if (type == TYPE_STRUCT) {
+				res = invoke(pc, (Struct) obj, udf, execute, futures);
+			}
+			// Array
+			else if (obj instanceof Array && !(obj instanceof Argument)) {
+				res = invoke(pc, (Array) obj, udf, execute, futures);
+			}
+			// Query
+			else if (obj instanceof Query) {
+				res = invoke(pc, (Query) obj, udf, execute, futures);
+			}
+			// Struct
+			else if (obj instanceof Struct) {
+				res = invoke(pc, (Struct) obj, udf, execute, futures);
+			}
+			// other Iteratorable
+			else if (obj instanceof Iteratorable) {
+				res = invoke(pc, (Iteratorable) obj, udf, execute, futures);
+			}
+			// Map
+			else if (obj instanceof java.util.Map) {
+				res = invoke(pc, (java.util.Map) obj, udf, execute, futures);
+			}
+			// List
+			else if (obj instanceof List) {
+				res = invoke(pc, (List) obj, udf, execute, futures);
+			}
+			// Iterator
+			else if (obj instanceof Iterator) {
+				res = invoke(pc, (Iterator) obj, udf, execute, futures);
+			}
+			// Enumeration
+			else if (obj instanceof Enumeration) {
+				res = invoke(pc, (Enumeration) obj, udf, execute, futures);
+			}
+			// String List
+			else if (obj instanceof StringListData) {
+				res = invoke(pc, (StringListData) obj, udf, execute, futures);
+			}
+			else throw new FunctionException(pc, "Some", 1, "data", "Cannot iterate over this type [" + Caster.toTypeName(obj.getClass()) + "]");
 
-		if (execute != null) res = afterCall(pc, futures, execute, thread);
+			if (execute != null) res = afterCall(pc, futures, execute, thread);
+		}
+		finally {
+			if (execute != null) {
+				// drain orphans so they can't race the caller's post-parallel state (LDEV-6395)
+				ThreadUtil.drainFutures(futures);
+				Each.finishParallelCall(pc, execute, thread);
+			}
+		}
 
 		return res;
 	}

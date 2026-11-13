@@ -97,59 +97,68 @@ public final class Filter extends BIF implements ClosureFunc {
 		}
 
 		Collection coll;
-		// !!!! Don't combine the first 3 ifs with the ifs below, type overrules instanceof check
-		// Array
-		if (type == TYPE_ARRAY) {
-			coll = invoke(pc, (Array) obj, udf, execute, futures);
-		}
-		// Query
-		else if (type == TYPE_QUERY) {
-			coll = invoke(pc, (Query) obj, udf, execute, futures);
-		}
-		// Struct
-		else if (type == TYPE_STRUCT) {
-			coll = invoke(pc, (Struct) obj, udf, execute, futures);
-		}
+		try {
+			// !!!! Don't combine the first 3 ifs with the ifs below, type overrules instanceof check
+			// Array
+			if (type == TYPE_ARRAY) {
+				coll = invoke(pc, (Array) obj, udf, execute, futures);
+			}
+			// Query
+			else if (type == TYPE_QUERY) {
+				coll = invoke(pc, (Query) obj, udf, execute, futures);
+			}
+			// Struct
+			else if (type == TYPE_STRUCT) {
+				coll = invoke(pc, (Struct) obj, udf, execute, futures);
+			}
 
-		// Array
-		else if (obj instanceof Array && !(obj instanceof Argument)) {
-			coll = invoke(pc, (Array) obj, udf, execute, futures);
-		}
-		// Query
-		else if (obj instanceof Query) {
-			coll = invoke(pc, (Query) obj, udf, execute, futures);
-		}
-		// Struct
-		else if (obj instanceof Struct) {
-			coll = invoke(pc, (Struct) obj, udf, execute, futures);
-		}
-		// other Iteratorable
-		else if (obj instanceof Iteratorable) {
-			coll = invoke(pc, (Iteratorable) obj, udf, execute, futures);
-		}
-		// Map
-		else if (obj instanceof java.util.Map) {
-			coll = invoke(pc, (java.util.Map) obj, udf, execute, futures);
-		}
-		// List
-		else if (obj instanceof List) {
-			coll = invoke(pc, (List) obj, udf, execute, futures);
-		}
-		// Iterator
-		else if (obj instanceof Iterator) {
-			coll = invoke(pc, (Iterator) obj, udf, execute, futures);
-		}
-		// Enumeration
-		else if (obj instanceof Enumeration) {
-			coll = invoke(pc, (Enumeration) obj, udf, execute, futures);
-		}
-		// String List
-		else if (obj instanceof StringListData) {
-			coll = invoke(pc, (StringListData) obj, udf, execute, futures);
-		}
-		else throw new FunctionException(pc, "Filter", 1, "data", "Cannot iterate over this type [" + Caster.toTypeName(obj.getClass()) + "]");
+			// Array
+			else if (obj instanceof Array && !(obj instanceof Argument)) {
+				coll = invoke(pc, (Array) obj, udf, execute, futures);
+			}
+			// Query
+			else if (obj instanceof Query) {
+				coll = invoke(pc, (Query) obj, udf, execute, futures);
+			}
+			// Struct
+			else if (obj instanceof Struct) {
+				coll = invoke(pc, (Struct) obj, udf, execute, futures);
+			}
+			// other Iteratorable
+			else if (obj instanceof Iteratorable) {
+				coll = invoke(pc, (Iteratorable) obj, udf, execute, futures);
+			}
+			// Map
+			else if (obj instanceof java.util.Map) {
+				coll = invoke(pc, (java.util.Map) obj, udf, execute, futures);
+			}
+			// List
+			else if (obj instanceof List) {
+				coll = invoke(pc, (List) obj, udf, execute, futures);
+			}
+			// Iterator
+			else if (obj instanceof Iterator) {
+				coll = invoke(pc, (Iterator) obj, udf, execute, futures);
+			}
+			// Enumeration
+			else if (obj instanceof Enumeration) {
+				coll = invoke(pc, (Enumeration) obj, udf, execute, futures);
+			}
+			// String List
+			else if (obj instanceof StringListData) {
+				coll = invoke(pc, (StringListData) obj, udf, execute, futures);
+			}
+			else throw new FunctionException(pc, "Filter", 1, "data", "Cannot iterate over this type [" + Caster.toTypeName(obj.getClass()) + "]");
 
-		if (execute != null) afterCall(pc, coll, futures, execute, thread);
+			if (execute != null) afterCall(pc, coll, futures, execute, thread);
+		}
+		finally {
+			if (execute != null) {
+				// drain orphans so they can't race the caller's post-parallel state (LDEV-6395)
+				ThreadUtil.drainFutures(futures);
+				Each.finishParallelCall(pc, execute, thread);
+			}
+		}
 
 		return coll;
 	}

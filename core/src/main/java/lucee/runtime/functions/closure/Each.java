@@ -90,77 +90,86 @@ public final class Each extends BIF implements ClosureFunc {
 			((PageContextImpl) pc).setParallelPool(new PageContextPool(pc));
 		}
 
-		// !!!! Don't combine the first 2 ifs with the ifs below, type overrules instanceof check
-		// Array
-		if (type == TYPE_ARRAY) {
-			invoke(pc, (Array) obj, udf, execute, futures);
-		}
-		// Query
-		else if (type == TYPE_QUERY) {
-			invoke(pc, (Query) obj, udf, execute, futures);
-		}
+		try {
+			// !!!! Don't combine the first 2 ifs with the ifs below, type overrules instanceof check
+			// Array
+			if (type == TYPE_ARRAY) {
+				invoke(pc, (Array) obj, udf, execute, futures);
+			}
+			// Query
+			else if (type == TYPE_QUERY) {
+				invoke(pc, (Query) obj, udf, execute, futures);
+			}
 
-		// Array
-		else if (obj instanceof Array && !(obj instanceof Argument)) {
-			invoke(pc, (Array) obj, udf, execute, futures);
-		}
-		// Query
-		else if (obj instanceof Query) {
-			invoke(pc, (Query) obj, udf, execute, futures);
-		}
+			// Array
+			else if (obj instanceof Array && !(obj instanceof Argument)) {
+				invoke(pc, (Array) obj, udf, execute, futures);
+			}
+			// Query
+			else if (obj instanceof Query) {
+				invoke(pc, (Query) obj, udf, execute, futures);
+			}
 
-		// other Iteratorable
-		else if (obj instanceof Iteratorable) {
-			invoke(pc, (Iteratorable) obj, udf, execute, futures);
+			// other Iteratorable
+			else if (obj instanceof Iteratorable) {
+				invoke(pc, (Iteratorable) obj, udf, execute, futures);
+			}
+			// Map
+			else if (obj instanceof Map) {
+				Iterator it = ((Map) obj).entrySet().iterator();
+				Entry e;
+				ParentException parentException = execute != null ? new ParentException() : null;
+				while (it.hasNext()) {
+					e = (Entry) it.next();
+					_call(pc, parentException, udf, new Object[] { e.getKey(), e.getValue(), obj }, execute, futures);
+					// udf.call(pc, new Object[]{e.getKey(),e.getValue()}, true);
+				}
+			}
+			// List
+			else if (obj instanceof List) {
+				ListIterator it = ((List) obj).listIterator();
+				int index;
+				ParentException parentException = execute != null ? new ParentException() : null;
+				while (it.hasNext()) {
+					index = it.nextIndex();
+					_call(pc, parentException, udf, new Object[] { it.next(), Caster.toDouble(index), obj }, execute, futures);
+					// udf.call(pc, new Object[]{it.next()}, true);
+				}
+			}
+
+			// Iterator
+			else if (obj instanceof Iterator) {
+				Iterator it = (Iterator) obj;
+				ParentException parentException = execute != null ? new ParentException() : null;
+				while (it.hasNext()) {
+					_call(pc, parentException, udf, new Object[] { it.next() }, execute, futures);
+					// udf.call(pc, new Object[]{it.next()}, true);
+				}
+			}
+			// Enumeration
+			else if (obj instanceof Enumeration) {
+				Enumeration e = (Enumeration) obj;
+				ParentException parentException = execute != null ? new ParentException() : null;
+				while (e.hasMoreElements()) {
+					_call(pc, parentException, udf, new Object[] { e.nextElement() }, execute, futures);
+					// udf.call(pc, new Object[]{e.nextElement()}, true);
+				}
+			}
+			// StringListData
+			else if (obj instanceof StringListData) {
+				invoke(pc, (StringListData) obj, udf, execute, futures);
+			}
+			else throw new FunctionException(pc, "Each", 1, "data", "Cannot iterate over this type [" + Caster.toTypeName(obj.getClass()) + "]");
+
+			if (execute != null) afterCall(pc, futures, execute, thread);
 		}
-		// Map
-		else if (obj instanceof Map) {
-			Iterator it = ((Map) obj).entrySet().iterator();
-			Entry e;
-			ParentException parentException = execute != null ? new ParentException() : null;
-			while (it.hasNext()) {
-				e = (Entry) it.next();
-				_call(pc, parentException, udf, new Object[] { e.getKey(), e.getValue(), obj }, execute, futures);
-				// udf.call(pc, new Object[]{e.getKey(),e.getValue()}, true);
+		finally {
+			if (execute != null) {
+				// drain orphans so they can't race the caller's post-parallel state (LDEV-6395)
+				ThreadUtil.drainFutures(futures);
+				finishParallelCall(pc, execute, thread);
 			}
 		}
-		// List
-		else if (obj instanceof List) {
-			ListIterator it = ((List) obj).listIterator();
-			int index;
-			ParentException parentException = execute != null ? new ParentException() : null;
-			while (it.hasNext()) {
-				index = it.nextIndex();
-				_call(pc, parentException, udf, new Object[] { it.next(), Caster.toDouble(index), obj }, execute, futures);
-				// udf.call(pc, new Object[]{it.next()}, true);
-			}
-		}
-
-		// Iterator
-		else if (obj instanceof Iterator) {
-			Iterator it = (Iterator) obj;
-			ParentException parentException = execute != null ? new ParentException() : null;
-			while (it.hasNext()) {
-				_call(pc, parentException, udf, new Object[] { it.next() }, execute, futures);
-				// udf.call(pc, new Object[]{it.next()}, true);
-			}
-		}
-		// Enumeration
-		else if (obj instanceof Enumeration) {
-			Enumeration e = (Enumeration) obj;
-			ParentException parentException = execute != null ? new ParentException() : null;
-			while (e.hasMoreElements()) {
-				_call(pc, parentException, udf, new Object[] { e.nextElement() }, execute, futures);
-				// udf.call(pc, new Object[]{e.nextElement()}, true);
-			}
-		}
-		// StringListData
-		else if (obj instanceof StringListData) {
-			invoke(pc, (StringListData) obj, udf, execute, futures);
-		}
-		else throw new FunctionException(pc, "Each", 1, "data", "Cannot iterate over this type [" + Caster.toTypeName(obj.getClass()) + "]");
-
-		if (execute != null) afterCall(pc, futures, execute, thread);
 
 		return null;
 	}

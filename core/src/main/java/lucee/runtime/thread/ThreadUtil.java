@@ -20,9 +20,11 @@ package lucee.runtime.thread;
 
 import java.io.OutputStream;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -233,6 +235,21 @@ public final class ThreadUtil {
 			return new BoundedExecutorService(Executors.newVirtualThreadPerTaskExecutor(), maxConcurrency);
 		}
 		return Executors.newFixedThreadPool(maxConcurrency < 1 ? 20 : maxConcurrency);
+	}
+
+	// Wait for any in-flight futures to finish so orphan workers can't race the caller's
+	// post-parallel mutations (LDEV-6395). Swallows per-future exceptions: the caller has
+	// already surfaced the relevant one via afterCall.
+	public static void drainFutures(List<? extends Future<?>> futures) {
+		if (futures == null) return;
+		for (Future<?> f : futures) {
+			if (!f.isDone()) {
+				try {
+					f.get();
+				}
+				catch (Exception ignored) {}
+			}
+		}
 	}
 
 	public static ExecutorService createExecutorService() {
