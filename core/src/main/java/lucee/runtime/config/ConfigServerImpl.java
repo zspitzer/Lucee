@@ -3812,6 +3812,9 @@ public final class ConfigServerImpl implements ConfigServerPro {
 	public Resource getLibraryDirectory() {
 		Resource dir = getConfigDir().getRealResource("lib");
 		if (!dir.exists()) dir.mkdir();
+		// LDEV-6627 a provider of the OSGiService is installed in this directory, so every caller has to hand it
+		// over: the ConfigServerImpl constructor alone is not enough, it is skipped when an essential config is reused
+		if (dir instanceof java.io.File) lucee.runtime.osgi.OSGi.setLibraryDirectory((java.io.File) dir);
 		return dir;
 	}
 

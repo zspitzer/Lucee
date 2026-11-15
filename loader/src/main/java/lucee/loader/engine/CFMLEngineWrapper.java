@@ -160,6 +160,31 @@ public class CFMLEngineWrapper implements CFMLEngine {
 		return this.engine;
 	}
 
+	/**
+	 * The BundleContext of the OSGi framework, for code that still passes it around (a CFML application
+	 * calling OSGiUtil.installBundle for example). Deliberately not part of CFMLEngine, OSGi moved into the
+	 * OSGi extension (LDEV-6627), so the engine is asked with reflection: a core that does not have it
+	 * returns null instead of failing, it is the same wrapper for every core version.
+	 *
+	 * @deprecated OSGi is provided by the OSGi extension, use {@link CFMLEngine#getOSGiService()}
+	 */
+	@Deprecated
+	public Object getBundleContext() {
+		CFMLEngine e = this.engine;
+		if (e == null) return null;
+		try {
+			java.lang.reflect.Method m = e.getClass().getMethod("getBundleContext");
+			return m.invoke(e);
+		}
+		catch (Throwable t) {
+			// the loader cannot use the core ExceptionUtil, ThreadDeath is the one thing that must never be caught
+			if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+			if (t.getCause() instanceof ThreadDeath) throw (ThreadDeath) t.getCause();
+			return null;
+		}
+	}
+
+
 	public boolean isIdentical(final CFMLEngine engine) {
 		return this.engine == engine;
 	}

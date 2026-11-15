@@ -1763,6 +1763,26 @@ public final class CFMLEngineImpl implements CFMLEngine {
 		return OSGi.get();
 	}
 
+	/**
+	 * The BundleContext of the OSGi framework, for code that still calls methods on it directly
+	 * (for example a CFML application that passes it to OSGiUtil). Not part of the loader interface,
+	 * the OSGi extension may or may not expose it, so it is looked up reflectively.
+	 *
+	 * @deprecated OSGi is provided by the OSGi extension, use {@link #getOSGiService()}
+	 */
+	@Deprecated
+	public Object getBundleContext() {
+		lucee.runtime.osgi.OSGiService s = OSGi.get();
+		try {
+			java.lang.reflect.Method m = s.getClass().getMethod("getBundleContext");
+			return m.invoke(s);
+		}
+		catch (Throwable t) {
+			ExceptionUtil.rethrowIfNecessary(t);
+			return null;
+		}
+	}
+
 	@Override
 	public ClassUtil getClassUtil() {
 		return new ClassUtilImpl();
